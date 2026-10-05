@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     exchange: sales.eventos          # exchange propio (solo si publica)
  *     cola: sales.q                    # cola propia (solo si consume)
  *     suscripciones:                   # exchange de origen → eventos que escucha
- *       "[trips.eventos]": [TripScheduled, TripUpdated]
+ *       "[trips.eventos]": [ViajeProgramado, ViajeActualizado]
  *     outbox:
  *       intervalo-ms: 1000
  *       lote: 100

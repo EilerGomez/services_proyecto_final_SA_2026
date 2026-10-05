@@ -48,7 +48,7 @@ formato). `comun` escribe esas piezas **una sola vez** y todos los servicios las
 
 | Sin `comun` (en cada servicio) | Con `comun` (lo que escribe el servicio) |
 | --- | --- |
-| Tabla outbox, job que publica, publisher confirms, reintentos | `publicador.publicar("Venta", id, "TicketSold", payload, fecha)` |
+| Tabla outbox, job que publica, publisher confirms, reintentos | `publicador.publicar("Venta", id, "BoletoVendido", payload, fecha)` |
 | Listener, leer JSON, despachar por tipo, transacción, control de duplicados, DLQ | Una clase que implementa `ManejadorEvento<T>` |
 | Declarar exchanges, colas, DLQ y bindings en Java | 5 líneas en `application.yml` |
 | Un `@RestControllerAdvice` propio y su formato de error | `throw new ConflictoException("ASIENTO_OCUPADO", "...")` |
@@ -222,8 +222,8 @@ comun:
     exchange: sales.eventos               # exchange propio → activa PublicadorEventos y RelayOutbox
     cola: sales.q                         # cola propia → activa ConsumidorEventos
     suscripciones:                        # exchange de otro servicio → eventos que escucha
-      "[identity.eventos]": [CustomerRegistered, ProfileUpdated, WalletDebited, WalletRejected, WalletRefunded]
-      "[trips.eventos]": [TripScheduled, TripUpdated, TripDeleted, TripStarted, RentalQuoteConfirmed]
+      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]
+      "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, CotizacionAlquilerConfirmada]
     outbox:
       intervalo-ms: 1000                  # opcional (por defecto 1000)
       lote: 100                           # opcional (por defecto 100)
@@ -302,18 +302,26 @@ SERVICIO PRODUCTOR (Sales)                                    SERVICIO CONSUMIDO
 | Concepto | Qué es en este proyecto |
 | --- | --- |
 | **Exchange** | Uno por servicio productor, tipo *topic*: `identity.eventos`, `fleet.eventos`, `trips.eventos`, `sales.eventos`, `maintenance.eventos` |
-| **Routing key** | El nombre del evento: `TicketSold`, `TripScheduled`, ... |
+| **Routing key** | El nombre del evento: `BoletoVendido`, `ViajeProgramado`, ... |
 | **Cola** | Una por servicio consumidor: `identity.q`, `sales.q`, `reporting.q`, ... |
 | **Binding** | "La cola X recibe del exchange Y los eventos Z" (se define en `comun.eventos.suscripciones`) |
 | **DLQ** | `<cola>.dlq`: donde terminan los mensajes que fallaron 4 veces o que no se pueden leer |
 | **Sobre** | El JSON común de todos los eventos (`EventoSobre`) |
+
+### Nombres de los eventos
+
+Convención de nombres (en español, PascalCase, sin tildes ni ñ): `<Sustantivo><Participio>` en pasado
+(`BoletoVendido`, `ViajeProgramado`). El nombre del evento es la routing key, el valor de `tipoEvento()` y el nombre
+recomendado del record del payload; el manejador se llama `Manejador<Evento>` (p. ej. `ManejadorBoletoVendido`).
+
+La lista completa (33 eventos, con su productor y consumidores) está en `CLAUDE.md` §8.
 
 ### El sobre (`EventoSobre`)
 
 ```json
 {
   "eventId": "5f1c7e0a-3b8e-4c55-9a1e-2d7b8f0c1a22",
-  "eventType": "TicketSold",
+  "eventType": "BoletoVendido",
   "version": 1,
   "aggregateId": "b7d4e2a1-0c9f-4e3b-8a6d-1f2e3c4d5e6f",
   "aggregateVersion": 3,
@@ -370,7 +378,7 @@ el evento se ignora. Si el manejador falla, el registro también se revierte y e
 4. `fechaNegocio` = la fecha que el usuario eligió en la pantalla (no `LocalDate.now()` si el usuario eligió otra).
 5. Para entidades que se actualizan (*Created / *Updated), enviar el **estado completo** y la versión.
 
-### Ejemplo completo (Sales publica `TicketSold`)
+### Ejemplo completo (Sales publica `BoletoVendido`)
 
 ```java
 package gt.cunoc.proyecto2.sales.venta.evento;
@@ -381,7 +389,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Payload de TicketSold. Campos según el catálogo de eventos. */
+/** Payload de BoletoVendido. Campos según el catálogo de eventos. */
 public record BoletoVendido(
         UUID ventaId, UUID viajeId, UUID rutaId, UUID busId, UUID sucursalId, String canal,
         UUID clienteUsuarioId, String clienteNit, String clienteNombre, String clienteCorreo,
@@ -423,7 +431,7 @@ public class ConfirmacionVentaService {
                 "Venta",                          // tipo de agregado
                 venta.getId(),                    // aggregateId
                 venta.getVersion(),               // aggregateVersion (campo @Version de la entidad)
-                "TicketSold",                     // tipo de evento = routing key
+                "BoletoVendido",                     // tipo de evento = routing key
                 new BoletoVendido(venta.getId(), venta.getViajeId(), /* ...resto de campos... */),
                 venta.getFechaPago());            // businessDate = fecha elegida por el usuario
     }                                             // COMMIT: venta + evento en eventos_salida
@@ -433,10 +441,10 @@ public class ConfirmacionVentaService {
 Si algo falla antes del `COMMIT`, ni la venta ni el evento se guardan. Si RabbitMQ está caído, el evento queda en
 `eventos_salida` y sale cuando vuelva.
 
-Para eventos sin versión (por ejemplo `RouteDeleted`) se usa la sobrecarga corta:
+Para eventos sin versión (por ejemplo `RutaEliminada`) se usa la sobrecarga corta:
 
 ```java
-publicador.publicar("Ruta", rutaId, "RouteDeleted", new RutaEliminada(rutaId), fechaNegocio);
+publicador.publicar("Ruta", rutaId, "RutaEliminada", new RutaEliminada(rutaId), fechaNegocio);
 ```
 
 ### Ver qué pasó con un evento publicado
@@ -474,7 +482,7 @@ FROM eventos_salida WHERE fecha_publicacion IS NULL ORDER BY fecha_creacion;
 4. Convierte `payload` al record de `tipoPayload()`. Si es incompatible → DLQ.
 5. Llama a `manejar(...)`.
 
-### Ejemplo completo (Sales consume `TripScheduled` para su copia local de viajes)
+### Ejemplo completo (Sales consume `ViajeProgramado` para su copia local de viajes)
 
 ```java
 package gt.cunoc.proyecto2.sales.viaje.evento;
@@ -484,7 +492,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Solo los campos de TripScheduled que Sales necesita. */
+/** Solo los campos de ViajeProgramado que Sales necesita. */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ViajeProgramado(
         UUID viajeId, String tipo, UUID rutaId, UUID sucursalId,
@@ -504,19 +512,19 @@ import gt.cunoc.proyecto2.sales.viaje.VistaViajeRepository;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ViajeProgramadoHandler implements ManejadorEvento<ViajeProgramado> {
+public class ManejadorViajeProgramado implements ManejadorEvento<ViajeProgramado> {
 
     private final VistaViajeRepository viajes;
     private final AsientoService asientos;
 
-    public ViajeProgramadoHandler(VistaViajeRepository viajes, AsientoService asientos) {
+    public ManejadorViajeProgramado(VistaViajeRepository viajes, AsientoService asientos) {
         this.viajes = viajes;
         this.asientos = asientos;
     }
 
     @Override
     public String tipoEvento() {
-        return "TripScheduled";
+        return "ViajeProgramado";
     }
 
     @Override
@@ -572,19 +580,19 @@ en la misma transacción.
 Sales                                   RabbitMQ                                Identity
   │ reserva asientos                                                               │
   │ venta PENDIENTE_PAGO                                                           │
-  │ publicar(WalletDebitRequested) ──► sales.eventos ──► identity.q ──────────────► │ SolicitudDebitoHandler:
+  │ publicar(DebitoCarteraSolicitado) ──► sales.eventos ──► identity.q ──────────────► │ ManejadorDebitoCarteraSolicitado:
   │                                                                                │   debita la cartera
-  │ ◄── sales.q ◄── identity.eventos ◄── publicar(WalletDebited / WalletRejected) ─ │
-  │ WalletDebitedHandler:                                                          │
+  │ ◄── sales.q ◄── identity.eventos ◄── publicar(CarteraDebitada / DebitoCarteraRechazado) ─ │
+  │ ManejadorCarteraDebitada:                                                          │
   │   asientos VENDIDO, venta CONFIRMADA                                           │
-  │   publicar(TicketSold) ──► reporting.q, notification.q                         │
+  │   publicar(BoletoVendido) ──► reporting.q, notification.q                         │
 ```
 
 Manejador en Identity:
 
 ```java
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record SolicitudDebito(String referenciaTipo, UUID referenciaId, UUID usuarioId,
+public record DebitoCarteraSolicitado(String referenciaTipo, UUID referenciaId, UUID usuarioId,
                               BigDecimal monto, LocalDate fechaMovimiento) {
 }
 
@@ -592,41 +600,41 @@ public record CarteraDebitada(UUID movimientoId, String referenciaTipo, UUID ref
                               BigDecimal monto, BigDecimal saldoResultante, LocalDate fechaMovimiento) {
 }
 
-public record DebitoRechazado(String referenciaTipo, UUID referenciaId, UUID usuarioId,
+public record DebitoCarteraRechazado(String referenciaTipo, UUID referenciaId, UUID usuarioId,
                               BigDecimal monto, String motivo) {
 }
 
 @Component
-public class SolicitudDebitoHandler implements ManejadorEvento<SolicitudDebito> {
+public class ManejadorDebitoCarteraSolicitado implements ManejadorEvento<DebitoCarteraSolicitado> {
 
     private final CarteraService carteras;
     private final PublicadorEventos publicador;
 
-    public SolicitudDebitoHandler(CarteraService carteras, PublicadorEventos publicador) {
+    public ManejadorDebitoCarteraSolicitado(CarteraService carteras, PublicadorEventos publicador) {
         this.carteras = carteras;
         this.publicador = publicador;
     }
 
     @Override
-    public String tipoEvento() { return "WalletDebitRequested"; }
+    public String tipoEvento() { return "DebitoCarteraSolicitado"; }
 
     @Override
-    public Class<SolicitudDebito> tipoPayload() { return SolicitudDebito.class; }
+    public Class<DebitoCarteraSolicitado> tipoPayload() { return DebitoCarteraSolicitado.class; }
 
     @Override
-    public void manejar(EventoRecibido<SolicitudDebito> evento) {
-        SolicitudDebito s = evento.payload();
+    public void manejar(EventoRecibido<DebitoCarteraSolicitado> evento) {
+        DebitoCarteraSolicitado s = evento.payload();
         Optional<MovimientoCartera> mov = carteras.intentarDebitar(s.usuarioId(), s.monto(),
                 s.referenciaTipo(), s.referenciaId(), s.fechaMovimiento());
 
         if (mov.isPresent()) {
-            publicador.publicar("Cartera", s.usuarioId(), "WalletDebited",
+            publicador.publicar("Cartera", s.usuarioId(), "CarteraDebitada",
                     new CarteraDebitada(mov.get().getId(), s.referenciaTipo(), s.referenciaId(), s.usuarioId(),
                             s.monto(), mov.get().getSaldoResultante(), s.fechaMovimiento()),
                     evento.businessDate());
         } else {
-            publicador.publicar("Cartera", s.usuarioId(), "WalletRejected",
-                    new DebitoRechazado(s.referenciaTipo(), s.referenciaId(), s.usuarioId(), s.monto(),
+            publicador.publicar("Cartera", s.usuarioId(), "DebitoCarteraRechazado",
+                    new DebitoCarteraRechazado(s.referenciaTipo(), s.referenciaId(), s.usuarioId(), s.monto(),
                             "SALDO_INSUFICIENTE"),
                     evento.businessDate());
         }
@@ -638,7 +646,7 @@ public class SolicitudDebitoHandler implements ManejadorEvento<SolicitudDebito> 
   si algo falla, no queda un débito sin respuesta ni una respuesta sin débito.
 - El `correlationId` del evento recibido se copia solo al evento publicado, así toda la saga comparte el mismo id
   en los logs.
-- `WalletRejected` **no es un error**: es una respuesta válida de negocio. No se lanza excepción (eso causaría
+- `DebitoCarteraRechazado` **no es un error**: es una respuesta válida de negocio. No se lanza excepción (eso causaría
   reintentos y DLQ); se publica el evento de rechazo.
 
 ---
@@ -940,7 +948,7 @@ String token = jwt.generar(new UsuarioActual(UUID.randomUUID(), "admin@test.com"
 Los manejadores son clases normales: se pueden probar llamando a `manejar(...)` con un `EventoRecibido` armado a mano.
 
 ```java
-var evento = new EventoRecibido<>(UUID.randomUUID(), "TripScheduled", 1, viajeId, 1L,
+var evento = new EventoRecibido<>(UUID.randomUUID(), "ViajeProgramado", 1, viajeId, 1L,
         Instant.now(), LocalDate.now(), UUID.randomUUID(),
         new ViajeProgramado(viajeId, "REGULAR", /* ... */));
 handler.manejar(evento);
@@ -970,7 +978,7 @@ handler.manejar(evento);
 - Poner entidades, repositorios, DTOs o reglas de negocio en `comun`.
 - Compartir los records de payload entre servicios.
 - Atrapar excepciones dentro de un `ManejadorEvento` para "evitar" el reintento (se perdería el mensaje).
-- Lanzar una excepción para una respuesta de negocio válida (por ejemplo saldo insuficiente → publicar `WalletRejected`).
+- Lanzar una excepción para una respuesta de negocio válida (por ejemplo saldo insuficiente → publicar `DebitoCarteraRechazado`).
 - Construir respuestas de error a mano en los controladores.
 - Poner datos sensibles en el JWT o en los eventos.
 

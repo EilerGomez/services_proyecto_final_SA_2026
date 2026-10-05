@@ -40,8 +40,8 @@ comun:
     exchange: fleet.eventos            # publica en este exchange (outbox)
     cola: fleet.q
     suscripciones:
-      "[identity.eventos]": [BranchCreated, BranchUpdated, ProfileUpdated]
-      "[trips.eventos]": [TripStarted, TripCompleted]
+      "[identity.eventos]": [SucursalCreada, SucursalActualizada, PerfilActualizado]
+      "[trips.eventos]": [ViajeIniciado, ViajeCompletado]
 
 app:
   jwt:

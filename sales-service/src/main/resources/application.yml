@@ -40,8 +40,8 @@ comun:
     exchange: sales.eventos            # publica en este exchange (outbox)
     cola: sales.q
     suscripciones:
-      "[identity.eventos]": [CustomerRegistered, ProfileUpdated, WalletDebited, WalletRejected, WalletRefunded]
-      "[trips.eventos]": [TripScheduled, TripUpdated, TripDeleted, TripStarted, RentalQuoteConfirmed]
+      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]
+      "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, CotizacionAlquilerConfirmada]
 
 app:
   jwt:

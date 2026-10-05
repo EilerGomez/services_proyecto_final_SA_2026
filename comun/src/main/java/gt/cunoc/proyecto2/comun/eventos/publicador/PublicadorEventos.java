@@ -40,7 +40,7 @@ public class PublicadorEventos {
     /**
      * @param tipoAgregado  p. ej. "Venta", "Viaje"
      * @param agregadoId    id principal (va como aggregateId)
-     * @param tipoEvento    p. ej. "TicketSold" (es la routing key)
+     * @param tipoEvento    p. ej. "BoletoVendido" (es la routing key)
      * @param payload       record con los datos del catálogo de eventos
      * @param fechaNegocio  fecha elegida por el usuario
      */

@@ -45,10 +45,10 @@ comun:
     # sin exchange: este servicio no publica eventos
     cola: notification.q
     suscripciones:
-      "[identity.eventos]": [AccountCreated, PasswordResetRequested]
-      "[fleet.eventos]": [DriverLicenseUpdated]
-      "[trips.eventos]": [RentalQuoteConfirmed]
-      "[sales.eventos]": [TicketSold, SaleCancelled, RentalPaid]
+      "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada]
+      "[fleet.eventos]": [LicenciaChoferActualizada]
+      "[trips.eventos]": [CotizacionAlquilerConfirmada]
+      "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]
 
 app:
   jwt:

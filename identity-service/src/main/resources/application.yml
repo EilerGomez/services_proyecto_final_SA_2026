@@ -40,8 +40,8 @@ comun:
     exchange: identity.eventos            # publica en este exchange (outbox)
     cola: identity.q
     suscripciones:
-      "[sales.eventos]": [WalletDebitRequested, WalletRefundRequested]
-      "[fleet.eventos]": [DriverDeactivated]
+      "[sales.eventos]": [DebitoCarteraSolicitado, ReembolsoCarteraSolicitado]
+      "[fleet.eventos]": [ChoferDesactivado]
 
 app:
   jwt:

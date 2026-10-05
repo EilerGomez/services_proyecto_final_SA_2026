@@ -9,7 +9,7 @@ import java.util.UUID;
  * y el que se guarda en la columna {@code eventos_salida.datos}.
  *
  * @param eventId          id único del evento (idempotencia en el consumidor)
- * @param eventType        nombre del evento = routing key (p. ej. "TicketSold")
+ * @param eventType        nombre del evento = routing key (p. ej. "BoletoVendido")
  * @param version          versión del esquema del evento (sube solo si se quita o renombra un campo)
  * @param aggregateId      id principal del payload (ventaId, viajeId, ...)
  * @param aggregateVersion versión del agregado para descartar eventos desordenados (puede ser null)

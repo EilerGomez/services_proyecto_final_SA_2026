@@ -40,11 +40,11 @@ comun:
     # sin exchange: este servicio no publica eventos
     cola: reporting.q
     suscripciones:
-      "[identity.eventos]": [BranchCreated, BranchUpdated, DepreciationRateChanged]
-      "[fleet.eventos]": [BusCreated, BusUpdated, BusDeactivated, DriverCreated, DriverUpdated, DriverDeactivated]
-      "[trips.eventos]": [RouteCreated, RouteUpdated, RouteDeleted, TripScheduled, TripUpdated, TripDeleted, TripStarted, TripCompleted]
-      "[sales.eventos]": [TicketSold, SaleCancelled, RentalPaid]
-      "[maintenance.eventos]": [MaintenanceExpenseRecorded, ExpenseCategoryUpdated]
+      "[identity.eventos]": [SucursalCreada, SucursalActualizada, TarifaDepreciacionCambiada]
+      "[fleet.eventos]": [BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
+      "[trips.eventos]": [RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, ViajeCompletado]
+      "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]
+      "[maintenance.eventos]": [GastoTallerRegistrado, CategoriaGastoActualizada]
 
 app:
   jwt:

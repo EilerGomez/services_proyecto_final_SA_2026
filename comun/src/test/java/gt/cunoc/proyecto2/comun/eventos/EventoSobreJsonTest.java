@@ -28,7 +28,7 @@ class EventoSobreJsonTest {
     @Test
     void elSobreSeSerializaYSeLeeSinPerderDatos() {
         UUID ventaId = UUID.randomUUID();
-        EventoSobre original = new EventoSobre(UUID.randomUUID(), "TicketSold", 1, ventaId, 3L,
+        EventoSobre original = new EventoSobre(UUID.randomUUID(), "BoletoVendido", 1, ventaId, 3L,
                 Instant.parse("2026-10-20T15:30:12Z"), LocalDate.parse("2026-10-20"), UUID.randomUUID(),
                 new BoletoVendido(ventaId, List.of(12, 13), new BigDecimal("150.00"), "CARTERA"));
 
@@ -37,7 +37,7 @@ class EventoSobreJsonTest {
 
         assertThat(texto).contains("\"businessDate\":\"2026-10-20\"");
         assertThat(leido.eventId()).isEqualTo(original.eventId());
-        assertThat(leido.eventType()).isEqualTo("TicketSold");
+        assertThat(leido.eventType()).isEqualTo("BoletoVendido");
         assertThat(leido.aggregateVersion()).isEqualTo(3L);
         assertThat(leido.occurredAt()).isEqualTo(original.occurredAt());
         assertThat(leido.businessDate()).isEqualTo(original.businessDate());

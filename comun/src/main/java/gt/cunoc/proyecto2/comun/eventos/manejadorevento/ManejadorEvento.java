@@ -10,7 +10,7 @@ import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
  * <pre>
  * &#64;Component
  * class ViajeProgramadoHandler implements ManejadorEvento&lt;ViajeProgramado&gt; {
- *     public String tipoEvento() { return "TripScheduled"; }
+ *     public String tipoEvento() { return "ViajeProgramado"; }
  *     public Class&lt;ViajeProgramado&gt; tipoPayload() { return ViajeProgramado.class; }
  *     public void manejar(EventoRecibido&lt;ViajeProgramado&gt; e) { ... }
  * }
@@ -18,7 +18,7 @@ import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
  */
 public interface ManejadorEvento<T> {
 
-    /** Nombre del evento, igual a la routing key (p. ej. "TripScheduled"). */
+    /** Nombre del evento, igual a la routing key (p. ej. "ViajeProgramado"). */
     String tipoEvento();
 
     /** Record del payload, con solo los campos que este servicio usa. */

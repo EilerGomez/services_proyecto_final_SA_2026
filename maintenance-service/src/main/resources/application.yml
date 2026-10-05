@@ -40,7 +40,7 @@ comun:
     exchange: maintenance.eventos            # publica en este exchange (outbox)
     cola: maintenance.q
     suscripciones:
-      "[fleet.eventos]": [BusCreated, BusUpdated, BusDeactivated]
+      "[fleet.eventos]": [BusCreado, BusActualizado, BusDesactivado]
 
 app:
   jwt:
