@@ -33,5 +33,15 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- Cobertura de pruebas: la configuración (versión, reporte y mínimo 85 %) está en el POM padre -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
     <!-- SIN spring-boot-maven-plugin: comun es una librería, no una aplicación -->
 </project>

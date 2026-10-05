@@ -916,17 +916,50 @@ El frontend puede enviar su propio `X-Correlation-Id` para relacionar un clic co
 
 ## 14. Pruebas
 
-### Pruebas de `comun`
+### Pruebas de `comun` y cobertura (JaCoCo, mínimo 85 %)
 
 ```bash
-mvn -B -pl comun test
+mvn -B -pl comun test      # corre las pruebas y genera el reporte de cobertura
+mvn -B -pl comun verify    # además FALLA si la cobertura de líneas es menor al 85 %
 ```
 
-| Clase | Qué prueba |
+Reporte: `comun/target/site/jacoco/index.html` (abrir en el navegador; muestra en verde/rojo qué líneas se ejecutaron).
+
+- JaCoCo se configura una sola vez en el **POM padre** (`<pluginManagement>`): versión, reporte en la fase `test`
+  y `jacoco:check` en la fase `verify` con la propiedad `jacoco.cobertura.minima` (0.85).
+- Cada módulo lo **activa** agregando en su `pom.xml`:
+  ```xml
+  <build><plugins>
+      <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId></plugin>
+  </plugins></build>
+  ```
+- Se excluyen las clases `*Application` (el `main` de cada servicio).
+- Las pruebas de `comun` son **unitarias** (JUnit 5 + Mockito + AssertJ, incluidos en `spring-boot-starter-test`):
+  no levantan Spring, ni PostgreSQL, ni RabbitMQ. `JdbcTemplate`, `RabbitTemplate` y el gestor de transacciones
+  se simulan con Mockito; las peticiones HTTP con `MockHttpServletRequest`.
+- Las clases de prueba están en el **mismo paquete** que la clase que prueban (`.../eventos/outbox/RelayOutboxTest`).
+
+| Clase de prueba | Qué prueba |
 | --- | --- |
-| `ServicioJwtTest` | Generar y validar; token alterado; otro secreto; expirado; texto que no es token; secreto corto |
-| `UsuarioActualTest` | Acceso por sucursal (admin de sucursal vs admin de sistema) |
-| `EventoSobreJsonTest` | El sobre se serializa y se lee sin perder datos; el payload se convierte al record del consumidor |
+| `errores.ExcepcionesTest` | Status y código de las 7 excepciones, con y sin código propio |
+| `errores.ErrorRespuestaTest` | Lista de errores vacía por defecto e inmutable |
+| `errores.EscritorErroresTest` | Construcción de la respuesta, correlationId y escritura JSON desde un filtro |
+| `errores.ManejadorGlobalErroresTest` | Cada tipo de error → su HTTP y código (validación, JSON, 404, 405, triggers P0001, duplicados, FK, 500) |
+| `eventos.contextocorrelacion.ContextoCorrelacionTest` | Establecer, leer, generar y limpiar el id (incluido el MDC) |
+| `eventos.sobre.EventoSobreJsonTest` | El sobre se serializa y se lee sin perder datos; payload al record del consumidor |
+| `eventos.propiedadesevento.PropiedadesEventosTest` | Valores por defecto de la configuración |
+| `eventos.configuracion.ConfiguracionEventosTest` | Exchange, cola, DLQ y bindings según el yml; servicios que solo publican o solo consumen |
+| `eventos.publicador.PublicadorEventosTest` | Inserta el sobre completo en el outbox; versión, fecha y correlación; datos obligatorios |
+| `eventos.outbox.RelayOutboxTest` | Publica y marca; nack detiene el lote; error recortado a 1000 caracteres; sin pendientes |
+| `eventos.consumidor.ConsumidorEventosTest` | Despacho tipado, correlación, duplicados, sin manejador, JSON inválido, payload incompatible, manejadores repetidos |
+| `idempotencia.ProcesadorIdempotenteTest` | Primera vez ejecuta; repetido no ejecuta |
+| `seguridad.service.ServicioJwtTest` | Generar/validar, chofer, alterado, otro secreto, expirado, `alg: none`, sin `exp`, `sub` inválido, roles inválidos, secreto corto |
+| `seguridad.users.UsuarioActualTest` | Roles y acceso por sucursal |
+| `seguridad.users.InterceptorRolesTest` | Público, 401 sin sesión, 403 sin rol, rol correcto, anotación en la clase |
+| `seguridad.users.ResolverUsuarioActualTest` | Inyección de `UsuarioActual`, 401 si falta, nulo si el parámetro es opcional |
+| `seguridad.filtro.FiltroCorrelacionTest` | Header válido, ausente e inválido |
+| `seguridad.filtro.FiltroAutenticacionTest` | Token válido, inválido (401), sin token y otro tipo de autorización |
+| `seguridad.config.ConfiguracionSeguridadWebTest` | Registro del resolver y del interceptor |
 
 ### Probar un endpoint protegido en un servicio
 
