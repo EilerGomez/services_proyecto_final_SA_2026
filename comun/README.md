@@ -10,6 +10,33 @@ Librería técnica compartida por los 7 microservicios (no por el api-gateway, q
 | `errores` | `ErrorRespuesta`, excepciones de negocio y `ManejadorGlobalErrores` (incluye errores de triggers) |
 | `seguridad` | `ServicioJwt` (HS256), filtro que lee el JWT, `UsuarioActual`, `@RequiereRol`, `Roles` |
 
+## Imports (paquetes)
+
+```java
+// eventos
+import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
+import gt.cunoc.proyecto2.comun.eventos.manejadorevento.ManejadorEvento;
+import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
+import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
+// (internos: eventos.outbox.RelayOutbox, eventos.consumidor.ConsumidorEventos,
+//  eventos.configuracion.ConfiguracionEventos, eventos.propiedadesevento.PropiedadesEventos)
+
+// idempotencia
+import gt.cunoc.proyecto2.comun.idempotencia.ProcesadorIdempotente;
+
+// errores
+import gt.cunoc.proyecto2.comun.errores.*;   // NoEncontradoException, ConflictoException, ...
+
+// seguridad
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
+import gt.cunoc.proyecto2.comun.seguridad.service.ServicioJwt;          // solo Identity (login)
+// (internos: seguridad.filtro.*, seguridad.config.ConfiguracionSeguridadWeb,
+//  seguridad.users.InterceptorRoles, seguridad.users.ResolverUsuarioActual)
+```
+
 ## Requisitos en cada servicio
 
 - `@SpringBootApplication(scanBasePackages = {"gt.cunoc.proyecto2.<servicio>", "gt.cunoc.proyecto2.comun"})`
