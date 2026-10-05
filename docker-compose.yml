@@ -1,0 +1,145 @@
+# =====================================================================
+# docker-compose.yml · Proyecto 2 (servicios)
+# PostgreSQL NO está aquí: corre fuera de Docker en cada máquina / VM.
+#
+# Desarrollo local (servicios desde NetBeans):
+#   docker compose up -d                       -> solo RabbitMQ y Mailpit
+# Todo en Docker (después de: mvn -DskipTests package):
+#   docker compose --profile app up -d --build
+# VM, dos entornos:
+#   docker compose -p dev  --env-file .env.dev  --profile app up -d
+#   docker compose -p prod --env-file .env.prod --profile app up -d
+# =====================================================================
+
+name: proyecto2
+
+# ---------- Configuración común de los servicios Java ----------
+x-env-comun: &env-comun
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
+  DB_HOST: ${DB_HOST:-host.docker.internal}
+  RABBIT_HOST: rabbitmq
+  RABBIT_USER: ${RABBIT_USER:-proyecto2}
+  RABBIT_PASSWORD: ${RABBIT_PASSWORD:-proyecto2}
+  JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET en el archivo .env}
+  JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:+UseSerialGC"
+
+x-servicio-java: &servicio-java
+  profiles: ["app"]
+  restart: unless-stopped
+  mem_limit: 400m
+  extra_hosts:
+    - "host.docker.internal:host-gateway"   # para llegar al PostgreSQL de la máquina
+  depends_on:
+    rabbitmq:
+      condition: service_healthy
+
+services:
+
+  # ---------- Infraestructura ----------
+  rabbitmq:
+    image: rabbitmq:4-management
+    restart: unless-stopped
+    mem_limit: 300m
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-proyecto2}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-proyecto2}
+    ports:
+      - "127.0.0.1:${RABBIT_PORT:-5672}:5672"        # servicios corriendo desde NetBeans
+      - "127.0.0.1:${RABBIT_UI_PORT:-15672}:15672"   # panel web (en la VM, por túnel SSH)
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:                                  # buzón de prueba: captura los correos sin enviarlos
+    image: axllent/mailpit
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+
+  # ---------- Entrada única ----------
+  api-gateway:
+    <<: *servicio-java
+    build: ./api-gateway
+    image: ${REGISTRY:-ghcr.io/usuario}/api-gateway:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"        # el único puerto público de la aplicación
+
+  # ---------- Microservicios ----------
+  identity-service:
+    <<: *servicio-java
+    build: ./identity-service
+    image: ${REGISTRY:-ghcr.io/usuario}/identity-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_identidad${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
+
+  fleet-service:
+    <<: *servicio-java
+    build: ./fleet-service
+    image: ${REGISTRY:-ghcr.io/usuario}/fleet-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_flota${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_FLOTA_PASSWORD:-cambiar_flota}
+
+  trips-service:
+    <<: *servicio-java
+    build: ./trips-service
+    image: ${REGISTRY:-ghcr.io/usuario}/trips-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_viajes${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_VIAJES_PASSWORD:-cambiar_viajes}
+
+  sales-service:
+    <<: *servicio-java
+    build: ./sales-service
+    image: ${REGISTRY:-ghcr.io/usuario}/sales-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_ventas${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_VENTAS_PASSWORD:-cambiar_ventas}
+
+  maintenance-service:
+    <<: *servicio-java
+    build: ./maintenance-service
+    image: ${REGISTRY:-ghcr.io/usuario}/maintenance-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_mantenimiento${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_MANTENIMIENTO_PASSWORD:-cambiar_mantenimiento}
+
+  reporting-service:
+    <<: *servicio-java
+    build: ./reporting-service
+    image: ${REGISTRY:-ghcr.io/usuario}/reporting-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_reportes${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_REPORTES_PASSWORD:-cambiar_reportes}
+
+  notification-service:
+    <<: *servicio-java
+    build: ./notification-service
+    image: ${REGISTRY:-ghcr.io/usuario}/notification-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_notificaciones${DB_SUFIJO:-}
+      DB_PASSWORD: ${DB_NOTIFICACIONES_PASSWORD:-cambiar_notificaciones}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+
+volumes:
+  rabbit_data:
