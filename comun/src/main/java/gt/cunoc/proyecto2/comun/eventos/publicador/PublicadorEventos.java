@@ -1,5 +1,7 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.publicador;
 
+import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;

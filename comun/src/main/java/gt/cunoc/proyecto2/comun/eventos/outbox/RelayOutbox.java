@@ -1,5 +1,6 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.outbox;
 
+import gt.cunoc.proyecto2.comun.eventos.propiedadesevento.PropiedadesEventos;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;

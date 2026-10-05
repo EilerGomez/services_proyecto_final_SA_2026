@@ -1,6 +1,6 @@
 package gt.cunoc.proyecto2.comun.errores;
 
-import gt.cunoc.proyecto2.comun.eventos.ContextoCorrelacion;
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;

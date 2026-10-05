@@ -1,4 +1,4 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.recibido;
 
 import java.time.Instant;
 import java.time.LocalDate;

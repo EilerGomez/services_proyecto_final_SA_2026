@@ -1,5 +1,7 @@
 package gt.cunoc.proyecto2.comun.seguridad;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

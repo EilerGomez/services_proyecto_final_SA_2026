@@ -1,6 +1,6 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.filtro;
 
-import gt.cunoc.proyecto2.comun.eventos.ContextoCorrelacion;
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

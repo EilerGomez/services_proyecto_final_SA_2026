@@ -1,5 +1,9 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.consumidor;
 
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
+import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
+import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
+import gt.cunoc.proyecto2.comun.eventos.manejadorevento.ManejadorEvento;
 import gt.cunoc.proyecto2.comun.idempotencia.ProcesadorIdempotente;
 import java.util.HashMap;
 import java.util.Map;

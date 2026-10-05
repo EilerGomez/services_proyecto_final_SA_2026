@@ -1,5 +1,6 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.users;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
 import java.util.Set;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.propiedadesevento;
 
 import java.util.List;
 import java.util.Map;

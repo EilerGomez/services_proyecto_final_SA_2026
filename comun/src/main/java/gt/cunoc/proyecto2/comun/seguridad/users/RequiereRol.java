@@ -1,4 +1,4 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.users;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

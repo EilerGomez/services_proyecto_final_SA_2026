@@ -1,4 +1,4 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.contextocorrelacion;
 
 import java.util.Optional;
 import java.util.UUID;

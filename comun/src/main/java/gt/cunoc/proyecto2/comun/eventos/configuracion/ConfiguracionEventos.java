@@ -1,5 +1,6 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.configuracion;
 
+import gt.cunoc.proyecto2.comun.eventos.propiedadesevento.PropiedadesEventos;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.amqp.core.BindingBuilder;

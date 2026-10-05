@@ -1,4 +1,6 @@
-package gt.cunoc.proyecto2.comun.eventos;
+package gt.cunoc.proyecto2.comun.eventos.manejadorevento;
+
+import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
 
 /**
  * Implementar como @Component en el servicio consumidor, uno por tipo de evento.

@@ -1,5 +1,7 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.config;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.InterceptorRoles;
+import gt.cunoc.proyecto2.comun.seguridad.users.ResolverUsuarioActual;
 import java.util.List;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;

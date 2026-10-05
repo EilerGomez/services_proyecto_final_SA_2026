@@ -1,5 +1,6 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.filtro;
 
+import gt.cunoc.proyecto2.comun.seguridad.service.ServicioJwt;
 import gt.cunoc.proyecto2.comun.errores.EscritorErrores;
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
 import jakarta.servlet.FilterChain;

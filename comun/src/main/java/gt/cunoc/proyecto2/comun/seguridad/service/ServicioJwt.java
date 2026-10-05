@@ -1,5 +1,6 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.service;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;

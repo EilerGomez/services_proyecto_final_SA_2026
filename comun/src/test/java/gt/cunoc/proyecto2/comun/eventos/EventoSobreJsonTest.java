@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.comun.eventos;
 
+import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

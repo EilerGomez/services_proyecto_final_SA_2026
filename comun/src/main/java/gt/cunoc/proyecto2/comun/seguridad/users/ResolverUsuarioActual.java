@@ -1,6 +1,7 @@
-package gt.cunoc.proyecto2.comun.seguridad;
+package gt.cunoc.proyecto2.comun.seguridad.users;
 
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
+import gt.cunoc.proyecto2.comun.seguridad.filtro.FiltroAutenticacion;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
