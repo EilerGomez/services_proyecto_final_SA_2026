@@ -1,0 +1,9 @@
+gateway:
+  services:
+    identity-url: ${IDENTITY_URL:http://identity-service:8081}
+    fleet-url: ${FLEET_URL:http://fleet-service:8082}
+    trips-url: ${TRIPS_URL:http://trips-service:8083}
+    sales-url: ${SALES_URL:http://sales-service:8084}
+    maintenance-url: ${MAINTENANCE_URL:http://maintenance-service:8085}
+    reporting-url: ${REPORTING_URL:http://reporting-service:8086}
+    notification-url: ${NOTIFICATION_URL:http://notification-service:8087}

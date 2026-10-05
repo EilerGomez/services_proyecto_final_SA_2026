@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -8,43 +8,139 @@ spring:
     gateway:
       server:
         webflux:
-          globalcors:
-            cors-configurations:
-              '[/**]':
-                allowedOrigins: ${FRONTEND_URL:http://localhost:5173}
-                allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-                allowedHeaders: "*"
-                allowCredentials: true
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+          httpclient:
+            connect-timeout: ${gateway.timeouts.connect-timeout}
+            response-timeout: ${gateway.timeouts.response-timeout}
           # Local (servicios en el IDE): localhost. En Docker: nombre del servicio (variables *_URL del compose)
           routes:
-            - id: identity
-              uri: ${IDENTITY_URL:http://localhost:8081}
-              predicates: [ "Path=/identity/**" ]
-            - id: fleet
-              uri: ${FLEET_URL:http://localhost:8082}
-              predicates: [ "Path=/fleet/**" ]
-            - id: trips
-              uri: ${TRIPS_URL:http://localhost:8083}
-              predicates: [ "Path=/trips/**" ]
-            - id: sales
-              uri: ${SALES_URL:http://localhost:8084}
-              predicates: [ "Path=/sales/**" ]
-            - id: maintenance
-              uri: ${MAINTENANCE_URL:http://localhost:8085}
-              predicates: [ "Path=/maintenance/**" ]
-            - id: reporting
-              uri: ${REPORTING_URL:http://localhost:8086}
-              predicates: [ "Path=/reports/**" ]
-            - id: notification
-              uri: ${NOTIFICATION_URL:http://localhost:8087}
-              predicates: [ "Path=/notifications/**" ]
+            - id: identity-service
+              uri: ${gateway.services.identity-url}
+              predicates:
+                - Path=/identity/**
+            - id: fleet-service
+              uri: ${gateway.services.fleet-url}
+              predicates:
+                - Path=/fleet/**
+            - id: trips-service
+              uri: ${gateway.services.trips-url}
+              predicates:
+                - Path=/trips/**
+            - id: sales-service
+              uri: ${gateway.services.sales-url}
+              predicates:
+                - Path=/sales/**
+            - id: maintenance-service
+              uri: ${gateway.services.maintenance-url}
+              predicates:
+                - Path=/maintenance/**
+            - id: reporting-service
+              uri: ${gateway.services.reporting-url}
+              predicates:
+                - Path=/reports/**
+            - id: notification-service
+              uri: ${gateway.services.notification-url}
+              predicates:
+                - Path=/notifications/**
+            - id: identity-openapi
+              uri: ${gateway.services.identity-url}
+              predicates:
+                - Path=/v3/api-docs/identity
+              filters:
+                - SetPath=/v3/api-docs
+            - id: fleet-openapi
+              uri: ${gateway.services.fleet-url}
+              predicates:
+                - Path=/v3/api-docs/fleet
+              filters:
+                - SetPath=/v3/api-docs
+            - id: trips-openapi
+              uri: ${gateway.services.trips-url}
+              predicates:
+                - Path=/v3/api-docs/trips
+              filters:
+                - SetPath=/v3/api-docs
+            - id: sales-openapi
+              uri: ${gateway.services.sales-url}
+              predicates:
+                - Path=/v3/api-docs/sales
+              filters:
+                - SetPath=/v3/api-docs
+            - id: maintenance-openapi
+              uri: ${gateway.services.maintenance-url}
+              predicates:
+                - Path=/v3/api-docs/maintenance
+              filters:
+                - SetPath=/v3/api-docs
+            - id: reporting-openapi
+              uri: ${gateway.services.reporting-url}
+              predicates:
+                - Path=/v3/api-docs/reporting
+              filters:
+                - SetPath=/v3/api-docs
+            - id: notification-openapi
+              uri: ${gateway.services.notification-url}
+              predicates:
+                - Path=/v3/api-docs/notification
+              filters:
+                - SetPath=/v3/api-docs
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWT_JWK_SET_URI:}
+          issuer-uri: ${JWT_ISSUER_URI:}
+
+gateway:
+  services:
+    identity-url: ${IDENTITY_URL:http://localhost:8081}
+    fleet-url: ${FLEET_URL:http://localhost:8082}
+    trips-url: ${TRIPS_URL:http://localhost:8083}
+    sales-url: ${SALES_URL:http://localhost:8084}
+    maintenance-url: ${MAINTENANCE_URL:http://localhost:8085}
+    reporting-url: ${REPORTING_URL:http://localhost:8086}
+    notification-url: ${NOTIFICATION_URL:http://localhost:8087}
+  allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:${FRONTEND_URL:http://localhost:5173}}
+  security:
+    enabled: ${GATEWAY_SECURITY_ENABLED:false}
+  timeouts:
+    connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
+    response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:30s}
 
 app:
   jwt:
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
 
+springdoc:
+  swagger-ui:
+    disable-swagger-default-url: true
+    urls:
+      - name: identity-service
+        url: /v3/api-docs/identity
+      - name: fleet-service
+        url: /v3/api-docs/fleet
+      - name: trips-service
+        url: /v3/api-docs/trips
+      - name: sales-service
+        url: /v3/api-docs/sales
+      - name: maintenance-service
+        url: /v3/api-docs/maintenance
+      - name: reporting-service
+        url: /v3/api-docs/reporting
+      - name: notification-service
+        url: /v3/api-docs/notification
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      access: read-only
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: ${GATEWAY_LOG_LEVEL:INFO}
