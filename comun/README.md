@@ -139,6 +139,59 @@ public class BusController {
 - `@Parameter(hidden = true)` (springdoc) evita que `UsuarioActual` aparezca en Swagger.
 - Identity genera el token con `servicioJwt.generar(new UsuarioActual(...))` al hacer login.
 
+## Estructura del JWT
+
+Formato `cabecera.contenido.firma`, cada parte en Base64URL. **No está cifrado** (cualquiera puede leer el contenido),
+solo firmado: nunca poner contraseñas ni datos sensibles.
+
+```json
+// cabecera
+{ "alg": "HS256", "typ": "JWT" }
+
+// contenido (claims)
+{
+  "sub": "3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90",
+  "correo": "admin.xela@correo.com",
+  "roles": ["ADMIN_SUCURSAL", "CLIENTE"],
+  "sucursalId": "8b1c4f0e-2d3a-4b5c-9e8f-7a6b5c4d3e21",
+  "iat": 1792504800,
+  "exp": 1792508400
+}
+
+// firma = HMAC-SHA256(JWT_SECRET, "cabecera.contenido")
+```
+
+| Claim | Se convierte en | Descripción |
+| --- | --- | --- |
+| `sub` | `usuario.usuarioId()` | **Id del usuario.** Se llama `sub` (subject) porque es el nombre estándar de JWT (RFC 7519) |
+| `correo` | `usuario.correo()` | Correo del usuario |
+| `roles` | `usuario.roles()` | Roles (`Roles.ADMIN_SISTEMA`, `ADMIN_SUCURSAL`, `CAJERO`, `CHOFER`, `CLIENTE`) |
+| `sucursalId` | `usuario.sucursalId()` | Solo admin de sucursal y cajero; si no, no viene (null) |
+| `choferId` | `usuario.choferId()` | Solo choferes; si no, no viene (null) |
+| `iat` | — | Emitido en (segundos desde 1970) |
+| `exp` | — | Vence en; `iat` + `app.jwt.duracion-minutos` (60 por defecto) |
+
+Validación (`ServicioJwt.validar`, la ejecuta `FiltroAutenticacion` en cada petición con `Authorization: Bearer ...`):
+
+1. Debe tener 3 partes separadas por `.`.
+2. La cabecera debe decir `alg: HS256` (se rechaza `alg: none`).
+3. Se recalcula la firma con `JWT_SECRET` y se compara en tiempo constante; si no coincide, el token fue alterado.
+4. `exp` no debe haber pasado (`TOKEN_EXPIRADO`).
+5. Se construye el `UsuarioActual`. Cualquier error de formato → 401 `TOKEN_INVALIDO`.
+
+Todos los servicios comparten `JWT_SECRET`, así que validan el token sin consultar a Identity.
+Solo Identity lo genera, en el login:
+
+```java
+String token = servicioJwt.generar(new UsuarioActual(id, correo, roles, sucursalId, choferId));
+```
+
+Orden por el que pasa cada petición:
+
+```
+FiltroCorrelacion → FiltroAutenticacion → InterceptorRoles (@RequiereRol) → ResolverUsuarioActual → controlador
+```
+
 ## Correlación
 
 `X-Correlation-Id` entra por HTTP (o se genera), viaja en `correlationId` de cada evento publicado y se pone en
