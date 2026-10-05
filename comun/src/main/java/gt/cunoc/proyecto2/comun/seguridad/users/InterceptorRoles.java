@@ -1,7 +1,5 @@
 package gt.cunoc.proyecto2.comun.seguridad.users;
 
-import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
-import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
 import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
 import gt.cunoc.proyecto2.comun.seguridad.filtro.FiltroAutenticacion;
