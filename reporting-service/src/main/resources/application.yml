@@ -34,8 +34,21 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
+# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+comun:
+  eventos:
+    # sin exchange: este servicio no publica eventos
+    cola: reporting.q
+    suscripciones:
+      "[identity.eventos]": [BranchCreated, BranchUpdated, DepreciationRateChanged]
+      "[fleet.eventos]": [BusCreated, BusUpdated, BusDeactivated, DriverCreated, DriverUpdated, DriverDeactivated]
+      "[trips.eventos]": [RouteCreated, RouteUpdated, RouteDeleted, TripScheduled, TripUpdated, TripDeleted, TripStarted, TripCompleted]
+      "[sales.eventos]": [TicketSold, SaleCancelled, RentalPaid]
+      "[maintenance.eventos]": [MaintenanceExpenseRecorded, ExpenseCategoryUpdated]
+
 app:
   jwt:
+    duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
 
 springdoc:

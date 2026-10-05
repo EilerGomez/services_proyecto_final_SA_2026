@@ -34,8 +34,18 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
+# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+comun:
+  eventos:
+    exchange: sales.eventos            # publica en este exchange (outbox)
+    cola: sales.q
+    suscripciones:
+      "[identity.eventos]": [CustomerRegistered, ProfileUpdated, WalletDebited, WalletRejected, WalletRefunded]
+      "[trips.eventos]": [TripScheduled, TripUpdated, TripDeleted, TripStarted, RentalQuoteConfirmed]
+
 app:
   jwt:
+    duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
 
 springdoc:

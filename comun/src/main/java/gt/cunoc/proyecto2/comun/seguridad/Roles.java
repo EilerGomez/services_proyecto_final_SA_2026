@@ -1,0 +1,14 @@
+package gt.cunoc.proyecto2.comun.seguridad;
+
+/** Códigos de rol (iguales a la tabla roles de Identity y al claim "roles" del JWT). */
+public final class Roles {
+
+    public static final String ADMIN_SISTEMA = "ADMIN_SISTEMA";
+    public static final String ADMIN_SUCURSAL = "ADMIN_SUCURSAL";
+    public static final String CAJERO = "CAJERO";
+    public static final String CHOFER = "CHOFER";
+    public static final String CLIENTE = "CLIENTE";
+
+    private Roles() {
+    }
+}

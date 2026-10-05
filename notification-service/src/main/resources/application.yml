@@ -39,8 +39,20 @@ spring:
     port: ${MAIL_PORT:1025}
     username: ${MAIL_USER:}
     password: ${MAIL_PASSWORD:}
+# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+comun:
+  eventos:
+    # sin exchange: este servicio no publica eventos
+    cola: notification.q
+    suscripciones:
+      "[identity.eventos]": [AccountCreated, PasswordResetRequested]
+      "[fleet.eventos]": [DriverLicenseUpdated]
+      "[trips.eventos]": [RentalQuoteConfirmed]
+      "[sales.eventos]": [TicketSold, SaleCancelled, RentalPaid]
+
 app:
   jwt:
+    duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
 
 springdoc:

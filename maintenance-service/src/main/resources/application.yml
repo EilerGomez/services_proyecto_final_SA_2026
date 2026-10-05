@@ -34,8 +34,17 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
+# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+comun:
+  eventos:
+    exchange: maintenance.eventos            # publica en este exchange (outbox)
+    cola: maintenance.q
+    suscripciones:
+      "[fleet.eventos]": [BusCreated, BusUpdated, BusDeactivated]
+
 app:
   jwt:
+    duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
 
 springdoc:
