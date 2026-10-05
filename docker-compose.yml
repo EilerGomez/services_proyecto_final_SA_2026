@@ -1,5 +1,5 @@
 # =====================================================================
-# docker-compose.yml · Proyecto 2 (servicios)
+# docker-compose.yml · services_proyecto_final_SA_2026
 # PostgreSQL NO está aquí: corre fuera de Docker en cada máquina / VM.
 #
 # Desarrollo local (servicios desde NetBeans):
@@ -70,6 +70,13 @@ services:
     environment:
       <<: *env-comun
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      IDENTITY_URL: http://identity-service:8081
+      FLEET_URL: http://fleet-service:8082
+      TRIPS_URL: http://trips-service:8083
+      SALES_URL: http://sales-service:8084
+      MAINTENANCE_URL: http://maintenance-service:8085
+      REPORTING_URL: http://reporting-service:8086
+      NOTIFICATION_URL: http://notification-service:8087
     ports:
       - "${GATEWAY_PORT:-8080}:8080"        # el único puerto público de la aplicación
 

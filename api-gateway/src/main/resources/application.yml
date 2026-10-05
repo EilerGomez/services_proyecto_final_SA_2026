@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: ${FRONTEND_URL:http://localhost:5173}
+                allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+                allowedHeaders: "*"
+                allowCredentials: true
+          # Local (servicios en el IDE): localhost. En Docker: nombre del servicio (variables *_URL del compose)
+          routes:
+            - id: identity
+              uri: ${IDENTITY_URL:http://localhost:8081}
+              predicates: [ "Path=/identity/**" ]
+            - id: fleet
+              uri: ${FLEET_URL:http://localhost:8082}
+              predicates: [ "Path=/fleet/**" ]
+            - id: trips
+              uri: ${TRIPS_URL:http://localhost:8083}
+              predicates: [ "Path=/trips/**" ]
+            - id: sales
+              uri: ${SALES_URL:http://localhost:8084}
+              predicates: [ "Path=/sales/**" ]
+            - id: maintenance
+              uri: ${MAINTENANCE_URL:http://localhost:8085}
+              predicates: [ "Path=/maintenance/**" ]
+            - id: reporting
+              uri: ${REPORTING_URL:http://localhost:8086}
+              predicates: [ "Path=/reports/**" ]
+            - id: notification
+              uri: ${NOTIFICATION_URL:http://localhost:8087}
+              predicates: [ "Path=/notifications/**" ]
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
