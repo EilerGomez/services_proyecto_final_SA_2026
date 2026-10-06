@@ -18,7 +18,7 @@ spring:
             - id: identity-service
               uri: ${gateway.services.identity-url}
               predicates:
-                - Path=/v1/identity/**
+                - Path=/identity/**
             - id: fleet-service
               uri: ${gateway.services.fleet-url}
               predicates:
@@ -48,7 +48,7 @@ spring:
               predicates:
                 - Path=/v3/api-docs/identity
               filters:
-                - SetPath=/v3/api-docs
+                - SetPath=/identity/v3/api-docs
             - id: fleet-openapi
               uri: ${gateway.services.fleet-url}
               predicates:
@@ -85,13 +85,6 @@ spring:
                 - Path=/v3/api-docs/notification
               filters:
                 - SetPath=/v3/api-docs
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${JWT_JWK_SET_URI:}
-          issuer-uri: ${JWT_ISSUER_URI:}
-
 gateway:
   services:
     identity-url: ${IDENTITY_URL:http://localhost:8081}

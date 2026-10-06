@@ -22,7 +22,7 @@ Health: `http://localhost:8080/actuator/health`.
 
 | Entrada al gateway | Destino local | Path enviado |
 | --- | --- | --- |
-| `/v1/identity/**` | `http://localhost:8081` | Se conserva |
+| `/identity/**` | `http://localhost:8081` | Se conserva |
 | `/fleet/**` | `http://localhost:8082` | Se conserva |
 | `/trips/**` | `http://localhost:8083` | Se conserva |
 | `/sales/**` | `http://localhost:8084` | Se conserva |
@@ -55,10 +55,8 @@ No hace falta definir variables para el arranque local sin autenticación.
 | `NOTIFICATION_URL` | `http://localhost:8087` | URI de notification |
 | `FRONTEND_URL` | `http://localhost:5173` | Origen CORS (también `GATEWAY_ALLOWED_ORIGINS`) |
 | `GATEWAY_ALLOWED_ORIGINS` | valor de `FRONTEND_URL` | Orígenes CORS separados por coma |
-| `GATEWAY_SECURITY_ENABLED` | `false` | Activa validación JWT |
+| `GATEWAY_SECURITY_ENABLED` | `false` | Activa validación JWT HS256 |
 | `JWT_SECRET` | secreto de desarrollo (32+ chars) | Mismo secreto HS256 de los 7 servicios y `comun` |
-| `JWT_JWK_SET_URI` | vacío | Reservado: validación JWK (no usado en este proyecto) |
-| `JWT_ISSUER_URI` | vacío | Issuer esperado; opcional con JWK explícito |
 | `GATEWAY_CONNECT_TIMEOUT` | `3000` | Timeout de conexión en ms |
 | `GATEWAY_RESPONSE_TIMEOUT` | `30s` | Timeout de respuesta, formato Duration |
 | `LOG_LEVEL` | `INFO` | Nivel general de logs |
@@ -73,18 +71,13 @@ El perfil `docker` cambia los destinos a `identity-service:8081`,
 
 ### JWT
 
-Con `GATEWAY_SECURITY_ENABLED=false` no se registra el decoder ni la cadena
-OAuth2, aunque haya propiedades JWT configuradas. No se contacta al issuer.
-Con `true`, los endpoints públicos y `OPTIONS` quedan permitidos y las demás
-rutas exigen un JWT válido. Se deshabilitan CSRF, login, HTTP Basic, logout,
-persistencia del contexto y caché de solicitudes en sesión.
-
-En este proyecto el token es HS256 con el mismo `JWT_SECRET` de los
-microservicios (`comun`/`ServicioJwt`, ver `comun/README.md` §11-12 y
-`CLAUDE.md` §5): `app.jwt.secret=${JWT_SECRET:...}`. La validación HS256
-propia del gateway está pendiente (tarea 4 del plan): hoy con `true` el
-gateway usa el decoder JWK de respaldo; en local mantener `false` (gateway
-transparente, cada servicio valida con `comun`).
+Con `GATEWAY_SECURITY_ENABLED=false` todo pasa sin validar (gateway transparente).
+Con `true`, los endpoints públicos (`/identity/auth/registro|login|refrescar|recuperar|restablecer`,
+health, Swagger, `OPTIONS`) quedan permitidos y las demás rutas exigen el JWT
+HS256 de `comun` firmado con el mismo `JWT_SECRET` (`Hs256JwtDecoder`). Se
+deshabilitan CSRF, login, HTTP Basic, logout, persistencia del contexto y caché
+de solicitudes en sesión. Las rutas `/*/interno/**` (R1–R5) se rechazan con 404
+(`BloqueoInternoFilter`): solo existen de servicio a servicio.
 
 ### CORS y orden de filtros
 
@@ -104,16 +97,18 @@ Las cadenas WebFilter y GlobalFilter tienen órdenes independientes:
 4. Para rutas del gateway se ejecutan `CorrelationIdFilter` (orden mínimo),
    `RequestLoggingFilter` (mínimo + 1) y `UserContextFilter` (mínimo + 2).
    Este último ya dispone del principal autenticado y siempre elimina los
-   headers `X-User-Id` y `X-User-Roles` recibidos del cliente.
-5. Con JWT, `X-User-Id` toma `sub`; `X-User-Roles` combina los arrays `roles`
-   y `realm_access.roles`, sin duplicados y separados por coma. Sin JWT se
+   headers `X-User-*` recibidos del cliente.
+5. Con JWT, `X-User-Id` toma `sub`, `X-User-Email` toma `correo`,
+   `X-Sucursal-Id` toma `sucursalId`, `X-Chofer-Id` toma `choferId` y
+   `X-User-Roles` combina `roles` separados por coma. Sin JWT se
    reenvía la petición sin esos headers.
 6. El log se escribe antes de confirmar la respuesta, con método, path,
    status final, latencia y correlation id, sin bodies ni Authorization.
 
 `GlobalErrorWebExceptionHandler` tiene orden `-2` y escribe JSON con
-`timestamp`, `status`, `code`, `message`, `path` y `correlationId`, usando
-Jackson 3. Los handlers de seguridad usan el mismo escritor. Las excepciones
+`status`, `codigo`, `mensaje`, `ruta`, `timestamp`, `correlationId` y `errores`
+(igual que `comun`), usando Jackson 3. Los handlers de seguridad usan el mismo
+escritor. Las excepciones
 con status conservan ese status; conexión rechazada/DNS/servicio cerrado se
 traducen a 503 y timeouts a 504; errores imprevistos a 500. No se incluye la
 excepción en el cuerpo. Las respuestas normales de los microservicios,
@@ -129,25 +124,25 @@ Con el gateway en modo local y seguridad desactivada:
 curl -i http://localhost:8080/actuator/health
 
 # Criterio 4: respuesta del microservicio; 503 JSON si no está disponible
-curl -i http://localhost:8080/v1/identity/auth/yo
+curl -i http://localhost:8080/identity/auth/yo
 
 # Criterio 6: el mismo correlation id en la respuesta y en el microservicio
-curl -i -H "X-Correlation-Id: fase1-demo" http://localhost:8080/v1/identity/auth/yo
+curl -i -H "X-Correlation-Id: fase1-demo" http://localhost:8080/identity/auth/yo
 
 # Criterio 7: preflight 200, Allow-Origin y Allow-Credentials sin duplicados
-curl -i -X OPTIONS http://localhost:8080/v1/identity/auth/yo -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization,X-Correlation-Id"
+curl -i -X OPTIONS http://localhost:8080/identity/auth/yo -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization,X-Correlation-Id"
 
 # 404 JSON, incluso si el cliente acepta HTML
 curl -i -H "Accept: text/html" http://localhost:8080/no-existe
 
 # 403 JSON por origen CORS no permitido
-curl -i -X OPTIONS http://localhost:8080/v1/identity/auth/yo -H "Origin: http://not-allowed.example" -H "Access-Control-Request-Method: GET"
+curl -i -X OPTIONS http://localhost:8080/identity/auth/yo -H "Origin: http://not-allowed.example" -H "Access-Control-Request-Method: GET"
 ```
 
 Para comprobar 401, detener el proceso y arrancar con
 `GATEWAY_SECURITY_ENABLED=true` (PowerShell: `$env:GATEWAY_SECURITY_ENABLED='true'`),
 o usar `--gateway.security.enabled=true` al ejecutar el JAR. Sin token,
-`curl -i http://localhost:8080/v1/identity/auth/yo` debe devolver 401 JSON.
+`curl -i http://localhost:8080/identity/auth/yo` debe devolver 401 JSON.
 Health y los preflight siguen respondiendo 200.
 
 ## Docker
@@ -174,16 +169,14 @@ Validación manual realizada el 4 de octubre de 2026 (America/Guatemala):
   CompatibilityVerifier y sin `spring-webmvc` en el JAR ejecutable.
 - Health 200, 404 JSON, 503 JSON, correlación preservada/generada y preflight
   200 sin duplicados; rechazo CORS 403 JSON.
-- Mock movies: path `/api/movies/42` conservado, correlation id reenviado,
-  headers de identidad falsificados eliminados, CORS duplicado deduplicado
-  y `/v3/api-docs/movies` reenviado a `/v3/api-docs`.
+- Identity real vía gateway: `POST /identity/auth/login` 200 público,
+  `GET /identity/cartera` con JWT HS256 200, sin token 401 `TOKEN_INVALIDO`,
+  `/*/interno/**` 404 aunque lleve token válido, y `/v3/api-docs/identity` 200.
 - Mock con demora de 32 segundos: 504 JSON al alcanzar el timeout de 30 segundos,
   conservando el correlation id.
 - Instancia con seguridad activada: 401 JSON sin token y con token malformado;
   health y preflight 200.
-- `docker compose -f docker-compose.gateway.yml config --quiet`: configuración válida.
-- Dockerfile y Compose preparados; no se construyó la imagen porque Docker
-  Desktop no tenía disponible su motor Linux durante la validación.
+- `docker compose config --quiet`: configuración válida.
 
 Referencia de configuración: [Spring Cloud Gateway Server WebFlux](https://docs.spring.io/spring-cloud-gateway/reference/spring-cloud-gateway-server-webflux/configuration.html).
 El handler usa el paquete Boot 4 documentado:
