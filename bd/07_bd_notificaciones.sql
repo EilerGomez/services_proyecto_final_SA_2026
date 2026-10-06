@@ -37,6 +37,14 @@ CREATE TABLE recordatorios_licencia (
 CREATE INDEX ix_recordatorios_pendientes ON recordatorios_licencia (fecha_programada) WHERE estado = 'PENDIENTE';
 -- Al consumir LicenciaChoferActualizada:
 --   UPDATE recordatorios_licencia SET estado = 'CANCELADO' WHERE chofer_id = :chofer AND estado = 'PENDIENTE';
---   INSERT 3 filas (30, 15, 3) con la nueva fecha_vencimiento.
--- Job diario (o POST /notifications/reminders/run?date=YYYY-MM-DD para calificar):
+--   INSERT de los recordatorios 30, 15 y 3 con la nueva fecha_vencimiento (solo los que no quedan en el pasado;
+--   ON CONFLICT ... DO UPDATE SET estado = 'PENDIENTE' para reactivar uno cancelado).
+-- Job diario 07:00 (o POST /notifications/recordatorios/ejecutar?fecha=YYYY-MM-DD para calificar):
 --   SELECT * FROM recordatorios_licencia WHERE estado = 'PENDIENTE' AND fecha_programada <= :fecha;
+
+-- ---------- Idempotencia (consumidor de eventos) ----------
+CREATE TABLE eventos_procesados (
+  evento_id         UUID         PRIMARY KEY,
+  tipo_evento       VARCHAR(80)  NOT NULL,
+  fecha_procesado   TIMESTAMPTZ  NOT NULL DEFAULT now()
+);

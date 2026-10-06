@@ -3,6 +3,8 @@
 -- Base: bd_flota  ·  PostgreSQL 13+
 -- Las cuentas (correo, contraseña, perfil, foto, roles) viven en Identity.
 -- Fleet guarda la parte organizativa y laboral y crea las cuentas con R5.
+-- Las fotos (buses y choferes) se guardan en un bucket de Google Cloud Storage;
+-- aquí solo se guarda la URL.
 -- =====================================================================
 
 CREATE OR REPLACE FUNCTION fn_actualizar_fecha() RETURNS trigger AS $$
@@ -34,7 +36,7 @@ CREATE TABLE sucursales (
 );
 
 -- ---------- Personal de sucursal (publica PersonalSucursalAsignado / PersonalSucursalDesactivado) ----------
--- Alta: Fleet genera el id, llama a R5 (POST /identity/cuentas-personal) con ese id
+-- Alta: Fleet genera el id, llama a R5 (POST /identity/interno/cuentas-personal) con ese id
 -- como solicitudId y guarda la asignación con el usuario_id devuelto.
 -- Traslado: se desactiva la fila actual y se crea otra con el mismo usuario_id.
 CREATE TABLE personal_sucursal (
@@ -68,7 +70,7 @@ CREATE TABLE buses (
   estado               VARCHAR(15)   NOT NULL DEFAULT 'ACTIVO'
                        CHECK (estado IN ('ACTIVO', 'EN_RUTA', 'EN_TALLER', 'INACTIVO')),
   kilometraje_actual   NUMERIC(12,2) NOT NULL DEFAULT 0 CHECK (kilometraje_actual >= 0),
-  foto_url             VARCHAR(500),
+  foto_url             VARCHAR(500)  NOT NULL CHECK (btrim(foto_url) <> ''),   -- obligatoria (URL del bucket)
   version              INT           NOT NULL DEFAULT 0,
   fecha_creacion       TIMESTAMPTZ   NOT NULL DEFAULT now(),
   fecha_actualizacion  TIMESTAMPTZ   NOT NULL DEFAULT now()

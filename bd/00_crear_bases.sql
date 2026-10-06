@@ -3,9 +3,9 @@
 -- Crea una base de datos y un usuario por microservicio.
 -- Ejecutar como superusuario (postgres) una sola vez:
 --   psql -U postgres -f 00_crear_bases.sql
--- Luego ejecutar cada script 01..07 conectado a su base:
---   psql -U usr_identidad -d bd_identidad -f 01_bd_identidad.sql
--- Cambien las contraseñas antes de producción (usen variables de entorno).
+-- Las tablas NO se crean a mano: cada script 01..07 es el V1__esquema_inicial.sql
+-- de su servicio y Flyway lo ejecuta al arrancar el servicio.
+-- Contraseñas de desarrollo; en producción las bases las crea infra/servidor/03_crear_bases.sh.
 -- =====================================================================
 
 CREATE USER usr_identidad       WITH PASSWORD 'cambiar_identidad';
