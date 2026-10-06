@@ -3,6 +3,7 @@ package gt.cunoc.proyecto2.identity.evento.recibido;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 
@@ -13,5 +14,7 @@ import java.util.UUID;
 public record PersonalSucursalDesactivado(
         UUID personalId,
         UUID usuarioId,
-        UUID sucursalId) {
+        UUID sucursalId,
+        String rolCodigo,
+        LocalDate fechaDesasignacion) {
 }

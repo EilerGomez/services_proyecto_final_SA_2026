@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 
 /**
- * Refleja el traslado: fija la sucursal y agrega el rol.
+ * Traslado o alta: fija la sucursal y agrega el rol (idempotente).
  */
 @Component
 public class ManejadorPersonalAsignado implements ManejadorEvento<PersonalSucursalAsignado> {
