@@ -4,6 +4,7 @@ import api_gateway.constants.ErrorCodes;
 import api_gateway.constants.HeaderNames;
 import api_gateway.filter.CorrelationIdFilter;
 import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -25,10 +26,9 @@ public class ErrorResponseWriter {
                 return Mono.empty();
             }
             String correlationId = CorrelationIdFilter.resolve(exchange);
-            HttpStatus knownStatus = HttpStatus.resolve(status.value());
-            String message = knownStatus == null ? "Request failed" : knownStatus.getReasonPhrase();
-            ErrorResponse body = new ErrorResponse(Instant.now(), status.value(), code(status.value()),
-                    message, exchange.getRequest().getPath().value(), correlationId);
+            ErrorResponse body = new ErrorResponse(status.value(), code(status.value()),
+                    mensaje(status.value()), exchange.getRequest().getPath().value(),
+                    Instant.now(), correlationId, List.of());
             byte[] bytes = objectMapper.writeValueAsBytes(body);
             response.setStatusCode(status);
             response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
@@ -47,6 +47,18 @@ public class ErrorResponseWriter {
             case 504 -> ErrorCodes.GATEWAY_TIMEOUT;
             case 500 -> ErrorCodes.INTERNAL_ERROR;
             default -> "HTTP_" + status;
+        };
+    }
+
+    private String mensaje(int status) {
+        return switch (status) {
+            case 401 -> "No autenticado";
+            case 403 -> "Acceso denegado";
+            case 404 -> "No encontrado";
+            case 503 -> "Servicio no disponible";
+            case 504 -> "Tiempo de espera agotado";
+            case 500 -> "Error interno";
+            default -> "La solicitud falló";
         };
     }
 }
