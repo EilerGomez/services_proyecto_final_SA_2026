@@ -1,0 +1,24 @@
+# Fragmento de ejemplo: el compose real del proyecto ya define el servicio
+# api-gateway (ver /docker-compose.yml). Este archivo solo documenta las
+# variables que acepta el gateway.
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      IDENTITY_URL: ${IDENTITY_URL:-http://identity-service:8081}
+      FLEET_URL: ${FLEET_URL:-http://fleet-service:8082}
+      TRIPS_URL: ${TRIPS_URL:-http://trips-service:8083}
+      SALES_URL: ${SALES_URL:-http://sales-service:8084}
+      MAINTENANCE_URL: ${MAINTENANCE_URL:-http://maintenance-service:8085}
+      REPORTING_URL: ${REPORTING_URL:-http://reporting-service:8086}
+      NOTIFICATION_URL: ${NOTIFICATION_URL:-http://notification-service:8087}
+      JWT_SECRET: ${JWT_SECRET:-solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
+      GATEWAY_SECURITY_ENABLED: ${GATEWAY_SECURITY_ENABLED:-false}
+      GATEWAY_CONNECT_TIMEOUT: ${GATEWAY_CONNECT_TIMEOUT:-3000}
+      GATEWAY_RESPONSE_TIMEOUT: ${GATEWAY_RESPONSE_TIMEOUT:-30s}
+      GATEWAY_LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-INFO}
