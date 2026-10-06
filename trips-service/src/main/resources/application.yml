@@ -40,8 +40,8 @@ comun:
     exchange: trips.eventos            # publica en este exchange (outbox)
     cola: trips.q
     suscripciones:
-      "[identity.eventos]": [SucursalCreada, SucursalActualizada, TarifaDepreciacionCambiada]
-      "[fleet.eventos]": [BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
+      "[identity.eventos]": [TarifaDepreciacionCambiada]
+      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
       "[sales.eventos]": [AlquilerPagado]
 
 app:

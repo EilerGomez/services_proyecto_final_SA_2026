@@ -10,7 +10,7 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 
 -- ---------- Proyecciones locales ----------
-CREATE TABLE vista_viajes (                -- TripScheduled / TripUpdated / TripStarted / TripDeleted
+CREATE TABLE vista_viajes (                -- ViajeProgramado / ViajeActualizado / ViajeIniciado / ViajeEliminado (Trips)
   viaje_id             UUID          PRIMARY KEY,
   ruta_id              UUID          NOT NULL,
   sucursal_origen_id   UUID          NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE vista_viajes (                -- TripScheduled / TripUpdated / Trip
 );
 CREATE INDEX ix_vista_viajes_salida ON vista_viajes (fecha_salida) WHERE estado = 'PROGRAMADO';
 
-CREATE TABLE vista_clientes (              -- CustomerRegistered / ProfileUpdated
+CREATE TABLE vista_clientes (              -- ClienteRegistrado / PerfilActualizado (Identity)
   usuario_id  UUID         PRIMARY KEY,
   nit         VARCHAR(20)  NOT NULL UNIQUE,
   nombre      VARCHAR(200) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE vista_clientes (              -- CustomerRegistered / ProfileUpdate
 );
 
 -- ---------- Asientos por viaje ----------
--- Se crean filas 1..capacidad al consumir TripScheduled.
+-- Se crean filas 1..capacidad al consumir ViajeProgramado.
 CREATE TABLE asientos_viaje (
   viaje_id         UUID         NOT NULL REFERENCES vista_viajes(viaje_id) ON DELETE CASCADE,
   numero_asiento   INT          NOT NULL CHECK (numero_asiento > 0),
@@ -93,7 +93,7 @@ CREATE UNIQUE INDEX ux_boleto_asiento_activo ON boletos (viaje_id, numero_asient
 -- ---------- Pago de alquiler privado ----------
 CREATE TABLE ordenes_alquiler (
   id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-  alquiler_id          UUID          NOT NULL UNIQUE,  -- id del alquiler en Trips (RentalQuoteConfirmed)
+  alquiler_id          UUID          NOT NULL UNIQUE,  -- id del alquiler en Trips (CotizacionAlquilerConfirmada)
   cliente_usuario_id   UUID,
   cliente_nit          VARCHAR(20)   NOT NULL DEFAULT 'CF',
   cliente_nombre       VARCHAR(200)  NOT NULL,

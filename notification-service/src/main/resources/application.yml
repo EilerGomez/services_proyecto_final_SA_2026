@@ -39,6 +39,12 @@ spring:
     port: ${MAIL_PORT:1025}
     username: ${MAIL_USER:}
     password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_AUTH:false}          # true con Gmail
+          starttls:
+            enable: ${MAIL_STARTTLS:false}  # true con Gmail
 # Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
 comun:
   eventos:

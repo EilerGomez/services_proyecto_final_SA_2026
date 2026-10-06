@@ -24,7 +24,7 @@ CREATE TABLE recordatorios_licencia (
   id                  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   chofer_id           UUID         NOT NULL,
   usuario_id          UUID         NOT NULL,     -- correo y nombre se piden a Identity al enviar (R4)
-  sucursal_id         UUID         NOT NULL,
+  sucursal_id         UUID         NOT NULL,     -- R4 también devuelve los admins de esta sucursal
   fecha_vencimiento   DATE         NOT NULL,
   dias_antes          INT          NOT NULL CHECK (dias_antes IN (30, 15, 3)),
   fecha_programada    DATE         NOT NULL,     -- fecha_vencimiento - dias_antes
@@ -35,14 +35,8 @@ CREATE TABLE recordatorios_licencia (
   CHECK (fecha_programada = fecha_vencimiento - dias_antes)
 );
 CREATE INDEX ix_recordatorios_pendientes ON recordatorios_licencia (fecha_programada) WHERE estado = 'PENDIENTE';
--- Al consumir DriverLicenseUpdated:
+-- Al consumir LicenciaChoferActualizada:
 --   UPDATE recordatorios_licencia SET estado = 'CANCELADO' WHERE chofer_id = :chofer AND estado = 'PENDIENTE';
 --   INSERT 3 filas (30, 15, 3) con la nueva fecha_vencimiento.
 -- Job diario (o POST /notifications/reminders/run?date=YYYY-MM-DD para calificar):
 --   SELECT * FROM recordatorios_licencia WHERE estado = 'PENDIENTE' AND fecha_programada <= :fecha;
-
-CREATE TABLE eventos_procesados (
-  evento_id         UUID         PRIMARY KEY,
-  tipo_evento       VARCHAR(80)  NOT NULL,
-  fecha_procesado   TIMESTAMPTZ  NOT NULL DEFAULT now()
-);

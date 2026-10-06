@@ -40,8 +40,8 @@ comun:
     # sin exchange: este servicio no publica eventos
     cola: reporting.q
     suscripciones:
-      "[identity.eventos]": [SucursalCreada, SucursalActualizada, TarifaDepreciacionCambiada]
-      "[fleet.eventos]": [BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
+      "[identity.eventos]": [TarifaDepreciacionCambiada]
+      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
       "[trips.eventos]": [RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, ViajeCompletado]
       "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]
       "[maintenance.eventos]": [GastoTallerRegistrado, CategoriaGastoActualizada]

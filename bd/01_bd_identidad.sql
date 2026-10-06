@@ -1,6 +1,8 @@
 -- =====================================================================
--- 01_bd_identidad.sql  ·  Identity Service (identidad, organización y cartera)
+-- 01_bd_identidad.sql  ·  Identity Service (cuentas, roles, perfiles, tarifa y cartera)
 -- Base: bd_identidad  ·  PostgreSQL 13+
+-- Las sucursales y su personal viven en Fleet (bd_flota). Aquí solo se guarda
+-- usuarios.sucursal_id para el claim "sucursalId" del JWT y para R4.
 -- =====================================================================
 
 -- ---------- Funciones utilitarias ----------
@@ -24,7 +26,7 @@ CREATE TABLE roles (
 
 INSERT INTO roles (codigo, nombre, descripcion) VALUES
   ('ADMIN_SISTEMA',  'Administrador del sistema',  'Sucursales, administradores de sucursal, configuración global y reportes globales'),
-  ('ADMIN_SUCURSAL', 'Administrador de sucursal',  'Buses, choferes, rutas, viajes, alquileres, taller y reportes de su sucursal'),
+  ('ADMIN_SUCURSAL', 'Administrador de sucursal',  'Buses, choferes, cajeros, rutas, viajes, alquileres, taller y reportes de su sucursal'),
   ('CAJERO',         'Cajero',                     'Venta presencial de boletos y alquileres en su sucursal'),
   ('CHOFER',         'Chofer',                     'Consulta sus viajes y registra salida y llegada'),
   ('CLIENTE',        'Cliente',                    'Compra en línea, cartera digital, alquileres e historial');
@@ -39,15 +41,22 @@ CREATE TABLE usuarios (
   intentos_fallidos    INT          NOT NULL DEFAULT 0 CHECK (intentos_fallidos >= 0),
   bloqueado_hasta      TIMESTAMPTZ,
   chofer_id            UUID         UNIQUE,          -- referencia lógica a Fleet (sin FK)
+  sucursal_id          UUID,                         -- referencia lógica a Fleet (sin FK); null para clientes y ADMIN_SISTEMA
   ultimo_acceso        TIMESTAMPTZ,
   fecha_creacion       TIMESTAMPTZ  NOT NULL DEFAULT now(),
   fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+-- usuarios.sucursal_id se mantiene así:
+--   R5 (POST /identity/cuentas-personal)   -> la asigna al crear la cuenta
+--   PersonalSucursalAsignado (Fleet)      -> la cambia en un traslado y agrega el rol
+--   PersonalSucursalDesactivado (Fleet)   -> la limpia y quita ADMIN_SUCURSAL/CAJERO
+--   ChoferDesactivado (Fleet)             -> la limpia y quita CHOFER
+-- Un cambio de sucursal se refleja en el JWT en el siguiente inicio de sesión.
 
 CREATE TABLE usuario_roles (
-  usuario_id   UUID        NOT NULL REFERENCES usuarios(id),
-  rol_codigo   VARCHAR(30) NOT NULL REFERENCES roles(codigo),
-  fecha_asignacion TIMESTAMPTZ NOT NULL DEFAULT now(),
+  usuario_id        UUID        NOT NULL REFERENCES usuarios(id),
+  rol_codigo        VARCHAR(30) NOT NULL REFERENCES roles(codigo),
+  fecha_asignacion  TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (usuario_id, rol_codigo)
 );
 
@@ -63,7 +72,7 @@ CREATE TABLE perfiles (
   fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 -- Regla del chofer: un usuario con chofer_id debe tener foto.
--- Se valida en POST /identity/choferes (R5) y además con este trigger.
+-- Se valida en R5 y además con el trigger tr_foto_chofer.
 
 CREATE TABLE tokens_refresco (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,35 +92,17 @@ CREATE TABLE tokens_recuperacion (
   fecha_creacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
--- ---------- Sucursales y personal ----------
-CREATE TABLE sucursales (
-  id                   UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-  codigo               VARCHAR(10)  NOT NULL UNIQUE,
-  nombre               VARCHAR(100) NOT NULL UNIQUE,
-  departamento         VARCHAR(60)  NOT NULL,
-  municipio            VARCHAR(60)  NOT NULL,
-  direccion            VARCHAR(255) NOT NULL,
-  telefono             VARCHAR(20),
-  latitud              NUMERIC(9,6) NOT NULL CHECK (latitud  BETWEEN -90  AND 90),
-  longitud             NUMERIC(9,6) NOT NULL CHECK (longitud BETWEEN -180 AND 180),
-  activa               BOOLEAN      NOT NULL DEFAULT TRUE,
-  fecha_creacion       TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
+-- ---------- Idempotencia de R5 (Fleet -> Identity) ----------
+-- Fleet genera el id del chofer o del personal ANTES de llamar a R5 y lo envía
+-- como solicitudId. Si la llamada se reintenta, Identity devuelve la misma cuenta.
+CREATE TABLE solicitudes_cuenta_personal (
+  solicitud_id    UUID        PRIMARY KEY,           -- choferId o personalId generado en Fleet
+  usuario_id      UUID        NOT NULL REFERENCES usuarios(id),
+  rol_codigo      VARCHAR(30) NOT NULL REFERENCES roles(codigo)
+                  CHECK (rol_codigo IN ('CHOFER', 'ADMIN_SUCURSAL', 'CAJERO')),
+  sucursal_id     UUID        NOT NULL,
+  fecha_creacion  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
-CREATE TABLE personal_sucursal (
-  id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  sucursal_id          UUID        NOT NULL REFERENCES sucursales(id),
-  usuario_id           UUID        NOT NULL REFERENCES usuarios(id),
-  rol_codigo           VARCHAR(30) NOT NULL REFERENCES roles(codigo)
-                       CHECK (rol_codigo IN ('ADMIN_SUCURSAL', 'CAJERO')),
-  activo               BOOLEAN     NOT NULL DEFAULT TRUE,
-  fecha_asignacion     DATE        NOT NULL DEFAULT CURRENT_DATE,
-  fecha_desasignacion  DATE,
-  CHECK (fecha_desasignacion IS NULL OR fecha_desasignacion >= fecha_asignacion)
-);
--- Un usuario solo puede estar asignado activo una vez por sucursal
-CREATE UNIQUE INDEX ux_personal_activo ON personal_sucursal (sucursal_id, usuario_id) WHERE activo;
 
 -- ---------- Configuración global ----------
 CREATE TABLE tarifas_depreciacion (
@@ -172,14 +163,12 @@ CREATE TABLE eventos_procesados (
 );
 
 -- ---------- Reglas en BD ----------
-CREATE TRIGGER tr_usuarios_fecha   BEFORE UPDATE ON usuarios   FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
-CREATE TRIGGER tr_perfiles_fecha   BEFORE UPDATE ON perfiles   FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
-CREATE TRIGGER tr_sucursales_fecha BEFORE UPDATE ON sucursales FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
-CREATE TRIGGER tr_carteras_fecha   BEFORE UPDATE ON carteras   FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_usuarios_fecha BEFORE UPDATE ON usuarios FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_perfiles_fecha BEFORE UPDATE ON perfiles FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_carteras_fecha BEFORE UPDATE ON carteras FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
 
--- Usuarios y sucursales no se eliminan
-CREATE TRIGGER tr_usuarios_no_eliminar   BEFORE DELETE ON usuarios   FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
-CREATE TRIGGER tr_sucursales_no_eliminar BEFORE DELETE ON sucursales FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
+-- Los usuarios no se eliminan
+CREATE TRIGGER tr_usuarios_no_eliminar BEFORE DELETE ON usuarios FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
 
 -- Siempre debe existir al menos un ADMIN_SISTEMA activo.
 -- (La aplicación además debe bloquear con SELECT ... FOR UPDATE para evitar carreras.)
@@ -198,22 +187,6 @@ END; $$ LANGUAGE plpgsql;
 CREATE TRIGGER tr_ultimo_admin_sistema BEFORE UPDATE OF estado ON usuarios
   FOR EACH ROW EXECUTE FUNCTION fn_validar_ultimo_admin_sistema();
 
--- Cada sucursal activa debe conservar al menos un ADMIN_SUCURSAL activo.
-CREATE OR REPLACE FUNCTION fn_validar_ultimo_admin_sucursal() RETURNS trigger AS $$
-BEGIN
-  IF OLD.activo AND NOT NEW.activo AND OLD.rol_codigo = 'ADMIN_SUCURSAL'
-     AND NOT EXISTS (SELECT 1 FROM personal_sucursal
-                     WHERE sucursal_id = OLD.sucursal_id AND rol_codigo = 'ADMIN_SUCURSAL'
-                       AND activo AND id <> OLD.id)
-     AND EXISTS (SELECT 1 FROM sucursales WHERE id = OLD.sucursal_id AND activa) THEN
-    RAISE EXCEPTION 'La sucursal debe tener al menos un administrador activo';
-  END IF;
-  RETURN NEW;
-END; $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER tr_ultimo_admin_sucursal BEFORE UPDATE OF activo ON personal_sucursal
-  FOR EACH ROW EXECUTE FUNCTION fn_validar_ultimo_admin_sucursal();
-
 CREATE OR REPLACE FUNCTION fn_validar_foto_chofer() RETURNS trigger AS $$
 BEGIN
   IF NEW.foto_url IS NULL OR btrim(NEW.foto_url) = '' THEN
@@ -228,7 +201,7 @@ CREATE TRIGGER tr_foto_chofer BEFORE INSERT OR UPDATE OF foto_url ON perfiles
   FOR EACH ROW EXECUTE FUNCTION fn_validar_foto_chofer();
 
 -- ---------- Índices de consulta ----------
-CREATE INDEX ix_personal_usuario ON personal_sucursal (usuario_id) WHERE activo;
+CREATE INDEX ix_usuarios_sucursal ON usuarios (sucursal_id) WHERE sucursal_id IS NOT NULL;  -- R4: admins de una sucursal
 CREATE INDEX ix_tokens_refresco_usuario ON tokens_refresco (usuario_id);
 
 -- ---------- Datos iniciales ----------
