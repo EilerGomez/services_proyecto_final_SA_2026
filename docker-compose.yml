@@ -9,6 +9,7 @@
 # VM, dos entornos:
 #   docker compose -p dev  --env-file .env.dev  --profile app up -d
 #   docker compose -p prod --env-file .env.prod --profile app up -d
+#   (ver infra/README.md)
 # =====================================================================
 
 name: proyecto2
@@ -147,6 +148,8 @@ services:
       MAIL_PORT: ${MAIL_PORT:-1025}
       MAIL_USER: ${MAIL_USER:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
 
 volumes:
   rabbit_data:
