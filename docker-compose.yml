@@ -90,6 +90,9 @@ services:
       <<: *env-comun
       DB_NAME: bd_identidad${DB_SUFIJO:-}
       DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      ADMIN_CORREO: ${ADMIN_CORREO:-}
+      ADMIN_CONTRASENA: ${ADMIN_CONTRASENA:-}
       FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
       FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
