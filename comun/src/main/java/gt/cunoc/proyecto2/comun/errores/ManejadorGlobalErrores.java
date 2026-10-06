@@ -19,6 +19,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -75,6 +78,27 @@ public class ManejadorGlobalErrores {
     @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
     public ResponseEntity<ErrorRespuesta> parametro(Exception e, HttpServletRequest req) {
         return errores.respuesta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO", e.getMessage(), req);
+    }
+
+    /** El archivo supera {@code spring.servlet.multipart.max-file-size} (Spring lo rechaza antes del controlador). */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorRespuesta> archivoMuyGrande(MaxUploadSizeExceededException e, HttpServletRequest req) {
+        return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",
+                "El archivo supera el tamaño máximo permitido", req);
+    }
+
+    /** Falta la parte del formulario (p. ej. el campo {@code archivo}) en una petición multipart. */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorRespuesta> archivoFaltante(MissingServletRequestPartException e, HttpServletRequest req) {
+        return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",
+                "Falta el archivo '" + e.getRequestPartName() + "'", req);
+    }
+
+    /** Petición multipart mal formada o que no es multipart. */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorRespuesta> multipartInvalido(MultipartException e, HttpServletRequest req) {
+        return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",
+                "La solicitud debe enviarse como multipart/form-data con el archivo", req);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
@@ -134,7 +158,6 @@ public class ManejadorGlobalErrores {
         return null;
     }
 
-    /** "ERROR: La sucursal debe tener...\n  Where: PL/pgSQL..." → "La sucursal debe tener..." */
     private static String mensajeTrigger(SQLException sql) {
         String mensaje = sql.getMessage() == null ? "" : sql.getMessage().lines().findFirst().orElse("");
         return mensaje.replaceFirst("^ERROR:\\s*", "");

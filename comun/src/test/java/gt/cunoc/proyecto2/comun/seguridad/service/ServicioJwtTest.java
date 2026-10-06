@@ -158,4 +158,42 @@ class ServicioJwtTest {
         assertThatThrownBy(() -> new ServicioJwt(json, null, Duration.ofMinutes(60), Clock.systemUTC()))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    void tokenDeServicioLlevaSoloElRolServicio() {
+        UsuarioActual leido = servicio(AHORA).validar(servicio(AHORA).generarServicio("fleet-service"));
+
+        assertThat(leido.roles()).containsExactly(Roles.SERVICIO);
+        assertThat(leido.esServicio()).isTrue();
+        assertThat(leido.correo()).isEqualTo("fleet-service");
+        assertThat(leido.sucursalId()).isNull();
+        assertThat(leido.choferId()).isNull();
+    }
+
+    @Test
+    void elIdDeServicioEsFijoPorNombre() {
+        UsuarioActual leido = servicio(AHORA).validar(servicio(AHORA).generarServicio("fleet-service"));
+
+        assertThat(leido.usuarioId()).isEqualTo(ServicioJwt.idServicio("fleet-service"));
+        assertThat(ServicioJwt.idServicio("fleet-service")).isEqualTo(ServicioJwt.idServicio("fleet-service"));
+        assertThat(ServicioJwt.idServicio("fleet-service")).isNotEqualTo(ServicioJwt.idServicio("trips-service"));
+    }
+
+    @Test
+    void tokenDeServicioVenceALosCincoMinutosAunqueLaDuracionConfiguradaSeaMayor() {
+        String token = servicio(AHORA).generarServicio("trips-service");
+
+        assertThat(servicio(AHORA.plus(Duration.ofMinutes(4))).validar(token).esServicio()).isTrue();
+        assertThatThrownBy(() -> servicio(AHORA.plus(ServicioJwt.DURACION_TOKEN_SERVICIO)).validar(token))
+                .isInstanceOf(NoAutenticadoException.class)
+                .extracting("codigo").isEqualTo("TOKEN_EXPIRADO");
+    }
+
+    @Test
+    void tokenDeServicioExigeNombre() {
+        assertThatThrownBy(() -> servicio(AHORA).generarServicio(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> servicio(AHORA).generarServicio("  "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

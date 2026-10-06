@@ -25,6 +25,9 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -168,5 +171,34 @@ class ManejadorGlobalErroresTest {
         ResponseEntity<ErrorRespuesta> r = manejador.inesperado(new IllegalStateException("falló"), req);
         assertThat(r.getStatusCode().value()).isEqualTo(500);
         assertThat(r.getBody().codigo()).isEqualTo("ERROR_INTERNO");
+    }
+
+    @Test
+    void archivoMasGrandeQueElLimite() {
+        ResponseEntity<ErrorRespuesta> r =
+                manejador.archivoMuyGrande(new MaxUploadSizeExceededException(2 * 1024 * 1024), req);
+
+        assertThat(r.getStatusCode().value()).isEqualTo(400);
+        assertThat(r.getBody().codigo()).isEqualTo("ARCHIVO_INVALIDO");
+        assertThat(r.getBody().mensaje()).contains("tamaño máximo");
+    }
+
+    @Test
+    void faltaElArchivoEnElFormulario() {
+        ResponseEntity<ErrorRespuesta> r =
+                manejador.archivoFaltante(new MissingServletRequestPartException("archivo"), req);
+
+        assertThat(r.getStatusCode().value()).isEqualTo(400);
+        assertThat(r.getBody().codigo()).isEqualTo("ARCHIVO_INVALIDO");
+        assertThat(r.getBody().mensaje()).contains("archivo");
+    }
+
+    @Test
+    void peticionQueNoEsMultipart() {
+        ResponseEntity<ErrorRespuesta> r =
+                manejador.multipartInvalido(new MultipartException("Current request is not a multipart request"), req);
+
+        assertThat(r.getStatusCode().value()).isEqualTo(400);
+        assertThat(r.getBody().codigo()).isEqualTo("ARCHIVO_INVALIDO");
     }
 }
