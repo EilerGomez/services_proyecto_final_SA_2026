@@ -25,10 +25,10 @@ import java.time.LocalDate;
 
 
 /**
- * Tarifa de depreciación (solo ADMIN_SISTEMA la crea).
+ * Tarifas de depreciación (I15, I16).
  */
 @RestController
-@RequestMapping("/v1/identity/tarifas-depreciacion")
+@RequestMapping("/identity/tarifas-depreciacion")
 public class DepreciationRateController {
 
     private final TarifaService servicio;
@@ -38,14 +38,16 @@ public class DepreciationRateController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<DepreciationRateResponse>> listar(Pageable paginado) {
-        return ResponseEntity.ok(servicio.listar(paginado));
-    }
-
-    @GetMapping("/vigente")
-    public ResponseEntity<DepreciationRateResponse> vigente(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return ResponseEntity.ok(servicio.vigente(fecha));
+    @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
+    public ResponseEntity<?> listar(
+            @RequestParam(required = false, name = "vigenteEn")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate vigenteEn,
+            Pageable paginado) {
+        if (vigenteEn != null) {
+            return ResponseEntity.ok(servicio.vigente(vigenteEn));
+        }
+        Page<DepreciationRateResponse> pagina = servicio.listar(paginado);
+        return ResponseEntity.ok(pagina.getContent());
     }
 
     @PostMapping
@@ -54,6 +56,6 @@ public class DepreciationRateController {
             @RequestBody @Valid CreateDepreciationRateRequest solicitud,
             @Parameter(hidden = true) UsuarioActual usuario) {
         DepreciationRateResponse respuesta = servicio.crear(solicitud, usuario.usuarioId());
-        return ResponseEntity.created(URI.create("/v1/identity/tarifas-depreciacion/" + respuesta.id())).body(respuesta);
+        return ResponseEntity.created(URI.create("/identity/tarifas-depreciacion/" + respuesta.tarifaId())).body(respuesta);
     }
 }

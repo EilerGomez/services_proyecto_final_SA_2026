@@ -1,8 +1,10 @@
 package gt.cunoc.proyecto2.identity.controllers.personal;
 
 
+import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
+import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalResponse;
 import gt.cunoc.proyecto2.identity.services.personal.CuentasPersonalService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -17,10 +19,11 @@ import java.net.URI;
 /**
  * R5 de Fleet: crea la cuenta de personal o chofer (idempotente por solicitudId).
  *
- * <p>Servicio a servicio (red interna).
+ * <p>Solo red interna con token de servicio.
  */
 @RestController
-@RequestMapping("/v1/identity/cuentas-personal")
+@RequestMapping("/identity/interno/cuentas-personal")
+@RequiereRol(Roles.SERVICIO)
 public class CuentasPersonalController {
 
     private final CuentasPersonalService servicio;
@@ -30,8 +33,11 @@ public class CuentasPersonalController {
     }
 
     @PostMapping
-    public ResponseEntity<UserResponse> crear(@RequestBody @Valid CuentaPersonalRequest solicitud) {
-        UserResponse respuesta = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/v1/identity/usuarios/" + respuesta.id())).body(respuesta);
+    public ResponseEntity<CuentaPersonalResponse> crear(@RequestBody @Valid CuentaPersonalRequest solicitud) {
+        CuentaPersonalResponse respuesta = servicio.crear(solicitud);
+        if (respuesta.creada()) {
+            return ResponseEntity.created(URI.create("/identity/usuarios/" + respuesta.usuarioId())).body(respuesta);
+        }
+        return ResponseEntity.ok(respuesta);
     }
 }

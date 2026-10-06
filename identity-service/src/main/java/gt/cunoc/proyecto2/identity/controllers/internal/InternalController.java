@@ -1,10 +1,10 @@
 package gt.cunoc.proyecto2.identity.controllers.internal;
 
 
+import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
-import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
+import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,38 +17,28 @@ import java.util.UUID;
 
 
 /**
- * R4 de Notification: administradores de una sucursal y datos del chofer.
+ * R4 de Notification: administradores de una sucursal y contacto de un usuario.
  *
- * <p>Solo red interna (sin roles de usuario).
+ * <p>Solo red interna con token de servicio.
  */
 @RestController
-@RequestMapping("/v1/identity/internal")
+@RequestMapping("/identity/interno")
+@RequiereRol(Roles.SERVICIO)
 public class InternalController {
-
-    private final UsuarioRepository repositorioUsuarios;
 
     private final UserService servicioUsuarios;
 
-    public InternalController(UsuarioRepository repositorioUsuarios, UserService servicioUsuarios) {
-        this.repositorioUsuarios = repositorioUsuarios;
+    public InternalController(UserService servicioUsuarios) {
         this.servicioUsuarios = servicioUsuarios;
     }
 
     @GetMapping("/sucursales/{id}/administradores")
-    public ResponseEntity<List<UserResponse>> administradores(@PathVariable UUID id) {
-        List<UserResponse> respuesta = repositorioUsuarios
-                .findBySucursalIdAndRoles_Codigo(id, Roles.ADMIN_SUCURSAL).stream()
-                .map(usuario -> servicioUsuarios.ver(usuario.getId()))
-                .toList();
-        return ResponseEntity.ok(respuesta);
+    public ResponseEntity<List<AdminContactoResponse>> administradores(@PathVariable UUID id) {
+        return ResponseEntity.ok(servicioUsuarios.administradoresDe(id));
     }
 
-    @GetMapping("/choferes/{choferId}")
-    public ResponseEntity<UserResponse> chofer(@PathVariable UUID choferId) {
-        Usuario usuario = repositorioUsuarios.findByChoferId(choferId).orElse(null);
-        if (usuario == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(servicioUsuarios.ver(usuario.getId()));
+    @GetMapping("/usuarios/{id}/contacto")
+    public ResponseEntity<ContactoResponse> contacto(@PathVariable UUID id) {
+        return ResponseEntity.ok(servicioUsuarios.contactoDe(id));
     }
 }

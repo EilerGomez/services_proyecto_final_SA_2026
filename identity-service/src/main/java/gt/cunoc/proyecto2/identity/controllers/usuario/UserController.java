@@ -1,13 +1,13 @@
 package gt.cunoc.proyecto2.identity.controllers.usuario;
 
 
+import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
-import gt.cunoc.proyecto2.identity.dtos.usuario.AdminCreateUserRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.RolesRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -29,10 +29,10 @@ import java.util.UUID;
 
 
 /**
- * Administración de usuarios (solo ADMIN_SISTEMA) y perfil propio.
+ * Usuarios: listado con filtros (I11), detalle (I12), alta de admin (I13) y estado (I14).
  */
 @RestController
-@RequestMapping("/v1/identity/usuarios")
+@RequestMapping("/identity/usuarios")
 public class UserController {
 
     private final UserService servicio;
@@ -43,41 +43,38 @@ public class UserController {
 
     @GetMapping
     @RequiereRol(Roles.ADMIN_SISTEMA)
-    public ResponseEntity<Page<UserResponse>> listar(Pageable paginado) {
-        return ResponseEntity.ok(servicio.listar(paginado));
+    public ResponseEntity<Page<UsuarioListaResponse>> listar(
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false, name = "q") String busqueda,
+            Pageable paginado) {
+        return ResponseEntity.ok(servicio.listar(rol, estado, busqueda, paginado));
     }
 
-    @PostMapping
+    @PostMapping("/administradores-sistema")
     @RequiereRol(Roles.ADMIN_SISTEMA)
-    public ResponseEntity<UserResponse> crear(@RequestBody @Valid AdminCreateUserRequest solicitud) {
-        UserResponse respuesta = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/v1/identity/usuarios/" + respuesta.id())).body(respuesta);
+    public ResponseEntity<UsuarioDetalleResponse> crearAdministrador(
+            @RequestBody @Valid AdministradorSistemaRequest solicitud) {
+        UsuarioDetalleResponse respuesta = servicio.crearAdministradorSistema(solicitud);
+        return ResponseEntity.created(URI.create("/identity/usuarios/" + respuesta.usuarioId())).body(respuesta);
     }
 
     @GetMapping("/{id}")
-    @RequiereRol(Roles.ADMIN_SISTEMA)
-    public ResponseEntity<UserResponse> ver(@PathVariable UUID id) {
-        return ResponseEntity.ok(servicio.ver(id));
-    }
-
-    @PutMapping("/perfil")
-    public ResponseEntity<UserResponse> actualizarPerfil(
-            @RequestBody @Valid UpdateProfileRequest solicitud,
-            @Parameter(hidden = true) UsuarioActual usuario) {
-        return ResponseEntity.ok(servicio.actualizarPerfil(usuario.usuarioId(), solicitud));
-    }
-
-    @PutMapping("/{id}/roles")
-    @RequiereRol(Roles.ADMIN_SISTEMA)
-    public ResponseEntity<UserResponse> asignarRoles(
+    @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
+    public ResponseEntity<UsuarioDetalleResponse> ver(
             @PathVariable UUID id,
-            @RequestBody @Valid RolesRequest solicitud) {
-        return ResponseEntity.ok(servicio.asignarRoles(id, solicitud));
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        UsuarioDetalleResponse respuesta = servicio.detalle(id);
+        if (!usuario.esAdminSistema()
+                && (respuesta.sucursalId() == null || !respuesta.sucursalId().equals(usuario.sucursalId()))) {
+            throw new ProhibidoException("SUCURSAL_AJENA", "No tiene acceso a los datos de esta sucursal");
+        }
+        return ResponseEntity.ok(respuesta);
     }
 
     @PatchMapping("/{id}/estado")
     @RequiereRol(Roles.ADMIN_SISTEMA)
-    public ResponseEntity<UserResponse> cambiarEstado(
+    public ResponseEntity<UsuarioDetalleResponse> cambiarEstado(
             @PathVariable UUID id,
             @RequestBody @Valid UserStatusRequest solicitud) {
         return ResponseEntity.ok(servicio.cambiarEstado(id, solicitud));

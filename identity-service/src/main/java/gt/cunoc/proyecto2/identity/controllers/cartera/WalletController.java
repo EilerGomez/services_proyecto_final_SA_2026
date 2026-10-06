@@ -1,6 +1,8 @@
 package gt.cunoc.proyecto2.identity.controllers.cartera;
 
 
+import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.cartera.WalletMovementResponse;
 import gt.cunoc.proyecto2.identity.dtos.cartera.WalletRechargeRequest;
@@ -24,10 +26,11 @@ import java.time.LocalDate;
 
 
 /**
- * Cartera propia: saldo, recargas e historial con filtros de fecha.
+ * Cartera propia (I17–I19, solo CLIENTE).
  */
 @RestController
-@RequestMapping("/v1/identity/cartera")
+@RequestMapping("/identity/cartera")
+@RequiereRol(Roles.CLIENTE)
 public class WalletController {
 
     private final WalletService servicio;
@@ -46,7 +49,7 @@ public class WalletController {
             @RequestBody @Valid WalletRechargeRequest solicitud,
             @Parameter(hidden = true) UsuarioActual usuario) {
         WalletMovementResponse respuesta = servicio.recargar(usuario.usuarioId(), solicitud);
-        return ResponseEntity.created(URI.create("/v1/identity/cartera/movimientos")).body(respuesta);
+        return ResponseEntity.created(URI.create("/identity/cartera/movimientos")).body(respuesta);
     }
 
     @GetMapping("/movimientos")
