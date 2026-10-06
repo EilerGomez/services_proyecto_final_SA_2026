@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 /**
  * Crea el primer ADMIN_SISTEMA desde variables de entorno (solo si no existe ninguno).
  *
- * <p>Variables: {@code INITIAL_ADMIN_CORREO}, {@code INITIAL_ADMIN_CONTRASENA} y datos del perfil.
+ * <p>Variables: {@code ADMIN_CORREO}, {@code ADMIN_CONTRASENA} y datos del perfil.
  */
 @Component
 @Order(1)
@@ -68,14 +68,14 @@ public class InitialAdminSeeder implements ApplicationRunner {
             RolRepository roles,
             CarteraRepository carteras,
             PasswordEncoder claves,
-            @Value("${INITIAL_ADMIN_CORREO:}") String correo,
-            @Value("${INITIAL_ADMIN_CONTRASENA:}") String contrasena,
-            @Value("${INITIAL_ADMIN_NOMBRES:Administrador}") String nombres,
-            @Value("${INITIAL_ADMIN_APELLIDOS:Sistema}") String apellidos,
-            @Value("${INITIAL_ADMIN_NIT:CF}") String nit,
-            @Value("${INITIAL_ADMIN_DPI:0000000000000}") String dpi,
-            @Value("${INITIAL_ADMIN_TELEFONO:00000000}") String telefono,
-            @Value("${INITIAL_ADMIN_DIRECCION:Ciudad}") String direccion) {
+            @Value("${ADMIN_CORREO:}") String correo,
+            @Value("${ADMIN_CONTRASENA:}") String contrasena,
+            @Value("${ADMIN_NOMBRES:Administrador}") String nombres,
+            @Value("${ADMIN_APELLIDOS:Sistema}") String apellidos,
+            @Value("${ADMIN_NIT:CF}") String nit,
+            @Value("${ADMIN_DPI:0000000000000}") String dpi,
+            @Value("${ADMIN_TELEFONO:00000000}") String telefono,
+            @Value("${ADMIN_DIRECCION:Ciudad}") String direccion) {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
@@ -99,7 +99,7 @@ public class InitialAdminSeeder implements ApplicationRunner {
             return;
         }
         if (correo.isBlank() || contrasena.isBlank()) {
-            log.warn("Sin ADMIN_SISTEMA: defina INITIAL_ADMIN_CORREO e INITIAL_ADMIN_CONTRASENA");
+            log.warn("Sin ADMIN_SISTEMA: defina ADMIN_CORREO e ADMIN_CONTRASENA");
             return;
         }
         if (usuarios.existsByCorreo(correo.trim().toLowerCase())) {
