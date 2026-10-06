@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 
 
@@ -38,4 +39,7 @@ public class Cartera {
     @Version
     @Column(name = "version", nullable = false)
     private int version;
+
+    @Column(name = "fecha_actualizacion", nullable = false)
+    private Instant fechaActualizacion;
 }

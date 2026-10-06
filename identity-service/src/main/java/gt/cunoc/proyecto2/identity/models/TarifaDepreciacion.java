@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -37,4 +38,7 @@ public class TarifaDepreciacion {
 
     @Column(name = "creado_por", nullable = false)
     private UUID creadoPor;
+
+    @Column(name = "fecha_creacion", nullable = false)
+    private Instant fechaCreacion;
 }
