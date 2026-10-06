@@ -13,13 +13,14 @@ import java.util.UUID;
 /**
  * R5: creación de cuenta de personal o chofer desde Fleet.
  *
- * <p>{@code solicitudId} lo genera Fleet antes de llamar (choferId o personalId);
- * si la llamada se reintenta se devuelve la misma cuenta.
+ * <p>{@code solicitudId} lo genera Fleet antes de llamar; si la llamada se
+ * reintenta se devuelve la misma cuenta. {@code choferId} solo para CHOFER.
  */
 public record CuentaPersonalRequest(
         @NotNull UUID solicitudId,
-        @NotBlank @Pattern(regexp = "^(CHOFER|ADMIN_SUCURSAL|CAJERO)$") String rolCodigo,
+        @NotBlank @Pattern(regexp = "^(CHOFER|ADMIN_SUCURSAL|CAJERO)$") String rol,
         @NotNull UUID sucursalId,
+        UUID choferId,
         @NotBlank @Email String correo,
         @NotBlank @Size(max = 100) String nombres,
         @NotBlank @Size(max = 100) String apellidos,

@@ -13,11 +13,9 @@ import java.time.LocalDate;
  */
 public record WalletRechargeRequest(
 
-
         @NotNull
         @DecimalMin(value = "0.01", message = "debe ser mayor que cero")
         BigDecimal monto,
-
 
         LocalDate fechaMovimiento
 

@@ -32,7 +32,7 @@ public class IdentidadUsuarioFactory {
     }
 
     private UUID sucursalDe(Usuario usuario, Set<String> roles) {
-        if (!roles.contains("ADMIN_SUCURSAL") && !roles.contains("CAJERO")) {
+        if (!roles.contains("ADMIN_SUCURSAL") && !roles.contains("CAJERO") && !roles.contains("CHOFER")) {
             return null;
         }
         return usuario.getSucursalId();

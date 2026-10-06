@@ -47,7 +47,7 @@ public class WalletServiceImpl implements WalletService {
     public WalletResponse saldo(UUID usuarioId) {
         Cartera cartera = carteras.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("CARTERA_NO_EXISTE", "El usuario no tiene cartera"));
-        return new WalletResponse(usuarioId, cartera.getSaldo());
+        return new WalletResponse(cartera.getId(), cartera.getSaldo(), cartera.getFechaActualizacion());
     }
 
     @Override
@@ -78,7 +78,7 @@ public class WalletServiceImpl implements WalletService {
                 .orElseThrow(() -> new NoEncontradoException("CARTERA_NO_EXISTE", "El usuario no tiene cartera"));
         LocalDate inicio = desde == null ? LocalDate.of(2000, 1, 1) : desde;
         LocalDate fin = hasta == null ? LocalDate.now().plusDays(1) : hasta;
-        return movimientos.findByCarteraIdAndFechaMovimientoBetween(cartera.getId(), inicio, fin, paginado)
+        return movimientos.findByCarteraIdAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(cartera.getId(), inicio, fin, paginado)
                 .map(this::aRespuesta);
     }
 

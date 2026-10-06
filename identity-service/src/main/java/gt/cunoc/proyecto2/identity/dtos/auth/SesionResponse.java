@@ -1,19 +1,19 @@
 package gt.cunoc.proyecto2.identity.dtos.auth;
 
 
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioSesion;
 
 import java.util.UUID;
 
 
 /**
- * Respuesta del inicio de sesión y de la renovación (access + refresh).
+ * Respuesta del login y de la renovación (acceso + refresco).
  */
 public record SesionResponse(
-        String token,
+        String tokenAcceso,
         String tipo,
-        long expiraEnSegundos,
+        String expiraEn,
         String tokenRefresco,
         UUID usuarioId,
-        UserResponse usuario) {
+        UsuarioSesion usuario) {
 }

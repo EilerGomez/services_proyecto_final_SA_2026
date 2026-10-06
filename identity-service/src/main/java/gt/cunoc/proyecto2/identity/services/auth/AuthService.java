@@ -5,10 +5,11 @@ import gt.cunoc.proyecto2.identity.dtos.auth.CambioContrasenaRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.InicioSesionRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RecuperacionRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RegistroRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.RegistroResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.RestablecimientoRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.TokenRefrescoRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 
 import java.util.UUID;
 
@@ -18,9 +19,9 @@ import java.util.UUID;
  */
 public interface AuthService {
 
-    SesionResponse iniciarSesion(InicioSesionRequest solicitud);
+    RegistroResponse registrar(RegistroRequest solicitud);
 
-    UserResponse registrar(RegistroRequest solicitud);
+    SesionResponse iniciarSesion(InicioSesionRequest solicitud);
 
     SesionResponse renovarSesion(TokenRefrescoRequest solicitud);
 
@@ -30,7 +31,7 @@ public interface AuthService {
 
     void restablecerContrasena(RestablecimientoRequest solicitud);
 
-    UserResponse miPerfil(UUID usuarioId);
+    PerfilResponse miPerfil(UUID usuarioId);
 
     void cambiarContrasena(UUID usuarioId, CambioContrasenaRequest solicitud);
 }

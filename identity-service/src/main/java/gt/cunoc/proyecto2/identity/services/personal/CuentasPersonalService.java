@@ -2,7 +2,7 @@ package gt.cunoc.proyecto2.identity.services.personal;
 
 
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
-import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
+import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalResponse;
 
 
 /**
@@ -10,5 +10,5 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.UserResponse;
  */
 public interface CuentasPersonalService {
 
-    UserResponse crear(CuentaPersonalRequest solicitud);
+    CuentaPersonalResponse crear(CuentaPersonalRequest solicitud);
 }
