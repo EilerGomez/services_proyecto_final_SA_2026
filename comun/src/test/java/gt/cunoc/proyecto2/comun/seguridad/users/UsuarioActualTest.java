@@ -56,4 +56,16 @@ class UsuarioActualTest {
         UsuarioActual u = new UsuarioActual(UUID.randomUUID(), "x@y.com", null, null, null);
         assertThat(u.roles()).isEmpty();
     }
+
+    @Test
+    void servicioSeIdentificaPorSuRol() {
+        UsuarioActual servicio = new UsuarioActual(UUID.randomUUID(), "fleet-service",
+                Set.of(Roles.SERVICIO), null, null);
+        UsuarioActual admin = new UsuarioActual(UUID.randomUUID(), "a@b.com",
+                Set.of(Roles.ADMIN_SISTEMA), null, null);
+
+        assertThat(servicio.esServicio()).isTrue();
+        assertThat(servicio.esAdminSistema()).isFalse();
+        assertThat(admin.esServicio()).isFalse();
+    }
 }

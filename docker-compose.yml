@@ -90,6 +90,8 @@ services:
       <<: *env-comun
       DB_NAME: bd_identidad${DB_SUFIJO:-}
       DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
+      FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
+      FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
   fleet-service:
     <<: *servicio-java
@@ -99,6 +101,8 @@ services:
       <<: *env-comun
       DB_NAME: bd_flota${DB_SUFIJO:-}
       DB_PASSWORD: ${DB_FLOTA_PASSWORD:-cambiar_flota}
+      FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
+      FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
   trips-service:
     <<: *servicio-java

@@ -36,6 +36,11 @@ public record UsuarioActual(
         return tieneRol(Roles.ADMIN_SISTEMA);
     }
 
+    /** true si la petición viene de otro microservicio (token de servicio, rol SERVICIO). */
+    public boolean esServicio() {
+        return tieneRol(Roles.SERVICIO);
+    }
+
     /** ADMIN_SISTEMA ve todo; los demás solo los datos de su propia sucursal. */
     public void verificarAccesoSucursal(UUID sucursal) {
         if (esAdminSistema()) {

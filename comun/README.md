@@ -23,7 +23,7 @@ el contexto necesario.
 8. [Eventos: consumir](#8-eventos-consumir)
 9. [Eventos: ejemplo completo de saga](#9-eventos-ejemplo-completo-de-saga)
 10. [Errores](#10-errores)
-11. [Seguridad: usuario actual y roles](#11-seguridad-usuario-actual-y-roles)
+11. [Seguridad: usuario actual y roles](#11-seguridad-usuario-actual-y-roles) (incluye llamadas internas R1–R5)
 12. [Estructura del JWT](#12-estructura-del-jwt)
 13. [Correlación y logs](#13-correlación-y-logs)
 14. [Pruebas](#14-pruebas)
@@ -202,6 +202,8 @@ compartido, los datos no. El `PublicadorEventos` que corre dentro de Sales escri
 
 ```yaml
 spring:
+  application:
+    name: sales-service                   # va en el token de servicio de las llamadas internas (§11)
   rabbitmq:
     host: ${RABBIT_HOST:localhost}
     port: ${RABBIT_PORT:5672}
@@ -232,6 +234,8 @@ app:
   jwt:
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}   # ≥ 32 caracteres, IGUAL en todos
     duracion-minutos: 60
+  servicios:                              # solo si el servicio hace llamadas internas (R1–R5)
+    trips-url: ${TRIPS_URL:http://localhost:8083}   # en Docker: http://trips-service:8083
 ```
 
 - Las claves con punto van entre corchetes y comillas (`"[trips.eventos]"`); si no, Spring interpreta los puntos
@@ -265,6 +269,7 @@ Base: `gt.cunoc.proyecto2.comun`
 | `seguridad.filtro` | `FiltroAutenticacion`, `FiltroCorrelacion` | No (interna) | Filtros HTTP |
 | `seguridad.users` | `InterceptorRoles`, `ResolverUsuarioActual` | No (interna) | Aplicar `@RequiereRol` e inyectar `UsuarioActual` |
 | `seguridad.config` | `ConfiguracionSeguridadWeb` | No (interna) | Registra interceptor y resolver |
+| `cliente` | `ClientesInternos` | Si hace llamadas R1–R5 | Crea el `RestClient` con token de servicio, correlación y espera de 3 s |
 
 ```java
 // Lo que normalmente importa un servicio
@@ -699,6 +704,9 @@ throw new NoEncontradoException("BUS_NO_EXISTE", "El bus no existe");
 | Parámetro de URL inválido o faltante | 400 | `PARAMETRO_INVALIDO` |
 | Ruta inexistente | 404 | `RUTA_INEXISTENTE` |
 | Método HTTP no soportado | 405 | `METODO_NO_PERMITIDO` |
+| Archivo más grande que `spring.servlet.multipart.max-file-size` | 400 | `ARCHIVO_INVALIDO` |
+| Falta la parte del formulario (`@RequestPart("archivo")`) | 400 | `ARCHIVO_INVALIDO` |
+| Petición que no es `multipart/form-data` en un endpoint de subida | 400 | `ARCHIVO_INVALIDO` |
 | Violación de `UNIQUE` en la BD (23505) | 409 | `REGISTRO_DUPLICADO` |
 | Borrar algo referenciado por FK (23503) | 409 | `REGISTRO_EN_USO` |
 | `RAISE EXCEPTION` de un trigger (P0001) | 422 | `REGLA_NEGOCIO` con **el mensaje del trigger** |
@@ -727,6 +735,11 @@ public BusResponse crear(@RequestBody @Valid BusRequest request) { ... }
 Los triggers de las migraciones ya protegen reglas del enunciado (último admin de sistema, salida/llegada
 inmutables, tipo de viaje inmutable...). Si se viola una, el usuario recibe 422 con el mensaje del trigger
 (por ejemplo "No se puede desactivar al último administrador del sistema activo") sin escribir código extra.
+
+El servicio que recibe el archivo (por ejemplo `AlmacenFotos` en Identity y Fleet) usa el mismo código para sus
+propias validaciones (archivo vacío, tipo no permitido):
+`throw new SolicitudInvalidaException("ARCHIVO_INVALIDO", "Solo se permiten fotos JPG, PNG o WEBP")`.
+Así el frontend maneja un solo código para todo problema con el archivo.
 
 **No** atrapar excepciones en el controlador para construir un `ResponseEntity` de error a mano: se pierde el
 formato común. Lanzar la excepción y dejar que `comun` responda.
@@ -762,6 +775,7 @@ Controlador            → reglas finas: usuario.verificarAccesoSucursal(...)
 | Cualquier usuario con sesión | Parámetro `UsuarioActual` o `@RequiereRol` sin roles |
 | Roles específicos | `@RequiereRol({Roles.X, Roles.Y})` (basta con tener uno) |
 | Solo su sucursal | Además: `usuario.verificarAccesoSucursal(sucursalId)` (ADMIN_SISTEMA pasa siempre) |
+| Endpoint interno (R1–R5, `/<prefijo>/interno/**`) | `@RequiereRol(Roles.SERVICIO)` (ver "Llamadas internas" más abajo) |
 
 ### Ejemplo de controlador
 
@@ -827,6 +841,7 @@ if (!usuario.tieneRol(Roles.ADMIN_SUCURSAL) && !viaje.getChoferId().equals(usuar
 | `choferId()` | Id de chofer en Fleet (solo CHOFER; si no, null) |
 | `tieneRol(rol)` / `tieneAlgunRol(...)` | true / false |
 | `esAdminSistema()` | true / false |
+| `esServicio()` | true si la llamada viene de otro microservicio (rol `SERVICIO`) |
 | `verificarAccesoSucursal(id)` | Lanza `ProhibidoException` si no es su sucursal (ADMIN_SISTEMA siempre pasa) |
 
 ### Generar el token (solo Identity, en el login)
@@ -843,6 +858,70 @@ public LoginResponse login(@RequestBody @Valid LoginRequest request) {
 ```
 
 El frontend guarda el token y lo envía en cada petición: `Authorization: Bearer <token>`.
+
+### Llamadas internas entre servicios (R1–R5)
+
+| # | Origen → Destino | Endpoint interno |
+| --- | --- | --- |
+| R1 | Trips → Fleet | `GET /fleet/interno/buses/{id}/disponibilidad`, `GET /fleet/interno/choferes/{id}?fecha=` |
+| R2 | Sales → Trips | `GET /trips/interno/viajes/{id}/vendible` |
+| R3 | Fleet → Trips | `GET /trips/interno/viajes/activos?busId=` o `?choferId=` |
+| R4 | Notification → Identity | `GET /identity/interno/sucursales/{id}/administradores`, `GET /identity/interno/usuarios/{id}/contacto` |
+| R5 | Fleet → Identity | `POST /identity/interno/cuentas-personal` |
+
+- El gateway bloquea `/*/interno/**`: estas rutas solo se llaman dentro de la red de Docker.
+- Quien llama envía un **token de servicio**: JWT firmado con el mismo `JWT_SECRET`, `roles = ["SERVICIO"]`,
+  `correo` = nombre del servicio, `sub` = UUID fijo derivado del nombre y vigencia de 5 minutos
+  (`ServicioJwt.generarServicio(nombre)`). Ninguna persona tiene el rol `SERVICIO`: Identity nunca lo pone en el login.
+- `ClientesInternos` arma el `RestClient` con ese token, el `X-Correlation-Id` del flujo actual y una espera de
+  3 s (conexión y lectura). Genera un token nuevo en cada petición, así nunca envía uno vencido.
+- Reintentos y circuito abierto los pone Resilience4j en el servicio que llama; su fallback lanza
+  `ServicioNoDisponibleException` (503).
+
+Lado que llama (Fleet → Trips, R3):
+
+```java
+@Configuration
+class ClientesConfig {
+    @Bean
+    RestClient clienteTrips(ClientesInternos clientes, @Value("${app.servicios.trips-url}") String url) {
+        return clientes.crear(url);
+    }
+}
+
+@Component
+class ClienteTrips {
+    private final RestClient trips;
+
+    ClienteTrips(RestClient clienteTrips) {
+        this.trips = clienteTrips;
+    }
+
+    @CircuitBreaker(name = "trips", fallbackMethod = "sinTrips")
+    @Retry(name = "trips")
+    public List<ViajeActivo> viajesActivosDelBus(UUID busId) {
+        return trips.get().uri("/trips/interno/viajes/activos?busId={id}", busId)
+                .retrieve().body(new ParameterizedTypeReference<List<ViajeActivo>>() { });
+    }
+
+    private List<ViajeActivo> sinTrips(UUID busId, Throwable causa) {
+        throw new ServicioNoDisponibleException("No se pudo consultar los viajes del bus; intente de nuevo");
+    }
+}
+```
+
+Lado que recibe (Trips):
+
+```java
+@RestController
+@RequestMapping("/trips/interno/viajes")
+@RequiereRol(Roles.SERVICIO)                // una persona con token normal recibe 403
+class ViajesInternosController {
+    @GetMapping("/activos")
+    List<ViajeActivo> activos(@RequestParam(required = false) UUID busId,
+                              @RequestParam(required = false) UUID choferId) { ... }
+}
+```
 
 ---
 
@@ -872,7 +951,7 @@ por ejemplo en jwt.io), solo firmado: nunca poner contraseñas ni datos sensible
 | --- | --- | --- |
 | `sub` | `usuario.usuarioId()` | **Id del usuario.** Se llama `sub` (subject) porque es el nombre estándar de JWT (RFC 7519) |
 | `correo` | `usuario.correo()` | Correo del usuario |
-| `roles` | `usuario.roles()` | `ADMIN_SISTEMA`, `ADMIN_SUCURSAL`, `CAJERO`, `CHOFER`, `CLIENTE` |
+| `roles` | `usuario.roles()` | `ADMIN_SISTEMA`, `ADMIN_SUCURSAL`, `CAJERO`, `CHOFER`, `CLIENTE`; `SERVICIO` solo en tokens de servicio |
 | `sucursalId` | `usuario.sucursalId()` | Solo admin de sucursal y cajero |
 | `choferId` | `usuario.choferId()` | Solo choferes |
 | `iat` | — | Emitido en (segundos desde 1970) |
@@ -901,6 +980,7 @@ ese servicio responderá `TOKEN_INVALIDO` a todo.
 
 - Cada petición HTTP trae o recibe un `X-Correlation-Id` (se devuelve en la respuesta).
 - Ese id viaja en el `correlationId` de cada evento publicado y se restaura al consumirlo.
+- En las llamadas internas (R1–R5), `ClientesInternos` lo envía en el header `X-Correlation-Id`.
 - Está en el MDC con la clave `correlationId`. Para verlo en los logs, en `application.yml`:
 
 ```yaml
@@ -944,7 +1024,7 @@ Reporte: `comun/target/site/jacoco/index.html` (abrir en el navegador; muestra e
 | `errores.ExcepcionesTest` | Status y código de las 7 excepciones, con y sin código propio |
 | `errores.ErrorRespuestaTest` | Lista de errores vacía por defecto e inmutable |
 | `errores.EscritorErroresTest` | Construcción de la respuesta, correlationId y escritura JSON desde un filtro |
-| `errores.ManejadorGlobalErroresTest` | Cada tipo de error → su HTTP y código (validación, JSON, 404, 405, triggers P0001, duplicados, FK, 500) |
+| `errores.ManejadorGlobalErroresTest` | Cada tipo de error → su HTTP y código (validación, JSON, 404, 405, archivos, triggers P0001, duplicados, FK, 500) |
 | `eventos.contextocorrelacion.ContextoCorrelacionTest` | Establecer, leer, generar y limpiar el id (incluido el MDC) |
 | `eventos.sobre.EventoSobreJsonTest` | El sobre se serializa y se lee sin perder datos; payload al record del consumidor |
 | `eventos.propiedadesevento.PropiedadesEventosTest` | Valores por defecto de la configuración |
@@ -953,13 +1033,14 @@ Reporte: `comun/target/site/jacoco/index.html` (abrir en el navegador; muestra e
 | `eventos.outbox.RelayOutboxTest` | Publica y marca; nack detiene el lote; error recortado a 1000 caracteres; sin pendientes |
 | `eventos.consumidor.ConsumidorEventosTest` | Despacho tipado, correlación, duplicados, sin manejador, JSON inválido, payload incompatible, manejadores repetidos |
 | `idempotencia.ProcesadorIdempotenteTest` | Primera vez ejecuta; repetido no ejecuta |
-| `seguridad.service.ServicioJwtTest` | Generar/validar, chofer, alterado, otro secreto, expirado, `alg: none`, sin `exp`, `sub` inválido, roles inválidos, secreto corto |
-| `seguridad.users.UsuarioActualTest` | Roles y acceso por sucursal |
+| `seguridad.service.ServicioJwtTest` | Generar/validar, chofer, alterado, otro secreto, expirado, `alg: none`, sin `exp`, `sub` inválido, roles inválidos, secreto corto; token de servicio (rol, id fijo, 5 minutos, nombre obligatorio) |
+| `seguridad.users.UsuarioActualTest` | Roles, acceso por sucursal y `esServicio()` |
 | `seguridad.users.InterceptorRolesTest` | Público, 401 sin sesión, 403 sin rol, rol correcto, anotación en la clase |
 | `seguridad.users.ResolverUsuarioActualTest` | Inyección de `UsuarioActual`, 401 si falta, nulo si el parámetro es opcional |
 | `seguridad.filtro.FiltroCorrelacionTest` | Header válido, ausente e inválido |
 | `seguridad.filtro.FiltroAutenticacionTest` | Token válido, inválido (401), sin token y otro tipo de autorización |
 | `seguridad.config.ConfiguracionSeguridadWebTest` | Registro del resolver y del interceptor |
+| `cliente.ClientesInternosTest` | Con un servidor HTTP local: token de servicio válido, correlación actual o nueva, tiempo de espera |
 
 ### Probar un endpoint protegido en un servicio
 
@@ -1004,6 +1085,8 @@ handler.manejar(evento);
 - Lanzar las excepciones de `comun.errores` con un código estable y un mensaje claro.
 - Proteger endpoints con `@RequiereRol` y validar la sucursal con `UsuarioActual`.
 - Revisar el catálogo de eventos (`CLAUDE.md` §8) antes de publicar o consumir.
+- Crear los clientes de R1–R5 con `ClientesInternos.crear(url)` y proteger los endpoints internos con
+  `@RequiereRol(Roles.SERVICIO)`.
 
 **No**
 
@@ -1014,6 +1097,8 @@ handler.manejar(evento);
 - Lanzar una excepción para una respuesta de negocio válida (por ejemplo saldo insuficiente → publicar `DebitoCarteraRechazado`).
 - Construir respuestas de error a mano en los controladores.
 - Poner datos sensibles en el JWT o en los eventos.
+- Armar un `RestClient` a mano para llamar a otro servicio (se pierden el token y la correlación).
+- Dar el rol `SERVICIO` a una persona o exponer `/interno/**` en el gateway.
 
 ---
 
@@ -1049,5 +1134,9 @@ handler.manejar(evento);
 | Mensajes en `<cola>.dlq` | El manejador falló 4 veces o el JSON/payload no es válido | Ver el mensaje en el panel (*Get messages*), corregir el código y volver a enviarlo a la cola |
 | `401 TOKEN_INVALIDO` en un servicio pero no en otro | `JWT_SECRET` distinto entre servicios | Usar el mismo valor en todos (`.env`) |
 | `401 TOKEN_EXPIRADO` | Pasaron `app.jwt.duracion-minutos` | Volver a iniciar sesión (o usar refresh token) |
+| `403` en un endpoint `/interno/**` | Se llamó con un token de persona, o el cliente no se creó con `ClientesInternos` | Usar `ClientesInternos.crear(url)` |
+| `401 TOKEN_INVALIDO` solo en llamadas internas | `JWT_SECRET` distinto entre los dos servicios | Mismo valor en todos |
+| `ResourceAccessException` / 503 en una llamada interna | El otro servicio no responde en 3 s o la URL es incorrecta | Revisar `app.servicios.*-url` (en Docker, el nombre del contenedor) y que el servicio esté arriba |
+| `400 ARCHIVO_INVALIDO` al subir una foto | Archivo de más de 2 MB, falta el campo `archivo` o no es `multipart/form-data` | Revisar el formulario y `spring.servlet.multipart.*` |
 | `app.jwt.secret debe tener al menos 32 caracteres` al arrancar | Secreto corto | Usar un secreto de 32+ caracteres |
 | Payload con campos en null al consumir | El nombre del campo del record no coincide con el del catálogo | Usar exactamente los nombres del catálogo (camelCase en español) |

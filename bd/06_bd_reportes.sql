@@ -14,6 +14,17 @@ CREATE TABLE sucursales (                  -- SucursalCreada / SucursalActualiza
   version    INT          NOT NULL DEFAULT 0
 );
 
+CREATE TABLE tarifas_depreciacion (        -- TarifaDepreciacionCambiada (Identity)
+  id             UUID          PRIMARY KEY,
+  monto_por_km   NUMERIC(12,4) NOT NULL,
+  vigente_desde  DATE          NOT NULL UNIQUE
+);
+-- Solo para mostrar la tarifa vigente en el reporte de depreciación.
+-- El costo de cada viaje usa la tarifa que guardó Trips en ViajeCompletado (viajes.tarifa_depreciacion).
+-- Tarifa vigente para una fecha:
+--   SELECT monto_por_km, vigente_desde FROM tarifas_depreciacion
+--   WHERE vigente_desde <= :fecha ORDER BY vigente_desde DESC LIMIT 1;
+
 CREATE TABLE rutas (                       -- RutaCreada / RutaActualizada / RutaEliminada (Trips)
   id                   UUID          PRIMARY KEY,
   sucursal_origen_id   UUID          NOT NULL,
@@ -63,9 +74,11 @@ CREATE TABLE viajes (                      -- ViajeProgramado / ViajeActualizado
   km_recorridos          NUMERIC(12,2),
   tarifa_depreciacion    NUMERIC(12,4),
   costo_depreciacion     NUMERIC(12,2),
-  estado                 VARCHAR(12)   NOT NULL
+  estado                 VARCHAR(12)   NOT NULL,
+  version                INT           NOT NULL DEFAULT 0
 );
 CREATE INDEX ix_viajes_bus ON viajes (bus_id) WHERE estado = 'COMPLETADO';
+CREATE INDEX ix_viajes_bus_pendientes ON viajes (bus_id, fecha_salida) WHERE estado IN ('PROGRAMADO', 'EN_RUTA');
 
 -- Ingresos: boletos y alquileres (monto negativo en reembolsos/cancelaciones)
 -- BoletoVendido / VentaCancelada / AlquilerPagado (Sales)
@@ -86,8 +99,9 @@ CREATE TABLE ingresos (
   monto             NUMERIC(12,2) NOT NULL,
   fecha_negocio     DATE          NOT NULL            -- fecha elegida por el usuario
 );
-CREATE INDEX ix_ingresos_fecha ON ingresos (fecha_negocio, sucursal_id);
-CREATE INDEX ix_ingresos_ruta  ON ingresos (ruta_id) WHERE tipo = 'BOLETO';
+CREATE INDEX ix_ingresos_fecha      ON ingresos (fecha_negocio, sucursal_id);
+CREATE INDEX ix_ingresos_ruta       ON ingresos (ruta_id) WHERE tipo = 'BOLETO';
+CREATE INDEX ix_ingresos_referencia ON ingresos (referencia_id);
 
 -- Gastos: combustible, depreciación, salario, mano de obra y repuestos
 -- ViajeCompletado (Trips) / GastoTallerRegistrado (Maintenance)

@@ -47,7 +47,7 @@ CREATE TABLE usuarios (
   fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 -- usuarios.sucursal_id se mantiene así:
---   R5 (POST /identity/cuentas-personal)   -> la asigna al crear la cuenta
+--   R5 (POST /identity/interno/cuentas-personal) -> la asigna al crear la cuenta
 --   PersonalSucursalAsignado (Fleet)      -> la cambia en un traslado y agrega el rol
 --   PersonalSucursalDesactivado (Fleet)   -> la limpia y quita ADMIN_SUCURSAL/CAJERO
 --   ChoferDesactivado (Fleet)             -> la limpia y quita CHOFER

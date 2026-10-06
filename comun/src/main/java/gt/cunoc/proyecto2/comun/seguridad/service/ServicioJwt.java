@@ -1,7 +1,8 @@
 package gt.cunoc.proyecto2.comun.seguridad.service;
 
-import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -26,11 +27,16 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Genera y valida JWT firmados con HS256 y el secreto compartido {@code app.jwt.secret} (≥ 32 caracteres).
  * Identity usa {@link #generar}; todos los servicios usan {@link #validar} (a través del filtro).
+ * Para las llamadas internas (R1–R5) se usa {@link #generarServicio}, normalmente a través de
+ * {@code ClientesInternos}.
  *
  * <p>Claims: sub (usuarioId), correo, roles[], sucursalId, choferId, iat, exp.</p>
  */
 @Component
 public class ServicioJwt {
+
+    /** Duración del token de servicio (independiente de {@code app.jwt.duracion-minutos}). */
+    public static final Duration DURACION_TOKEN_SERVICIO = Duration.ofMinutes(5);
 
     private static final String ALGORITMO = "HmacSHA256";
     private static final Base64.Encoder B64 = Base64.getUrlEncoder().withoutPadding();
@@ -60,7 +66,30 @@ public class ServicioJwt {
         this.reloj = reloj;
     }
 
+    /** Token de una persona (login en Identity). Dura {@code app.jwt.duracion-minutos}. */
     public String generar(UsuarioActual usuario) {
+        return firmarToken(usuario, duracion);
+    }
+
+    /**
+     *
+     * @param nombreServicio p. ej. {@code "fleet-service"} (el {@code spring.application.name})
+     */
+    public String generarServicio(String nombreServicio) {
+        if (nombreServicio == null || nombreServicio.isBlank()) {
+            throw new IllegalArgumentException("El nombre del servicio es obligatorio");
+        }
+        UsuarioActual servicio = new UsuarioActual(idServicio(nombreServicio), nombreServicio,
+                Set.of(Roles.SERVICIO), null, null);
+        return firmarToken(servicio, DURACION_TOKEN_SERVICIO);
+    }
+
+    /** UUID estable de un servicio: siempre el mismo para el mismo nombre. */
+    public static UUID idServicio(String nombreServicio) {
+        return UUID.nameUUIDFromBytes(("servicio:" + nombreServicio).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String firmarToken(UsuarioActual usuario, Duration vigencia) {
         long ahora = reloj.instant().getEpochSecond();
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("sub", usuario.usuarioId().toString());
@@ -73,7 +102,7 @@ public class ServicioJwt {
             claims.put("choferId", usuario.choferId().toString());
         }
         claims.put("iat", ahora);
-        claims.put("exp", ahora + duracion.toSeconds());
+        claims.put("exp", ahora + vigencia.toSeconds());
 
         String contenido = CABECERA + "." + B64.encodeToString(json.writeValueAsBytes(claims));
         return contenido + "." + B64.encodeToString(firmar(contenido));

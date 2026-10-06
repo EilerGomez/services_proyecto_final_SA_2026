@@ -99,6 +99,8 @@ CREATE TABLE ordenes_alquiler (
   cliente_nombre       VARCHAR(200)  NOT NULL,
   cliente_correo       VARCHAR(150),
   sucursal_id          UUID          NOT NULL,
+  origen               VARCHAR(255)  NOT NULL,           -- copiado de CotizacionAlquilerConfirmada
+  destino              VARCHAR(255)  NOT NULL,           -- (los lleva AlquilerPagado)
   monto                NUMERIC(12,2) NOT NULL CHECK (monto > 0),
   metodo_pago          VARCHAR(10)   CHECK (metodo_pago IN ('CARTERA', 'EFECTIVO')),
   fecha_pago           DATE,
