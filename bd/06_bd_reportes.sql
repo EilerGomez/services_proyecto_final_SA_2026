@@ -5,7 +5,7 @@
 -- los eventos pueden llegar en distinto orden.
 -- =====================================================================
 
-CREATE TABLE sucursales (
+CREATE TABLE sucursales (                  -- SucursalCreada / SucursalActualizada (Fleet)
   id         UUID         PRIMARY KEY,
   nombre     VARCHAR(100) NOT NULL,
   latitud    NUMERIC(9,6) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE sucursales (
   version    INT          NOT NULL DEFAULT 0
 );
 
-CREATE TABLE rutas (
+CREATE TABLE rutas (                       -- RutaCreada / RutaActualizada / RutaEliminada (Trips)
   id                   UUID          PRIMARY KEY,
   sucursal_origen_id   UUID          NOT NULL,
   sucursal_destino_id  UUID          NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE rutas (
   version              INT           NOT NULL DEFAULT 0
 );
 
-CREATE TABLE buses (
+CREATE TABLE buses (                       -- BusCreado / BusActualizado / BusDesactivado (Fleet)
   id                   UUID          PRIMARY KEY,
   sucursal_id          UUID          NOT NULL,
   placa                VARCHAR(10)   NOT NULL,
@@ -40,10 +40,10 @@ CREATE TABLE buses (
   version              INT           NOT NULL DEFAULT 0
 );
 
-CREATE TABLE choferes (
+CREATE TABLE choferes (                    -- ChoferCreado / ChoferActualizado / ChoferDesactivado (Fleet)
   id                          UUID         PRIMARY KEY,
   sucursal_id                 UUID         NOT NULL,
-  nombre_completo             VARCHAR(150) NOT NULL,
+  nombre_completo             VARCHAR(201) NOT NULL,
   numero_licencia             VARCHAR(30)  NOT NULL,
   tipo_licencia               VARCHAR(2)   NOT NULL,
   fecha_vencimiento_licencia  DATE         NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE choferes (
   version                     INT          NOT NULL DEFAULT 0
 );
 
-CREATE TABLE viajes (
+CREATE TABLE viajes (                      -- ViajeProgramado / ViajeActualizado / ViajeEliminado / ViajeIniciado / ViajeCompletado (Trips)
   viaje_id               UUID          PRIMARY KEY,
   tipo                   VARCHAR(10)   NOT NULL,
   ruta_id                UUID,
@@ -68,6 +68,7 @@ CREATE TABLE viajes (
 CREATE INDEX ix_viajes_bus ON viajes (bus_id) WHERE estado = 'COMPLETADO';
 
 -- Ingresos: boletos y alquileres (monto negativo en reembolsos/cancelaciones)
+-- BoletoVendido / VentaCancelada / AlquilerPagado (Sales)
 CREATE TABLE ingresos (
   id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   evento_origen_id  UUID          NOT NULL UNIQUE,   -- idempotencia
@@ -89,6 +90,7 @@ CREATE INDEX ix_ingresos_fecha ON ingresos (fecha_negocio, sucursal_id);
 CREATE INDEX ix_ingresos_ruta  ON ingresos (ruta_id) WHERE tipo = 'BOLETO';
 
 -- Gastos: combustible, depreciación, salario, mano de obra y repuestos
+-- ViajeCompletado (Trips) / GastoTallerRegistrado (Maintenance)
 CREATE TABLE gastos (
   id                  UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   evento_origen_id    UUID          NOT NULL,
@@ -105,7 +107,7 @@ CREATE TABLE gastos (
   monto               NUMERIC(12,2) NOT NULL,
   fecha_negocio       DATE          NOT NULL
 );
--- Idempotencia: un TripCompleted genera 3 filas (combustible, depreciación, salario);
+-- Idempotencia: un ViajeCompletado genera 3 filas (combustible, depreciación, salario);
 -- un servicio de taller genera una fila por línea de detalle.
 CREATE UNIQUE INDEX ux_gastos_evento ON gastos
   (evento_origen_id, tipo, COALESCE(linea_detalle_id, '00000000-0000-0000-0000-000000000000'::uuid));

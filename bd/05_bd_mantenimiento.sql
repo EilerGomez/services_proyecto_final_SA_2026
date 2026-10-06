@@ -9,7 +9,7 @@ BEGIN
   RETURN NEW;
 END; $$ LANGUAGE plpgsql;
 
--- ---------- Proyección local (BusCreated / BusUpdated / BusDeactivated) ----------
+-- ---------- Proyección local (BusCreado / BusActualizado / BusDesactivado de Fleet) ----------
 CREATE TABLE vista_buses (
   bus_id       UUID        PRIMARY KEY,
   placa        VARCHAR(10) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE vista_buses (
   version      INT         NOT NULL DEFAULT 0
 );
 
--- ---------- Catálogo de categorías ----------
+-- ---------- Catálogo de categorías (publica CategoriaGastoActualizada) ----------
 CREATE TABLE categorias_gasto (
   id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre               VARCHAR(60)   NOT NULL UNIQUE,
@@ -32,7 +32,7 @@ INSERT INTO categorias_gasto (nombre) VALUES
   ('Llantas'), ('Motor'), ('Frenos'), ('Suspensión'), ('Cambio de aceite'),
   ('Eléctrico'), ('Carrocería'), ('Otros');
 
--- ---------- Servicios de taller (encabezado + detalle) ----------
+-- ---------- Servicios de taller (encabezado + detalle; publica GastoTallerRegistrado) ----------
 CREATE TABLE servicios_taller (
   id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   bus_id               UUID          NOT NULL REFERENCES vista_buses(bus_id),

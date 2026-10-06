@@ -1,6 +1,8 @@
 -- =====================================================================
--- 02_bd_flota.sql  ·  Fleet Service (buses y choferes)
+-- 02_bd_flota.sql  ·  Fleet Service (sucursales, personal, buses y choferes)
 -- Base: bd_flota  ·  PostgreSQL 13+
+-- Las cuentas (correo, contraseña, perfil, foto, roles) viven en Identity.
+-- Fleet guarda la parte organizativa y laboral y crea las cuentas con R5.
 -- =====================================================================
 
 CREATE OR REPLACE FUNCTION fn_actualizar_fecha() RETURNS trigger AS $$
@@ -14,19 +16,50 @@ BEGIN
   RAISE EXCEPTION 'Los registros de % no se eliminan, solo se desactivan', TG_TABLE_NAME;
 END; $$ LANGUAGE plpgsql;
 
--- ---------- Proyección local (evento BranchCreated/BranchUpdated) ----------
-CREATE TABLE vista_sucursales (
-  id                   UUID         PRIMARY KEY,
-  nombre               VARCHAR(100) NOT NULL,
-  activa               BOOLEAN      NOT NULL,
+-- ---------- Sucursales (publica SucursalCreada / SucursalActualizada) ----------
+CREATE TABLE sucursales (
+  id                   UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+  codigo               VARCHAR(10)  NOT NULL UNIQUE,
+  nombre               VARCHAR(100) NOT NULL UNIQUE,
+  departamento         VARCHAR(60)  NOT NULL,
+  municipio            VARCHAR(60)  NOT NULL,
+  direccion            VARCHAR(255) NOT NULL,
+  telefono             VARCHAR(20),
+  latitud              NUMERIC(9,6) NOT NULL CHECK (latitud  BETWEEN -90  AND 90),
+  longitud             NUMERIC(9,6) NOT NULL CHECK (longitud BETWEEN -180 AND 180),
+  activa               BOOLEAN      NOT NULL DEFAULT TRUE,
   version              INT          NOT NULL DEFAULT 0,
+  fecha_creacion       TIMESTAMPTZ  NOT NULL DEFAULT now(),
   fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- ---------- Personal de sucursal (publica PersonalSucursalAsignado / PersonalSucursalDesactivado) ----------
+-- Alta: Fleet genera el id, llama a R5 (POST /identity/cuentas-personal) con ese id
+-- como solicitudId y guarda la asignación con el usuario_id devuelto.
+-- Traslado: se desactiva la fila actual y se crea otra con el mismo usuario_id.
+CREATE TABLE personal_sucursal (
+  id                   UUID         PRIMARY KEY,           -- se genera antes de R5 (llave de idempotencia)
+  sucursal_id          UUID         NOT NULL REFERENCES sucursales(id),
+  usuario_id           UUID         NOT NULL,              -- cuenta en Identity (sin FK)
+  nombre_completo      VARCHAR(201) NOT NULL,              -- copia del perfil (se refresca con PerfilActualizado)
+  correo               VARCHAR(150) NOT NULL,              -- copia del perfil
+  rol_codigo           VARCHAR(30)  NOT NULL CHECK (rol_codigo IN ('ADMIN_SUCURSAL', 'CAJERO')),
+  activo               BOOLEAN      NOT NULL DEFAULT TRUE,
+  fecha_asignacion     DATE         NOT NULL DEFAULT CURRENT_DATE,
+  fecha_desasignacion  DATE,
+  version              INT          NOT NULL DEFAULT 0,
+  fecha_creacion       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  fecha_actualizacion  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  CHECK (fecha_desasignacion IS NULL OR fecha_desasignacion >= fecha_asignacion)
+);
+-- Una persona trabaja en una sola sucursal a la vez (el JWT lleva un solo sucursalId)
+CREATE UNIQUE INDEX ux_personal_activo ON personal_sucursal (usuario_id) WHERE activo;
+CREATE INDEX ix_personal_sucursal ON personal_sucursal (sucursal_id, rol_codigo) WHERE activo;
 
 -- ---------- Buses ----------
 CREATE TABLE buses (
   id                   UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-  sucursal_id          UUID          NOT NULL,
+  sucursal_id          UUID          NOT NULL REFERENCES sucursales(id),
   placa                VARCHAR(10)   NOT NULL UNIQUE,
   marca                VARCHAR(50)   NOT NULL,
   modelo               VARCHAR(50)   NOT NULL,
@@ -48,9 +81,9 @@ CREATE TABLE choferes (
   -- Foto, correo, teléfono, NIT, DPI y dirección viven en el perfil de Identity
   -- (la foto es obligatoria al crear el chofer: se valida en este servicio y en Identity).
   id                          UUID          PRIMARY KEY,
-  sucursal_id                 UUID          NOT NULL,
+  sucursal_id                 UUID          NOT NULL REFERENCES sucursales(id),
   usuario_id                  UUID          NOT NULL UNIQUE,  -- cuenta CHOFER devuelta por Identity
-  nombre_completo             VARCHAR(150)  NOT NULL,         -- copia del perfil (se refresca con ProfileUpdated)
+  nombre_completo             VARCHAR(201)  NOT NULL,         -- copia del perfil (se refresca con PerfilActualizado)
   numero_licencia             VARCHAR(30)   NOT NULL UNIQUE,
   tipo_licencia               VARCHAR(2)    NOT NULL CHECK (tipo_licencia IN ('A', 'B', 'C', 'M', 'E')),
   fecha_vencimiento_licencia  DATE          NOT NULL,
@@ -63,7 +96,7 @@ CREATE TABLE choferes (
 CREATE INDEX ix_choferes_sucursal ON choferes (sucursal_id, estado);
 CREATE INDEX ix_choferes_vencimiento ON choferes (fecha_vencimiento_licencia) WHERE estado = 'ACTIVO';
 
--- ---------- Kilometraje por viaje (evento TripCompleted) ----------
+-- ---------- Kilometraje por viaje (evento ViajeCompletado) ----------
 CREATE TABLE bitacora_kilometraje (
   id               UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   bus_id           UUID          NOT NULL REFERENCES buses(id),
@@ -97,9 +130,33 @@ CREATE TABLE eventos_procesados (
 );
 
 -- ---------- Reglas en BD ----------
-CREATE TRIGGER tr_buses_fecha    BEFORE UPDATE ON buses    FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
-CREATE TRIGGER tr_choferes_fecha BEFORE UPDATE ON choferes FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
-CREATE TRIGGER tr_buses_no_eliminar    BEFORE DELETE ON buses    FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
-CREATE TRIGGER tr_choferes_no_eliminar BEFORE DELETE ON choferes FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
--- Nota: "desactivar solo sin viajes programados o en tránsito" se valida en la
+CREATE TRIGGER tr_sucursales_fecha BEFORE UPDATE ON sucursales        FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_personal_fecha   BEFORE UPDATE ON personal_sucursal FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_buses_fecha      BEFORE UPDATE ON buses             FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+CREATE TRIGGER tr_choferes_fecha   BEFORE UPDATE ON choferes          FOR EACH ROW EXECUTE FUNCTION fn_actualizar_fecha();
+
+-- Sucursales, personal, buses y choferes no se eliminan, solo se desactivan
+CREATE TRIGGER tr_sucursales_no_eliminar BEFORE DELETE ON sucursales        FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
+CREATE TRIGGER tr_personal_no_eliminar   BEFORE DELETE ON personal_sucursal FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
+CREATE TRIGGER tr_buses_no_eliminar      BEFORE DELETE ON buses             FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
+CREATE TRIGGER tr_choferes_no_eliminar   BEFORE DELETE ON choferes          FOR EACH ROW EXECUTE FUNCTION fn_bloquear_eliminacion();
+
+-- Cada sucursal activa debe conservar al menos un ADMIN_SUCURSAL activo.
+-- (La aplicación además debe bloquear con SELECT ... FOR UPDATE para evitar carreras.)
+CREATE OR REPLACE FUNCTION fn_validar_ultimo_admin_sucursal() RETURNS trigger AS $$
+BEGIN
+  IF OLD.activo AND NOT NEW.activo AND OLD.rol_codigo = 'ADMIN_SUCURSAL'
+     AND NOT EXISTS (SELECT 1 FROM personal_sucursal
+                     WHERE sucursal_id = OLD.sucursal_id AND rol_codigo = 'ADMIN_SUCURSAL'
+                       AND activo AND id <> OLD.id)
+     AND EXISTS (SELECT 1 FROM sucursales WHERE id = OLD.sucursal_id AND activa) THEN
+    RAISE EXCEPTION 'La sucursal debe tener al menos un administrador activo';
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_ultimo_admin_sucursal BEFORE UPDATE OF activo ON personal_sucursal
+  FOR EACH ROW EXECUTE FUNCTION fn_validar_ultimo_admin_sucursal();
+
+-- Nota: "desactivar bus solo sin viajes programados o en tránsito" se valida en la
 -- aplicación con la llamada R3 (Fleet -> Trips) antes de poner estado = 'INACTIVO'.

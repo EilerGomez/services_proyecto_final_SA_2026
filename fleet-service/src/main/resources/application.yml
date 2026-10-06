@@ -35,12 +35,15 @@ spring:
           multiplier: 2
 
 # Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+# Publica: SucursalCreada, SucursalActualizada, PersonalSucursalAsignado, PersonalSucursalDesactivado,
+#          BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado,
+#          ChoferDesactivado, LicenciaChoferActualizada
 comun:
   eventos:
     exchange: fleet.eventos            # publica en este exchange (outbox)
     cola: fleet.q
     suscripciones:
-      "[identity.eventos]": [SucursalCreada, SucursalActualizada, PerfilActualizado]
+      "[identity.eventos]": [PerfilActualizado]
       "[trips.eventos]": [ViajeIniciado, ViajeCompletado]
 
 app:

@@ -41,7 +41,7 @@ comun:
     cola: identity.q
     suscripciones:
       "[sales.eventos]": [DebitoCarteraSolicitado, ReembolsoCarteraSolicitado]
-      "[fleet.eventos]": [ChoferDesactivado]
+      "[fleet.eventos]": [ChoferDesactivado, PersonalSucursalAsignado, PersonalSucursalDesactivado]
 
 app:
   jwt:

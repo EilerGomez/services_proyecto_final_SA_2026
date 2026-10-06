@@ -15,7 +15,7 @@ BEGIN
 END; $$ LANGUAGE plpgsql;
 
 -- ---------- Proyecciones locales (alimentadas por eventos) ----------
-CREATE TABLE vista_sucursales (            -- BranchCreated / BranchUpdated
+CREATE TABLE vista_sucursales (            -- SucursalCreada / SucursalActualizada (Fleet)
   id        UUID         PRIMARY KEY,
   nombre    VARCHAR(100) NOT NULL,
   latitud   NUMERIC(9,6) NOT NULL,
@@ -24,13 +24,13 @@ CREATE TABLE vista_sucursales (            -- BranchCreated / BranchUpdated
   version   INT          NOT NULL DEFAULT 0
 );
 
-CREATE TABLE vista_tarifas_depreciacion (  -- DepreciationRateChanged
+CREATE TABLE vista_tarifas_depreciacion (  -- TarifaDepreciacionCambiada (Identity)
   id             UUID          PRIMARY KEY,
   monto_por_km   NUMERIC(12,4) NOT NULL,
   vigente_desde  DATE          NOT NULL UNIQUE
 );
 
-CREATE TABLE vista_buses (                 -- BusCreated / BusUpdated / BusDeactivated
+CREATE TABLE vista_buses (                 -- BusCreado / BusActualizado / BusDesactivado (Fleet)
   id                   UUID        PRIMARY KEY,
   sucursal_id          UUID        NOT NULL,
   placa                VARCHAR(10) NOT NULL,
@@ -39,10 +39,10 @@ CREATE TABLE vista_buses (                 -- BusCreated / BusUpdated / BusDeact
   version              INT         NOT NULL DEFAULT 0
 );
 
-CREATE TABLE vista_choferes (              -- DriverCreated / DriverUpdated / DriverDeactivated
+CREATE TABLE vista_choferes (              -- ChoferCreado / ChoferActualizado / ChoferDesactivado (Fleet)
   id                  UUID          PRIMARY KEY,
   sucursal_id         UUID          NOT NULL,
-  nombre_completo     VARCHAR(150)  NOT NULL,
+  nombre_completo     VARCHAR(201)  NOT NULL,
   salario_base_viaje  NUMERIC(12,2) NOT NULL,
   estado              VARCHAR(10)   NOT NULL,
   version             INT           NOT NULL DEFAULT 0
@@ -129,7 +129,7 @@ CREATE INDEX ix_viajes_bus    ON viajes (bus_id, estado);
 CREATE INDEX ix_viajes_chofer ON viajes (chofer_id, estado);
 CREATE INDEX ix_viajes_ruta   ON viajes (ruta_id, fecha_salida_programada);
 -- Eliminar viaje: solo si estado = 'PROGRAMADO'. Se borra físicamente y se publica
--- TripDeleted; así una ruta queda libre para eliminarse cuando ya no tenga viajes.
+-- ViajeEliminado; así una ruta queda libre para eliminarse cuando ya no tenga viajes.
 
 -- El tipo de viaje no se puede cambiar
 CREATE OR REPLACE FUNCTION fn_tipo_viaje_inmutable() RETURNS trigger AS $$
