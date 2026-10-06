@@ -22,7 +22,7 @@ Health: `http://localhost:8080/actuator/health`.
 
 | Entrada al gateway | Destino local | Path enviado |
 | --- | --- | --- |
-| `/identity/**` | `http://localhost:8081` | Se conserva |
+| `/v1/identity/**` | `http://localhost:8081` | Se conserva |
 | `/fleet/**` | `http://localhost:8082` | Se conserva |
 | `/trips/**` | `http://localhost:8083` | Se conserva |
 | `/sales/**` | `http://localhost:8084` | Se conserva |
@@ -129,25 +129,25 @@ Con el gateway en modo local y seguridad desactivada:
 curl -i http://localhost:8080/actuator/health
 
 # Criterio 4: respuesta del microservicio; 503 JSON si no está disponible
-curl -i http://localhost:8080/identity/actuator/health
+curl -i http://localhost:8080/v1/identity/auth/yo
 
 # Criterio 6: el mismo correlation id en la respuesta y en el microservicio
-curl -i -H "X-Correlation-Id: fase1-demo" http://localhost:8080/identity/actuator/health
+curl -i -H "X-Correlation-Id: fase1-demo" http://localhost:8080/v1/identity/auth/yo
 
 # Criterio 7: preflight 200, Allow-Origin y Allow-Credentials sin duplicados
-curl -i -X OPTIONS http://localhost:8080/identity/actuator/health -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization,X-Correlation-Id"
+curl -i -X OPTIONS http://localhost:8080/v1/identity/auth/yo -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: Authorization,X-Correlation-Id"
 
 # 404 JSON, incluso si el cliente acepta HTML
 curl -i -H "Accept: text/html" http://localhost:8080/no-existe
 
 # 403 JSON por origen CORS no permitido
-curl -i -X OPTIONS http://localhost:8080/identity/actuator/health -H "Origin: http://not-allowed.example" -H "Access-Control-Request-Method: GET"
+curl -i -X OPTIONS http://localhost:8080/v1/identity/auth/yo -H "Origin: http://not-allowed.example" -H "Access-Control-Request-Method: GET"
 ```
 
 Para comprobar 401, detener el proceso y arrancar con
 `GATEWAY_SECURITY_ENABLED=true` (PowerShell: `$env:GATEWAY_SECURITY_ENABLED='true'`),
 o usar `--gateway.security.enabled=true` al ejecutar el JAR. Sin token,
-`curl -i http://localhost:8080/identity/actuator/health` debe devolver 401 JSON.
+`curl -i http://localhost:8080/v1/identity/auth/yo` debe devolver 401 JSON.
 Health y los preflight siguen respondiendo 200.
 
 ## Docker

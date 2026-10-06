@@ -18,7 +18,7 @@ spring:
             - id: identity-service
               uri: ${gateway.services.identity-url}
               predicates:
-                - Path=/identity/**
+                - Path=/v1/identity/**
             - id: fleet-service
               uri: ${gateway.services.fleet-url}
               predicates:
