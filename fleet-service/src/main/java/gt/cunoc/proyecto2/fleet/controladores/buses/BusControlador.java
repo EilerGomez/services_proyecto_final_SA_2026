@@ -3,11 +3,14 @@ package gt.cunoc.proyecto2.fleet.controladores.buses;
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.fleet.dtos.bitacora.ViajeKilometrajeRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.buses.ActualizarBusSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.buses.BusDetalleRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.buses.BusRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.buses.CambiarEstadoBusSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.buses.NuevoBusSolicitud;
 import gt.cunoc.proyecto2.fleet.modelos.buses.EstadoBus;
+import gt.cunoc.proyecto2.fleet.servicios.bitacora.BitacoraKilometrajeServicio;
 import gt.cunoc.proyecto2.fleet.servicios.buses.BusServicio;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,9 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class BusControlador {
 
     private final BusServicio servicio;
+    private final BitacoraKilometrajeServicio bitacora;
 
-    public BusControlador(BusServicio servicio) {
+    public BusControlador(BusServicio servicio, BitacoraKilometrajeServicio bitacora) {
         this.servicio = servicio;
+        this.bitacora = bitacora;
     }
 
     @GetMapping
@@ -53,11 +58,14 @@ public class BusControlador {
 
     @GetMapping("/{id}")
     @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
-    @Operation(summary = "F11 · Detalle de un bus")
-    public ResponseEntity<BusRespuesta> obtener(@PathVariable UUID id,
-                                                @Parameter(hidden = true) UsuarioActual usuario) {
-        // Paso bitacora_kilometraje: agregar los últimos viajes del bus a la respuesta.
-        return ResponseEntity.ok(new BusRespuesta(servicio.obtener(id, usuario)));
+    @Operation(summary = "F11 · Detalle de un bus con sus últimos 5 viajes")
+    public ResponseEntity<BusDetalleRespuesta> obtener(@PathVariable UUID id,
+                                                       @Parameter(hidden = true) UsuarioActual usuario) {
+        BusRespuesta bus = new BusRespuesta(servicio.obtener(id, usuario));
+        List<ViajeKilometrajeRespuesta> ultimosViajes = bitacora.ultimosViajes(id).stream()
+                .map(ViajeKilometrajeRespuesta::new)
+                .toList();
+        return ResponseEntity.ok(new BusDetalleRespuesta(bus, ultimosViajes));
     }
 
     @PostMapping

@@ -93,6 +93,19 @@ public class BusEntidad {
         }
     }
 
+    /*
+     * Evento ViajeCompletado: el kilometraje solo sube (un evento viejo no lo baja)
+     * y el bus vuelve a ACTIVO si estaba EN_RUTA.
+     */
+    public void registrarLlegada(BigDecimal kmFinal) {
+        if (kmFinal.compareTo(kilometrajeActual) > 0) {
+            this.kilometrajeActual = kmFinal;
+        }
+        if (estado == EstadoBus.EN_RUTA) {
+            this.estado = EstadoBus.ACTIVO;
+        }
+    }
+
     /**
      * F14. Cambio manual de estado.
      * La regla "INACTIVO solo sin viajes" necesita R3 y la valida el servicio antes de llamar aquí.
