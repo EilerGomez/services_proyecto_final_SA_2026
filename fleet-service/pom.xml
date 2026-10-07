@@ -17,6 +17,7 @@
         <!-- Versión del BOM de Google Cloud (fija las versiones de google-cloud-storage y sus dependencias).
              Si Maven no la encuentra, usar la más reciente de mvnrepository.com/artifact/com.google.cloud/libraries-bom -->
         <google-cloud-bom.version>26.50.0</google-cloud-bom.version>
+        <start-class>gt.cunoc.proyecto2.fleet.FleetServiceApplication</start-class>
     </properties>
 
     <dependencyManagement>
