@@ -64,8 +64,10 @@ app:
     identity-url: ${IDENTITY_URL:http://localhost:8081}
 
 springdoc:
+  api-docs:
+    path: /notifications/v3/api-docs
   swagger-ui:
-    path: /swagger-ui.html
+    path: /notifications/swagger-ui.html
 
 management:
   endpoints:
