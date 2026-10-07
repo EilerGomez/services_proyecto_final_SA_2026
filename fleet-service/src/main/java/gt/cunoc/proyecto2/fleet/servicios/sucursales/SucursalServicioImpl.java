@@ -7,9 +7,11 @@ import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalCreadaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.modelos.buses.EstadoBus;
 import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
+import gt.cunoc.proyecto2.fleet.repositorios.buses.BusRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.servicios.personal.PersonalSucursalServicio;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
@@ -23,10 +25,13 @@ public class SucursalServicioImpl implements SucursalServicio {
 
     private final SucursalRepositorio repositorio;
     private final PersonalSucursalServicio personal;
+    private final BusRepositorio buses;
 
-    public SucursalServicioImpl(SucursalRepositorio repositorio, PersonalSucursalServicio personal) {
+    public SucursalServicioImpl(SucursalRepositorio repositorio, PersonalSucursalServicio personal,
+                                BusRepositorio buses) {
         this.repositorio = repositorio;
         this.personal = personal;
+        this.buses = buses;
     }
 
     @Override
@@ -97,9 +102,8 @@ public class SucursalServicioImpl implements SucursalServicio {
             return new SucursalRespuesta(sucursal);          // ya está en ese estado: no hay cambio ni evento
         }
 
-        if (!solicitud.activa()) {
-            // Paso buses: si la sucursal tiene buses en estado distinto de INACTIVO
-            // -> 422 SUCURSAL_CON_BUSES_ACTIVOS.
+        if (!solicitud.activa() && buses.existsBySucursalIdAndEstadoNot(id, EstadoBus.INACTIVO)) {
+            throw ErrorSucursal.SUCURSAL_CON_BUSES_ACTIVOS.excepcion();
         }
 
         sucursal.setActiva(solicitud.activa());

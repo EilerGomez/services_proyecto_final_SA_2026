@@ -13,6 +13,24 @@
     <artifactId>fleet-service</artifactId>
     <name>fleet-service</name>
 
+    <properties>
+        <!-- Versión del BOM de Google Cloud (fija las versiones de google-cloud-storage y sus dependencias).
+             Si Maven no la encuentra, usar la más reciente de mvnrepository.com/artifact/com.google.cloud/libraries-bom -->
+        <google-cloud-bom.version>26.50.0</google-cloud-bom.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>${google-cloud-bom.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>gt.cunoc.proyecto2</groupId>
@@ -60,6 +78,11 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
         </dependency>
+        <!-- Fotos de buses y choferes en el bucket de Google Cloud Storage (F22) -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+        </dependency>
         <!-- Getters, setters y constructores de las entidades (la versión la fija Spring Boot) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -80,6 +103,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>   <!-- propiedad que define Spring Boot -->
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

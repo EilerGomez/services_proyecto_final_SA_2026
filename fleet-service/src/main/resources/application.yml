@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: fleet-service
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_flota}
@@ -53,6 +57,9 @@ app:
   servicios:
     identity-url: ${IDENTITY_URL:http://localhost:8081}
     trips-url: ${TRIPS_URL:http://localhost:8083}
+  fotos:
+    bucket: ${FOTOS_BUCKET:proyecto-final-sa-fotos}
+    prefijo: ${FOTOS_PREFIJO:dev/}
 
 springdoc:
   swagger-ui:
@@ -63,3 +70,8 @@ management:
     web:
       exposure:
         include: health,info
+        
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"

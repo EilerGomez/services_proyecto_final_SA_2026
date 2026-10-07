@@ -15,11 +15,19 @@ import org.springframework.web.client.RestClient;
 public class ConfiguracionClientes {
 
     public static final String CLIENTE_IDENTITY = "clienteRestIdentity";
+    public static final String CLIENTE_TRIPS = "clienteRestTrips";
 
     /** R5. Token de servicio, correlación y espera de 3 s los agrega ClientesInternos. */
     @Bean(CLIENTE_IDENTITY)
     public RestClient clienteRestIdentity(ClientesInternos clientes,
                                           @Value("${app.servicios.identity-url:http://localhost:8081}") String url) {
+        return clientes.crear(url);
+    }
+
+    /** R3. */
+    @Bean(CLIENTE_TRIPS)
+    public RestClient clienteRestTrips(ClientesInternos clientes,
+                                       @Value("${app.servicios.trips-url:http://localhost:8083}") String url) {
         return clientes.crear(url);
     }
 

@@ -1,13 +1,5 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package gt.cunoc.proyecto2.fleet.servicios.sucursales;
 
-/**
- *
- * @author eiler
- */
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.ActualizarSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.CambiarEstadoSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
