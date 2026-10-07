@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -18,7 +17,6 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-
 
 /**
  * Cuenta de usuario (credenciales y estado).

@@ -1,11 +1,9 @@
 package gt.cunoc.proyecto2.identity.services.usuario;
 
-
 import gt.cunoc.proyecto2.comun.errores.ConflictoException;
 import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
-import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
@@ -16,9 +14,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
-import gt.cunoc.proyecto2.identity.evento.payload.ClienteRegistradoPayload;
-import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
-import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
+import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
@@ -48,7 +44,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-
 /**
  * Perfiles, altas de administradores y estados de cuenta.
  */
@@ -56,27 +51,16 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     private static final Duration ACTIVACION_DURACION = Duration.ofHours(48);
-
     private final UsuarioRepository usuarios;
-
     private final PerfilRepository perfiles;
-
     private final RolRepository roles;
-
     private final CarteraRepository carteras;
-
     private final TokenRecuperacionRepository activaciones;
-
     private final TokenRefrescoRepository refrescos;
-
     private final PasswordEncoder claves;
-
     private final TokenOpacoService opacos;
-
     private final AlmacenFotos fotos;
-
-    private final PublicadorEventos publicador;
-
+    private final UsuarioEventPublisher publicador;
     private final String urlFrontend;
 
     public UserServiceImpl(
@@ -89,7 +73,7 @@ public class UserServiceImpl implements UserService {
             PasswordEncoder claves,
             TokenOpacoService opacos,
             AlmacenFotos fotos,
-            PublicadorEventos publicador,
+            UsuarioEventPublisher publicador,
             @Value("${FRONTEND_URL:http://localhost:5173}") String urlFrontend) {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
@@ -108,6 +92,7 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public PerfilResponse perfil(UUID usuarioId) {
         Usuario usuario = buscar(usuarioId);
+
         Perfil perfil = perfiles.findById(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("PERFIL_NO_EXISTE", "El perfil no existe"));
         return aPerfil(usuario, perfil);
@@ -140,6 +125,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UsuarioDetalleResponse crearAdministradorSistema(AdministradorSistemaRequest solicitud) {
         String correo = solicitud.correo().trim().toLowerCase();
+
         if (usuarios.existsByCorreo(correo)) {
             throw new ConflictoException("CORREO_EN_USO", "El correo ya está registrado");
         }
@@ -149,13 +135,14 @@ public class UserServiceImpl implements UserService {
         if (perfiles.existsByDpi(solicitud.dpi())) {
             throw new ConflictoException("DPI_EN_USO", "El DPI ya está registrado");
         }
+
         Usuario usuario = new Usuario();
         usuario.setCorreo(correo);
         usuario.setClaveCifrada(claves.encode(UUID.randomUUID().toString()));
         usuario.setEstado("ACTIVO");
-        usuario.setRoles(roles.findAllById(Set.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE)).stream()
-                .collect(Collectors.toSet()));
+        usuario.setRoles(roles.findAllById(Set.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE)).stream().collect(Collectors.toSet()));
         usuarios.save(usuario);
+
         Perfil perfil = new Perfil();
         perfil.setUsuario(usuario);
         perfil.setNombres(solicitud.nombres());
@@ -165,26 +152,27 @@ public class UserServiceImpl implements UserService {
         perfil.setTelefono(solicitud.telefono());
         perfil.setDireccion(solicitud.direccion());
         perfiles.save(perfil);
+
         Cartera cartera = new Cartera();
         cartera.setUsuarioId(usuario.getId());
         cartera.setSaldo(BigDecimal.ZERO);
         carteras.save(cartera);
+
         String crudo = opacos.generar();
         TokenRecuperacion activacion = new TokenRecuperacion();
         activacion.setUsuarioId(usuario.getId());
         activacion.setTokenHash(opacos.calcularHash(crudo));
         activacion.setExpiraEn(Instant.now().plus(ACTIVACION_DURACION));
         activaciones.save(activacion);
+
         String nombre = solicitud.nombres() + " " + solicitud.apellidos();
-        publicador.publicar(
-                "Usuario", usuario.getId(), "CuentaCreada",
-                new CuentaCreadaPayload(usuario.getId(), correo, nombre,
-                        List.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE),
-                        urlFrontend + "/restablecer?token=" + crudo),
+        publicador.publicarCuentaCreada(
+                usuario.getId(), correo, nombre,
+                List.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE),
+                urlFrontend + "/restablecer?token=" + crudo,
                 LocalDate.now());
-        publicador.publicar(
-                "Usuario", usuario.getId(), "ClienteRegistrado",
-                new ClienteRegistradoPayload(usuario.getId(), solicitud.nit(), nombre, correo),
+        publicador.publicarClienteRegistrado(
+                usuario.getId(), solicitud.nit(), nombre, correo,
                 LocalDate.now());
         return aDetalle(usuario, perfil);
     }
@@ -224,11 +212,9 @@ public class UserServiceImpl implements UserService {
             throw new ReglaNegocioException("FOTO_OBLIGATORIA", "La foto es obligatoria para los choferes");
         }
         perfiles.save(perfil);
-        publicador.publicar(
-                "Usuario", usuario.getId(), "PerfilActualizado",
-                new PerfilActualizadoPayload(
-                        usuario.getId(), perfil.getNit(), perfil.getNombres(), perfil.getApellidos(),
-                        usuario.getCorreo(), perfil.getTelefono(), perfil.getFotoUrl(), usuario.getChoferId()),
+        publicador.publicarPerfilActualizado(
+                usuario.getId(), perfil.getNit(), perfil.getNombres(), perfil.getApellidos(),
+                usuario.getCorreo(), perfil.getTelefono(), perfil.getFotoUrl(), usuario.getChoferId(),
                 LocalDate.now());
         return aPerfil(usuario, perfil);
     }

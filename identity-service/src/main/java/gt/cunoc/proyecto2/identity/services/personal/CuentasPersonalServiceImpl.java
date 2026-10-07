@@ -4,13 +4,11 @@ package gt.cunoc.proyecto2.identity.services.personal;
 import gt.cunoc.proyecto2.comun.errores.ConflictoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
-import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalResponse;
-import gt.cunoc.proyecto2.identity.evento.payload.ClienteRegistradoPayload;
-import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
+import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
@@ -65,7 +63,7 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
 
     private final AlmacenFotos fotos;
 
-    private final PublicadorEventos publicador;
+    private final UsuarioEventPublisher publicador;
 
     private final String urlFrontend;
 
@@ -79,7 +77,7 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
             PasswordEncoder claves,
             TokenOpacoService opacos,
             AlmacenFotos fotos,
-            PublicadorEventos publicador,
+            UsuarioEventPublisher publicador,
             @Value("${FRONTEND_URL:http://localhost:5173}") String urlFrontend) {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
@@ -169,14 +167,12 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         activaciones.save(activacion);
         String nombre = solicitud.nombres() + " " + solicitud.apellidos();
         List<String> codigos = rolesCuenta.stream().map(Rol::getCodigo).sorted().toList();
-        publicador.publicar(
-                "Usuario", usuario.getId(), "CuentaCreada",
-                new CuentaCreadaPayload(usuario.getId(), correo, nombre, codigos,
-                        urlFrontend + "/restablecer?token=" + crudo),
+        publicador.publicarCuentaCreada(
+                usuario.getId(), correo, nombre, codigos,
+                urlFrontend + "/restablecer?token=" + crudo,
                 LocalDate.now());
-        publicador.publicar(
-                "Usuario", usuario.getId(), "ClienteRegistrado",
-                new ClienteRegistradoPayload(usuario.getId(), solicitud.nit(), nombre, correo),
+        publicador.publicarClienteRegistrado(
+                usuario.getId(), solicitud.nit(), nombre, correo,
                 LocalDate.now());
         return new CuentaPersonalResponse(usuario.getId(), correo, nombre, true);
     }

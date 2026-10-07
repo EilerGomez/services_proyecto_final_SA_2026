@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.controllers.auth;
 
-
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.auth.CambioContrasenaRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.InicioSesionRequest;
@@ -21,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-
 
 /**
  * Sesión y recuperación (I2–I7 públicos salvo perfil y cierre; I1 registro).

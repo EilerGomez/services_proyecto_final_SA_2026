@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -9,7 +8,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.UUID;
-
 
 /**
  * Idempotencia de R5: Fleet genera el id antes de llamar y lo envía como solicitudId.

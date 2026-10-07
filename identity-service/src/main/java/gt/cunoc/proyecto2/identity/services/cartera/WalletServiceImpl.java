@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.services.cartera;
 
-
 import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.identity.dtos.cartera.WalletMovementResponse;
@@ -22,7 +21,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
-
 /**
  * Débitos con bloqueo pesimista e idempotencia por UNIQUE(tipo, referencia_id).
  */
@@ -33,10 +31,7 @@ public class WalletServiceImpl implements WalletService {
     private final MovimientoRepository movimientos;
     private final UsuarioRepository usuarios;
 
-    public WalletServiceImpl(
-            CarteraRepository carteras,
-            MovimientoRepository movimientos,
-            UsuarioRepository usuarios) {
+    public WalletServiceImpl(CarteraRepository carteras, MovimientoRepository movimientos, UsuarioRepository usuarios) {
         this.carteras = carteras;
         this.movimientos = movimientos;
         this.usuarios = usuarios;
@@ -76,23 +71,26 @@ public class WalletServiceImpl implements WalletService {
     public Page<WalletMovementResponse> movimientos(UUID usuarioId, LocalDate desde, LocalDate hasta, Pageable paginado) {
         Cartera cartera = carteras.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("CARTERA_NO_EXISTE", "El usuario no tiene cartera"));
+
         LocalDate inicio = desde == null ? LocalDate.of(2000, 1, 1) : desde;
         LocalDate fin = hasta == null ? LocalDate.now().plusDays(1) : hasta;
+
         return movimientos.findByCarteraIdAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(cartera.getId(), inicio, fin, paginado)
                 .map(this::aRespuesta);
     }
 
     @Override
     @Transactional
-    public Optional<MovimientoCartera> intentarDebitar(
-            UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaMovimiento) {
+    public Optional<MovimientoCartera> intentarDebitar(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaMovimiento) {
         Cartera cartera = carteras.findWithLockByUsuarioId(usuarioId).orElse(null);
+
         if (cartera == null) {
             return Optional.empty();
         }
         if (cartera.getSaldo().compareTo(monto) < 0) {
             return Optional.empty();
         }
+
         cartera.setSaldo(cartera.getSaldo().subtract(monto));
         carteras.save(cartera);
         MovimientoCartera movimiento = new MovimientoCartera();
@@ -103,6 +101,7 @@ public class WalletServiceImpl implements WalletService {
         movimiento.setTipoReferencia(referenciaTipo);
         movimiento.setReferenciaId(referenciaId);
         movimiento.setFechaMovimiento(fechaMovimiento == null ? LocalDate.now() : fechaMovimiento);
+
         try {
             movimientos.saveAndFlush(movimiento);
         } catch (DataIntegrityViolationException duplicado) {
@@ -113,18 +112,19 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public Optional<MovimientoCartera> solicitarReembolso(
-            UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, String motivo,
-            LocalDate fechaMovimiento) {
+    public Optional<MovimientoCartera> solicitarReembolso(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, String motivo, LocalDate fechaMovimiento) {
         Cartera cartera = carteras.findWithLockByUsuarioId(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("CARTERA_NO_EXISTE", "El usuario no tiene cartera"));
+
         Optional<MovimientoCartera> existente = movimientos.findByTipoAndReferenciaId("REEMBOLSO", referenciaId);
+
         if (existente.isPresent()) {
             return existente;
         }
         if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ReglaNegocioException("MONTO_INVALIDO", "El monto del reembolso debe ser mayor que cero");
         }
+
         cartera.setSaldo(cartera.getSaldo().add(monto));
         carteras.save(cartera);
         MovimientoCartera movimiento = new MovimientoCartera();
@@ -135,6 +135,7 @@ public class WalletServiceImpl implements WalletService {
         movimiento.setTipoReferencia(referenciaTipo);
         movimiento.setReferenciaId(referenciaId);
         movimiento.setFechaMovimiento(fechaMovimiento == null ? LocalDate.now() : fechaMovimiento);
+
         try {
             movimientos.saveAndFlush(movimiento);
         } catch (DataIntegrityViolationException duplicado) {

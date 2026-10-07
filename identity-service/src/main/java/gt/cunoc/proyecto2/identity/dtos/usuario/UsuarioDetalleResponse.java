@@ -1,15 +1,14 @@
 package gt.cunoc.proyecto2.identity.dtos.usuario;
 
-
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
-
 
 /**
  * Detalle de usuario con estado (I12, I14).
  */
 public record UsuarioDetalleResponse(
+
         UUID usuarioId,
         String correo,
         String nombres,
@@ -23,5 +22,7 @@ public record UsuarioDetalleResponse(
         UUID sucursalId,
         UUID choferId,
         String estado,
-        Instant ultimoAcceso) {
+        Instant ultimoAcceso
+
+) {
 }

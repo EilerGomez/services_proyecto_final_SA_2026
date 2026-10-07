@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.archivos;
 
-
 import gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import com.google.cloud.storage.BlobId;
@@ -15,7 +14,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-
 
 /**
  * Subida de fotos al bucket de Google Cloud Storage (ver 00_convenciones.md §8).
