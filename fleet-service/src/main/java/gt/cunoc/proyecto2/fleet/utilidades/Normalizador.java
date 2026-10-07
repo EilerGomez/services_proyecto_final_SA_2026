@@ -36,7 +36,11 @@ public final class Normalizador {
         return limpio == null ? null : limpio.toUpperCase(Locale.ROOT);
     }
 
-    /** Redondea latitud o longitud a 6 decimales, lo que admite la columna NUMERIC(9,6). */
+    public static String correo(String valor) {
+        String limpio = texto(valor);
+        return limpio == null ? null : limpio.toLowerCase(Locale.ROOT);
+    }
+
     public static BigDecimal coordenada(BigDecimal valor) {
         return valor == null ? null : valor.setScale(DECIMALES_COORDENADA, RoundingMode.HALF_UP);
     }

@@ -11,6 +11,7 @@ package gt.cunoc.proyecto2.fleet.servicios.sucursales;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.ActualizarSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.CambiarEstadoSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalCreadaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import java.util.List;
@@ -22,7 +23,7 @@ public interface SucursalServicio {
 
     SucursalEntidad obtenerPorId(UUID id);
 
-    SucursalRespuesta crear(NuevaSucursalSolicitud solicitud);
+    SucursalCreadaRespuesta crear(NuevaSucursalSolicitud solicitud);
 
     SucursalRespuesta actualizar(UUID id, ActualizarSucursalSolicitud solicitud);
 

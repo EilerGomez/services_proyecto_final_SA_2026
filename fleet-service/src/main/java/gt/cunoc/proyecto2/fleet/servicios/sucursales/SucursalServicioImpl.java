@@ -1,34 +1,32 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package gt.cunoc.proyecto2.fleet.servicios.sucursales;
 
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.ActualizarSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.CambiarEstadoSucursalSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalCreadaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
+import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
+import gt.cunoc.proyecto2.fleet.servicios.personal.PersonalSucursalServicio;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- *
- * @author eiler
- */
-
 @Service
 public class SucursalServicioImpl implements SucursalServicio {
 
     private final SucursalRepositorio repositorio;
+    private final PersonalSucursalServicio personal;
 
-    public SucursalServicioImpl(SucursalRepositorio repositorio) {
+    public SucursalServicioImpl(SucursalRepositorio repositorio, PersonalSucursalServicio personal) {
         this.repositorio = repositorio;
+        this.personal = personal;
     }
 
     @Override
@@ -49,7 +47,7 @@ public class SucursalServicioImpl implements SucursalServicio {
 
     @Override
     @Transactional
-    public SucursalRespuesta crear(NuevaSucursalSolicitud solicitud) {
+    public SucursalCreadaRespuesta crear(NuevaSucursalSolicitud solicitud) {
         if (repositorio.existsByCodigo(solicitud.codigo())) {
             throw ErrorSucursal.SUCURSAL_DUPLICADA.excepcion("código", solicitud.codigo());
         }
@@ -57,16 +55,18 @@ public class SucursalServicioImpl implements SucursalServicio {
             throw ErrorSucursal.SUCURSAL_DUPLICADA.excepcion("nombre", solicitud.nombre());
         }
 
-        // Paso personal_sucursal: aquí se crea el admin inicial con R5
-        // (POST /identity/interno/cuentas-personal) antes de guardar.
-
-        // saveAndFlush: la version (0) ya queda asignada para el evento
+        // saveAndFlush: la sucursal ya existe en la BD (FK del admin) y su version (0) queda asignada
         SucursalEntidad sucursal = repositorio.saveAndFlush(solicitud.crearEntidad());
 
-        // Aquí se publica el evento SucursalCreada (aggregateVersion = sucursal.getVersion()).
-        // Paso personal_sucursal: aquí se publica PersonalSucursalAsignado del admin inicial.
+        // Aquí se publica el evento SucursalCreada
+        // (aggregateVersion = sucursal.getVersion(), businessDate = fechaAsignacion).
 
-        return new SucursalRespuesta(sucursal);
+        // R5 + INSERT del admin (también publica PersonalSucursalAsignado).
+        // Si R5 falla, se revierte toda la transacción y la sucursal no queda guardada.
+        PersonalSucursalEntidad admin = personal.registrarAlta(sucursal, RolPersonal.ADMIN_SUCURSAL,
+                solicitud.fechaAsignacion(), solicitud.adminInicial());
+
+        return new SucursalCreadaRespuesta(new SucursalRespuesta(sucursal), new PersonalSucursalRespuesta(admin));
     }
 
     @Override
@@ -94,7 +94,7 @@ public class SucursalServicioImpl implements SucursalServicio {
         VerificadorVersion.verificar(sucursal.getVersion(), solicitud.version());
 
         if (sucursal.isActiva() == solicitud.activa()) {
-            return new SucursalRespuesta(sucursal);
+            return new SucursalRespuesta(sucursal);          // ya está en ese estado: no hay cambio ni evento
         }
 
         if (!solicitud.activa()) {

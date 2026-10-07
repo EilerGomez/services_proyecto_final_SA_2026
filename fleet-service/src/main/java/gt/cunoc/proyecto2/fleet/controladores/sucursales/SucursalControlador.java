@@ -1,18 +1,11 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package gt.cunoc.proyecto2.fleet.controladores.sucursales;
 
-/**
- *
- * @author eiler
- */
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.ActualizarSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.CambiarEstadoSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalCreadaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.servicios.sucursales.SucursalServicio;
 import io.swagger.v3.oas.annotations.Operation;
@@ -63,8 +56,8 @@ public class SucursalControlador {
 
     @PostMapping
     @RequiereRol(Roles.ADMIN_SISTEMA)
-    @Operation(summary = "F3 · Crea una sucursal")
-    public ResponseEntity<SucursalRespuesta> crear(@RequestBody @Valid NuevaSucursalSolicitud solicitud) {
+    @Operation(summary = "F3 · Crea una sucursal con su administrador inicial")
+    public ResponseEntity<SucursalCreadaRespuesta> crear(@RequestBody @Valid NuevaSucursalSolicitud solicitud) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servicio.crear(solicitud));
     }
 
