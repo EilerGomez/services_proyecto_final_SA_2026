@@ -10,6 +10,7 @@ import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladoPersonalRespuesta;
+import gt.cunoc.proyecto2.fleet.errores.generales.ErrorGeneral;
 import gt.cunoc.proyecto2.fleet.errores.personal.ErrorPersonal;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
 import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
@@ -155,7 +156,7 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
                 new PersonalSucursalRespuesta(nueva));
     }
 
-    /* ADMIN_SISTEMA gestiona a todos; ADMIN_SUCURSAL solo a los cajeros. */
+    /** ADMIN_SISTEMA gestiona a todos; ADMIN_SUCURSAL solo a los cajeros. */
     private static void verificarPuedeGestionar(RolPersonal rol, UsuarioActual usuario) {
         if (!usuario.esAdminSistema() && rol != RolPersonal.CAJERO) {
             throw ErrorPersonal.SOLO_CAJEROS.excepcion();
@@ -186,10 +187,11 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         }
     }
 
+    /** El frontend reintentó una alta que sí se guardó (se perdió la respuesta): se devuelve la misma. */
     private static PersonalSucursalEntidad reintentoDeAltaCompleta(PersonalSucursalEntidad existente,
                                                                    SucursalEntidad sucursal) {
         if (!existente.getSucursalId().equals(sucursal.getId())) {
-            throw ErrorPersonal.SOLICITUD_YA_USADA.excepcion();
+            throw ErrorGeneral.SOLICITUD_YA_USADA.excepcion();
         }
         return existente;
     }

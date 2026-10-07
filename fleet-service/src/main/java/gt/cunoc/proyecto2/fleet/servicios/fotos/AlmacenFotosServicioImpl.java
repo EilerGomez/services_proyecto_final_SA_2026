@@ -61,7 +61,10 @@ public class AlmacenFotosServicioImpl implements AlmacenFotosServicio {
 
     @Override
     public void verificarUrl(String fotoUrl) {
-        if (fotoUrl == null || !fotoUrl.startsWith(urlBase())) {
+        if (fotoUrl == null || fotoUrl.isBlank()) {
+            throw ErrorFoto.FOTO_OBLIGATORIA.excepcion();
+        }
+        if (!fotoUrl.startsWith(urlBase())) {
             throw ErrorFoto.FOTO_INVALIDA.excepcion();
         }
     }

@@ -1,18 +1,10 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package gt.cunoc.proyecto2.fleet.dtos.identity;
 
-/**
- *
- * @author eiler
- */
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import java.util.UUID;
 
-/** Cuerpo de R5 · POST /identity/interno/cuentas-personal (lo que Fleet manda a Identity). */
 public record SolicitudCuentaPersonal(
         UUID solicitudId,
         String rol,
@@ -31,6 +23,13 @@ public record SolicitudCuentaPersonal(
     public static SolicitudCuentaPersonal paraPersonal(UUID personalId, UUID sucursalId, RolPersonal rol,
                                                        DatosCuentaSolicitud datos) {
         return new SolicitudCuentaPersonal(personalId, rol.name(), sucursalId, null,
+                datos.correo(), datos.nombres(), datos.apellidos(), datos.nit(), datos.dpi(),
+                datos.telefono(), datos.direccion(), datos.fotoUrl());
+    }
+
+    /** Cuenta de CHOFER. solicitudId = choferId = id de la fila de choferes. Foto obligatoria. */
+    public static SolicitudCuentaPersonal paraChofer(UUID choferId, UUID sucursalId, DatosCuentaSolicitud datos) {
+        return new SolicitudCuentaPersonal(choferId, Roles.CHOFER, sucursalId, choferId,
                 datos.correo(), datos.nombres(), datos.apellidos(), datos.nit(), datos.dpi(),
                 datos.telefono(), datos.direccion(), datos.fotoUrl());
     }
