@@ -31,5 +31,7 @@ public interface ChoferServicio {
 
     ChoferRespuesta desactivar(UUID id, DesactivarChoferSolicitud solicitud, UsuarioActual usuario);
 
+    void actualizarNombreDesdePerfil(UUID choferId, String nombreCompleto, LocalDate fechaNegocio);
+
     ChoferInternoRespuesta consultarParaViaje(UUID id, LocalDate fecha);
 }

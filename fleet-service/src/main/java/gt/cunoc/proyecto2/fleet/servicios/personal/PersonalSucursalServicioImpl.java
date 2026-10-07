@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladoPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.generales.ErrorGeneral;
 import gt.cunoc.proyecto2.fleet.errores.personal.ErrorPersonal;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.eventos.PublicadorEventosFleet;
 import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
@@ -36,13 +37,16 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
     private final PersonalSucursalRepositorio repositorio;
     private final SucursalRepositorio sucursales;
     private final ClienteIdentity identity;
+    private final PublicadorEventosFleet eventos;
 
     public PersonalSucursalServicioImpl(PersonalSucursalRepositorio repositorio,
                                         SucursalRepositorio sucursales,
-                                        ClienteIdentity identity) {
+                                        ClienteIdentity identity,
+                                        PublicadorEventosFleet eventos) {
         this.repositorio = repositorio;
         this.sucursales = sucursales;
         this.identity = identity;
+        this.eventos = eventos;
     }
 
     @Override
@@ -100,9 +104,7 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         PersonalSucursalEntidad personal = repositorio.saveAndFlush(PersonalSucursalEntidad.asignar(
                 personalId, sucursal.getId(), creada.usuarioId(), creada.nombreCompleto(),
                 creada.correo(), rol, fechaAsignacion));
-
-        // Aquí se publica el evento PersonalSucursalAsignado
-        // (aggregateVersion = personal.getVersion(), businessDate = fechaAsignacion).
+        eventos.personalAsignado(personal, fechaAsignacion);
 
         return personal;
     }
@@ -120,9 +122,7 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
 
         personal.desactivar(solicitud.fechaDesasignacion());
         personal = repositorio.saveAndFlush(personal);
-
-        // Aquí se publica el evento PersonalSucursalDesactivado
-        // (aggregateVersion = personal.getVersion(), businessDate = fechaDesasignacion).
+        eventos.personalDesactivado(personal, solicitud.fechaDesasignacion());
 
         return new PersonalSucursalRespuesta(personal);
     }
@@ -149,11 +149,18 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         anterior = repositorio.saveAndFlush(anterior);   // primero: libera el índice de usuario activo
         nueva = repositorio.saveAndFlush(nueva);
 
-        // Aquí se publica el evento PersonalSucursalDesactivado de "anterior"
-        // y luego PersonalSucursalAsignado de "nueva" (businessDate = fechaTraslado).
+        // Primero el cierre y luego la nueva asignación: Identity termina con la sucursal nueva
+        eventos.personalDesactivado(anterior, solicitud.fechaTraslado());
+        eventos.personalAsignado(nueva, solicitud.fechaTraslado());
 
         return new TrasladoPersonalRespuesta(new PersonalSucursalRespuesta(anterior),
                 new PersonalSucursalRespuesta(nueva));
+    }
+
+    @Override
+    @Transactional
+    public int actualizarDatosDePerfil(UUID usuarioId, String nombreCompleto, String correo) {
+        return repositorio.actualizarDatosDePerfil(usuarioId, nombreCompleto, correo);
     }
 
     /** ADMIN_SISTEMA gestiona a todos; ADMIN_SUCURSAL solo a los cajeros. */

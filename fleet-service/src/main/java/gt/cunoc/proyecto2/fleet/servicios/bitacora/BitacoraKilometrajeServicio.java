@@ -14,6 +14,8 @@ public interface BitacoraKilometrajeServicio {
 
     List<BitacoraKilometrajeEntidad> listar(UUID busId, LocalDate desde, LocalDate hasta, UsuarioActual usuario);
 
+    boolean registrarViajeIniciado(UUID busId, UUID viajeId, LocalDate fechaNegocio);
+
     boolean registrarViajeCompletado(UUID busId, UUID viajeId, BigDecimal kmInicial, BigDecimal kmFinal,
-                                     OffsetDateTime fechaLlegada);
+                                     OffsetDateTime fechaLlegada, LocalDate fechaNegocio);
 }

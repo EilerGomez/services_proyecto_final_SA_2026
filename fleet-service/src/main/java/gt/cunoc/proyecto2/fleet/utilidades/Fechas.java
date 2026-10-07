@@ -14,6 +14,10 @@ public final class Fechas {
     private Fechas() {
     }
 
+    public static LocalDate hoy() {
+        return LocalDate.now(ZONA_GUATEMALA);
+    }
+
     public static OffsetDateTime inicioDelDia(LocalDate fecha) {
         LocalDate dia = fecha != null ? fecha : PRIMER_DIA;
         return dia.atStartOfDay(ZONA_GUATEMALA).toOffsetDateTime();

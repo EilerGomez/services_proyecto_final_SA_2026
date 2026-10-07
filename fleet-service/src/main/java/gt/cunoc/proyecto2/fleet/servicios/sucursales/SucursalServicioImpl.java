@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.fleet.dtos.sucursales.NuevaSucursalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalCreadaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.sucursales.SucursalRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.eventos.PublicadorEventosFleet;
 import gt.cunoc.proyecto2.fleet.modelos.buses.EstadoBus;
 import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
@@ -14,6 +15,7 @@ import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.buses.BusRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.servicios.personal.PersonalSucursalServicio;
+import gt.cunoc.proyecto2.fleet.utilidades.Fechas;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
 import java.util.List;
 import java.util.UUID;
@@ -26,12 +28,14 @@ public class SucursalServicioImpl implements SucursalServicio {
     private final SucursalRepositorio repositorio;
     private final PersonalSucursalServicio personal;
     private final BusRepositorio buses;
+    private final PublicadorEventosFleet eventos;
 
     public SucursalServicioImpl(SucursalRepositorio repositorio, PersonalSucursalServicio personal,
-                                BusRepositorio buses) {
+                                BusRepositorio buses, PublicadorEventosFleet eventos) {
         this.repositorio = repositorio;
         this.personal = personal;
         this.buses = buses;
+        this.eventos = eventos;
     }
 
     @Override
@@ -63,8 +67,7 @@ public class SucursalServicioImpl implements SucursalServicio {
         // saveAndFlush: la sucursal ya existe en la BD (FK del admin) y su version (0) queda asignada
         SucursalEntidad sucursal = repositorio.saveAndFlush(solicitud.crearEntidad());
 
-        // Aquí se publica el evento SucursalCreada
-        // (aggregateVersion = sucursal.getVersion(), businessDate = fechaAsignacion).
+        eventos.sucursalCreada(sucursal, solicitud.fechaAsignacion());
 
         // R5 + INSERT del admin (también publica PersonalSucursalAsignado).
         // Si R5 falla, se revierte toda la transacción y la sucursal no queda guardada.
@@ -86,8 +89,7 @@ public class SucursalServicioImpl implements SucursalServicio {
 
         solicitud.aplicarA(sucursal);
         sucursal = repositorio.saveAndFlush(sucursal);
-
-        // Aquí se publica el evento SucursalActualizada (aggregateVersion = sucursal.getVersion()).
+        eventos.sucursalActualizada(sucursal, Fechas.hoy());
 
         return new SucursalRespuesta(sucursal);
     }
@@ -108,8 +110,7 @@ public class SucursalServicioImpl implements SucursalServicio {
 
         sucursal.setActiva(solicitud.activa());
         sucursal = repositorio.saveAndFlush(sucursal);
-
-        // Aquí se publica el evento SucursalActualizada (aggregateVersion = sucursal.getVersion()).
+        eventos.sucursalActualizada(sucursal, Fechas.hoy());
 
         return new SucursalRespuesta(sucursal);
     }

@@ -25,12 +25,18 @@ public interface PersonalSucursalServicio {
     /** F7. 403 SOLO_CAJEROS, 404 SUCURSAL_NO_EXISTE, 422 SUCURSAL_INACTIVA, 409/422 de R5, 503 */
     PersonalSucursalRespuesta agregar(UUID sucursalId, NuevoPersonalSolicitud solicitud, UsuarioActual usuario);
 
- 
+    /**
+     * Alta con R5 + INSERT. La usan F3 (admin inicial) y F7.
+     * Debe llamarse dentro de una transacción y con la sucursal ya guardada.
+     */
     PersonalSucursalEntidad registrarAlta(SucursalEntidad sucursal, RolPersonal rol, LocalDate fechaAsignacion,
                                           DatosCuentaSolicitud cuenta);
 
     /** F8. 403 SOLO_CAJEROS, 409 MODIFICACION_CONCURRENTE, 422 PERSONAL_INACTIVO o SUCURSAL_SIN_ADMIN */
     PersonalSucursalRespuesta desactivar(UUID id, DesactivarPersonalSolicitud solicitud, UsuarioActual usuario);
+
+    /** Evento PerfilActualizado: refresca la copia de nombre y correo. Devuelve las filas actualizadas. */
+    int actualizarDatosDePerfil(UUID usuarioId, String nombreCompleto, String correo);
 
     /** F9. 409 MODIFICACION_CONCURRENTE, 422 PERSONAL_INACTIVO, TRASLADO_MISMA_SUCURSAL, SUCURSAL_INACTIVA o SUCURSAL_SIN_ADMIN */
     TrasladoPersonalRespuesta trasladar(UUID id, TrasladarPersonalSolicitud solicitud);

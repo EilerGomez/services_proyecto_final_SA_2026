@@ -15,12 +15,14 @@ import gt.cunoc.proyecto2.fleet.dtos.trips.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.choferes.ErrorChofer;
 import gt.cunoc.proyecto2.fleet.errores.generales.ErrorGeneral;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.eventos.PublicadorEventosFleet;
 import gt.cunoc.proyecto2.fleet.modelos.choferes.ChoferEntidad;
 import gt.cunoc.proyecto2.fleet.modelos.choferes.EstadoChofer;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.choferes.ChoferRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.servicios.fotos.AlmacenFotosServicio;
+import gt.cunoc.proyecto2.fleet.utilidades.Fechas;
 import gt.cunoc.proyecto2.fleet.utilidades.FiltroSucursal;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
 import java.time.LocalDate;
@@ -38,14 +40,17 @@ public class ChoferServicioImpl implements ChoferServicio {
     private final AlmacenFotosServicio fotos;
     private final ClienteIdentity identity;
     private final ClienteTrips trips;
+    private final PublicadorEventosFleet eventos;
 
     public ChoferServicioImpl(ChoferRepositorio repositorio, SucursalRepositorio sucursales,
-                              AlmacenFotosServicio fotos, ClienteIdentity identity, ClienteTrips trips) {
+                              AlmacenFotosServicio fotos, ClienteIdentity identity, ClienteTrips trips,
+                              PublicadorEventosFleet eventos) {
         this.repositorio = repositorio;
         this.sucursales = sucursales;
         this.fotos = fotos;
         this.identity = identity;
         this.trips = trips;
+        this.eventos = eventos;
     }
 
     @Override
@@ -108,10 +113,10 @@ public class ChoferServicioImpl implements ChoferServicio {
 
         ChoferEntidad chofer = repositorio.saveAndFlush(
                 solicitud.crearEntidad(choferId, cuenta.usuarioId(), cuenta.nombreCompleto()));
-
-        // Aquí se publica el evento ChoferCreado
-        // (aggregateVersion = chofer.getVersion(), businessDate = fechaRegistro).
-        // Aquí se publica el evento LicenciaChoferActualizada (Notification programa los recordatorios).
+        
+        eventos.choferCreado(chofer, solicitud.fechaRegistro());
+        
+        eventos.licenciaChoferActualizada(chofer, solicitud.fechaRegistro());   // Notification programa los recordatorios
 
         return new ChoferRespuesta(chofer);
     }
@@ -124,9 +129,7 @@ public class ChoferServicioImpl implements ChoferServicio {
 
         chofer.actualizarSalario(solicitud.salarioBaseViaje());
         chofer = repositorio.saveAndFlush(chofer);
-
-        // Aquí se publica el evento ChoferActualizado
-        // (aggregateVersion = chofer.getVersion(), businessDate = hoy).
+        eventos.choferActualizado(chofer, Fechas.hoy());
 
         return new ChoferRespuesta(chofer);
     }
@@ -144,10 +147,8 @@ public class ChoferServicioImpl implements ChoferServicio {
 
         solicitud.aplicarA(chofer);
         chofer = repositorio.saveAndFlush(chofer);
-
-        // Aquí se publica el evento ChoferActualizado y luego LicenciaChoferActualizada
-        // (aggregateVersion = chofer.getVersion(), businessDate = fechaRegistro).
-        // Notification cancela los recordatorios pendientes y crea los nuevos.
+        eventos.choferActualizado(chofer, solicitud.fechaRegistro());
+        eventos.licenciaChoferActualizada(chofer, solicitud.fechaRegistro());   // Notification reprograma los recordatorios
 
         return new ChoferRespuesta(chofer);
     }
@@ -168,11 +169,20 @@ public class ChoferServicioImpl implements ChoferServicio {
 
         chofer.desactivar();
         chofer = repositorio.saveAndFlush(chofer);
-
-        // Aquí se publica el evento ChoferDesactivado
-        // (aggregateVersion = chofer.getVersion(), businessDate = fecha). Identity le quita el rol CHOFER.
+        eventos.choferDesactivado(chofer, solicitud.fecha());                    // Identity le quita el rol CHOFER
 
         return new ChoferRespuesta(chofer);
+    }
+
+    @Override
+    @Transactional
+    public void actualizarNombreDesdePerfil(UUID choferId, String nombreCompleto, LocalDate fechaNegocio) {
+        Optional<ChoferEntidad> encontrado = repositorio.findById(choferId);
+        if (encontrado.isEmpty() || !encontrado.get().actualizarNombre(nombreCompleto)) {
+            return;                                         // no existe o el nombre no cambió: sin evento
+        }
+        ChoferEntidad chofer = repositorio.saveAndFlush(encontrado.get());
+        eventos.choferActualizado(chofer, fechaNegocio);    // Trips y Reporting reciben el nombre nuevo
     }
 
     @Override
@@ -189,14 +199,14 @@ public class ChoferServicioImpl implements ChoferServicio {
         }
     }
 
-    /* No se registra una licencia que ya venció en la fecha de registro elegida por el usuario. */
+    /** No se registra una licencia que ya venció en la fecha de registro elegida por el usuario. */
     private static void verificarLicenciaVigente(LocalDate vencimiento, LocalDate fechaRegistro) {
         if (vencimiento.isBefore(fechaRegistro)) {
             throw ErrorChofer.LICENCIA_VENCIDA.excepcion(vencimiento, fechaRegistro);
         }
     }
 
-    /* El frontend reintentó un alta que sí se guardó (se perdió la respuesta): se devuelve el mismo chofer. */
+    /** El frontend reintentó un alta que sí se guardó (se perdió la respuesta): se devuelve el mismo chofer. */
     private static ChoferRespuesta reintentoDeAltaCompleta(ChoferEntidad existente, NuevoChoferSolicitud solicitud) {
         if (!existente.getSucursalId().equals(solicitud.sucursalId())
                 || !existente.getNumeroLicencia().equals(solicitud.numeroLicencia())) {

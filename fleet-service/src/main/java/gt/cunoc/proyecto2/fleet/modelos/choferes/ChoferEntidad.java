@@ -89,6 +89,18 @@ public class ChoferEntidad {
         this.fechaVencimientoLicencia = fechaVencimiento;
     }
 
+    /**
+     * Evento PerfilActualizado: el nombre se edita en Identity y aquí se guarda la copia.
+     * Aplica aunque el chofer esté inactivo. @return true si cambió.
+     */
+    public boolean actualizarNombre(String nombreCompleto) {
+        if (nombreCompleto.equals(this.nombreCompleto)) {
+            return false;
+        }
+        this.nombreCompleto = nombreCompleto;
+        return true;
+    }
+
     /** F21. Que no tenga viajes activos (R3) lo valida el servicio antes. */
     public void desactivar() {
         verificarActivo();

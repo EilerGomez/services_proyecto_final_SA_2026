@@ -94,6 +94,18 @@ public class BusEntidad {
     }
 
     /*
+     * Evento ViajeIniciado: un bus ACTIVO pasa a EN_RUTA.
+     * @return false si no cambió (evento repetido, o el bus está en taller o inactivo)
+     */
+    public boolean registrarSalida() {
+        if (estado != EstadoBus.ACTIVO) {
+            return false;
+        }
+        this.estado = EstadoBus.EN_RUTA;
+        return true;
+    }
+
+    /*
      * Evento ViajeCompletado: el kilometraje solo sube (un evento viejo no lo baja)
      * y el bus vuelve a ACTIVO si estaba EN_RUTA.
      */

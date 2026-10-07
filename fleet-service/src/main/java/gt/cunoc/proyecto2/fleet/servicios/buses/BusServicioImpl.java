@@ -10,12 +10,14 @@ import gt.cunoc.proyecto2.fleet.dtos.buses.NuevoBusSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.trips.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.buses.ErrorBus;
 import gt.cunoc.proyecto2.fleet.errores.sucursales.ErrorSucursal;
+import gt.cunoc.proyecto2.fleet.eventos.PublicadorEventosFleet;
 import gt.cunoc.proyecto2.fleet.modelos.buses.BusEntidad;
 import gt.cunoc.proyecto2.fleet.modelos.buses.EstadoBus;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.buses.BusRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.servicios.fotos.AlmacenFotosServicio;
+import gt.cunoc.proyecto2.fleet.utilidades.Fechas;
 import gt.cunoc.proyecto2.fleet.utilidades.FiltroSucursal;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
 import java.util.List;
@@ -30,13 +32,15 @@ public class BusServicioImpl implements BusServicio {
     private final SucursalRepositorio sucursales;
     private final AlmacenFotosServicio fotos;
     private final ClienteTrips trips;
+    private final PublicadorEventosFleet eventos;
 
     public BusServicioImpl(BusRepositorio repositorio, SucursalRepositorio sucursales,
-                           AlmacenFotosServicio fotos, ClienteTrips trips) {
+                           AlmacenFotosServicio fotos, ClienteTrips trips, PublicadorEventosFleet eventos) {
         this.repositorio = repositorio;
         this.sucursales = sucursales;
         this.fotos = fotos;
         this.trips = trips;
+        this.eventos = eventos;
     }
 
     @Override
@@ -71,9 +75,7 @@ public class BusServicioImpl implements BusServicio {
         }
 
         BusEntidad bus = repositorio.saveAndFlush(solicitud.crearEntidad());
-
-        // Aquí se publica el evento BusCreado
-        // (aggregateVersion = bus.getVersion(), businessDate = fechaRegistro).
+        eventos.busCreado(bus, solicitud.fechaRegistro());
 
         return new BusRespuesta(bus);
     }
@@ -87,9 +89,7 @@ public class BusServicioImpl implements BusServicio {
 
         solicitud.aplicarA(bus);
         bus = repositorio.saveAndFlush(bus);
-
-        // Aquí se publica el evento BusActualizado
-        // (aggregateVersion = bus.getVersion(), businessDate = hoy).
+        eventos.busActualizado(bus, Fechas.hoy());
 
         return new BusRespuesta(bus);
     }
@@ -102,9 +102,9 @@ public class BusServicioImpl implements BusServicio {
 
         EstadoBus nuevo = solicitud.estado();
         if (bus.getEstado() == nuevo) {
-            return new BusRespuesta(bus);                  
+            return new BusRespuesta(bus);
         }
-        bus.validarCambioDeEstado(nuevo); //si no esta en ruta                
+        bus.validarCambioDeEstado(nuevo);
 
         if (nuevo == EstadoBus.ACTIVO) {
             verificarSucursalActiva(bus.getSucursalId());
@@ -120,9 +120,9 @@ public class BusServicioImpl implements BusServicio {
         bus = repositorio.saveAndFlush(bus);
 
         if (nuevo == EstadoBus.INACTIVO) {
-            // Aquí se publica el evento BusDesactivado (aggregateVersion = bus.getVersion(), businessDate = fecha).
+            eventos.busDesactivado(bus, solicitud.fecha());
         } else {
-            // Aquí se publica el evento BusActualizado (aggregateVersion = bus.getVersion(), businessDate = fecha).
+            eventos.busActualizado(bus, solicitud.fecha());
         }
 
         return new BusRespuesta(bus);
