@@ -13,11 +13,11 @@ import org.springframework.stereotype.Repository;
 public interface BusRepositorio extends JpaRepository<BusEntidad, UUID> {
 
     @Query("""
-            SELECT b FROM Bus b
-            WHERE (:sucursalId IS NULL OR b.sucursalId = :sucursalId)
-              AND (:estado IS NULL OR b.estado = :estado)
-            ORDER BY b.placa ASC""")
-    List<BusEntidad> buscar(@Param("sucursalId") UUID sucursalId, @Param("estado") EstadoBus estado);
+        SELECT b FROM Bus b
+        WHERE b.sucursalId = COALESCE(:sucursalId, b.sucursalId)
+          AND (:estado IS NULL OR b.estado = :estado)
+        ORDER BY b.placa ASC""")
+List<BusEntidad> buscar(@Param("sucursalId") UUID sucursalId, @Param("estado") EstadoBus estado);
 
     boolean existsByPlaca(String placa);
 

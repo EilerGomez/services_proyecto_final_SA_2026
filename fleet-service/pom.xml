@@ -15,8 +15,9 @@
 
     <properties>
         <!-- Versión del BOM de Google Cloud (fija las versiones de google-cloud-storage y sus dependencias).
-        Si Maven no la encuentra, usar la más reciente de mvnrepository.com/artifact/com.google.cloud/libraries-bom -->
+             Si Maven no la encuentra, usar la más reciente de mvnrepository.com/artifact/com.google.cloud/libraries-bom -->
         <google-cloud-bom.version>26.50.0</google-cloud-bom.version>
+        <!-- Clase principal: la usan el botón Run de NetBeans (exec:exec) y spring-boot:run -->
         <start-class>gt.cunoc.proyecto2.fleet.FleetServiceApplication</start-class>
     </properties>
 
@@ -90,6 +91,27 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!-- ===== Pruebas de integración (*IT.java). spring-boot-starter-test viene del POM padre. ===== -->
+        <!-- PostgreSQL 16 real en Docker durante la prueba: corre las migraciones de Flyway
+             (Testcontainers 2.x; la versión la fija Spring Boot) -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- RabbitMQ real en Docker: outbox, exchanges, cola fleet.q y su DLQ -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-rabbitmq</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Espera efectos asíncronos (el relay publica cada 200 ms y el consumidor procesa en otro hilo) -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -122,6 +144,7 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- Cobertura: la configuración (reportes y mínimos 85 % / 65 %) está en el POM padre -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>

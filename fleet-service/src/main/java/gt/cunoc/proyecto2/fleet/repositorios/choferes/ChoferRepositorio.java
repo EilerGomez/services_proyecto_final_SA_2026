@@ -13,11 +13,11 @@ import org.springframework.stereotype.Repository;
 public interface ChoferRepositorio extends JpaRepository<ChoferEntidad, UUID> {
 
     @Query("""
-            SELECT c FROM Chofer c
-            WHERE (:sucursalId IS NULL OR c.sucursalId = :sucursalId)
-              AND (:estado IS NULL OR c.estado = :estado)
-            ORDER BY c.nombreCompleto ASC""")
-    List<ChoferEntidad> buscar(@Param("sucursalId") UUID sucursalId, @Param("estado") EstadoChofer estado);
+        SELECT c FROM Chofer c
+        WHERE c.sucursalId = COALESCE(:sucursalId, c.sucursalId)
+          AND (:estado IS NULL OR c.estado = :estado)
+        ORDER BY c.nombreCompleto ASC""")
+List<ChoferEntidad> buscar(@Param("sucursalId") UUID sucursalId, @Param("estado") EstadoChofer estado);
 
     boolean existsByNumeroLicencia(String numeroLicencia);
 
