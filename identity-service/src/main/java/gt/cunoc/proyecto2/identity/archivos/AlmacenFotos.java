@@ -35,7 +35,11 @@ public class AlmacenFotos {
     public AlmacenFotos(
             @Value("${app.fotos.bucket}") String bucket,
             @Value("${app.fotos.prefijo:}") String prefijo) {
-        this.storage = StorageOptions.getDefaultInstance().getService();
+        this(StorageOptions.getDefaultInstance().getService(), bucket, prefijo);
+    }
+
+    AlmacenFotos(Storage storage, String bucket, String prefijo) {
+        this.storage = storage;
         this.bucket = bucket;
         this.prefijo = prefijo;
     }

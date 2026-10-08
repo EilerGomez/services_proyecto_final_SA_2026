@@ -55,6 +55,9 @@ public class Usuario {
     @Column(name = "sucursal_id")
     private UUID sucursalId;
 
+    @Column(name = "doble_factor_activo", nullable = false)
+    private boolean dobleFactorActivo = false;
+
     @Column(name = "ultimo_acceso")
     private Instant ultimoAcceso;
 

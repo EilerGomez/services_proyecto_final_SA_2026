@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.messaging.publisher;
 
 import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.identity.evento.payload.ClienteRegistradoPayload;
+import gt.cunoc.proyecto2.identity.evento.payload.CodigoDobleFactorPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
@@ -68,5 +69,17 @@ public class UsuarioEventPublisher {
 
         publicador.publicar("Usuario", usuarioId, "PerfilActualizado",
                 new PerfilActualizadoPayload(usuarioId, nit, nombres, apellidos, correo, telefono, fotoUrl, choferId), fechaNegocio);
+    }
+
+    public void publicarCodigoDobleFactor(
+            UUID usuarioId,
+            String correo,
+            String nombre,
+            String codigo,
+            Instant expiraEn,
+            LocalDate fechaNegocio) {
+
+        publicador.publicar("Usuario", usuarioId, "CodigoDobleFactorSolicitado",
+                new CodigoDobleFactorPayload(usuarioId, correo, nombre, codigo, expiraEn), fechaNegocio);
     }
 }

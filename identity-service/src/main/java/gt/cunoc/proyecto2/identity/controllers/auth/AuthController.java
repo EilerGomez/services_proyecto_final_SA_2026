@@ -2,13 +2,17 @@ package gt.cunoc.proyecto2.identity.controllers.auth;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.auth.CambioContrasenaRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.DesafioDobleFactor;
+import gt.cunoc.proyecto2.identity.dtos.auth.DobleFactorRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.InicioSesionRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RecuperacionRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RegistroRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RegistroResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.RestablecimientoRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.ResultadoInicioSesion;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.TokenRefrescoRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.VerificarDobleFactorRequest;
 import gt.cunoc.proyecto2.identity.services.auth.AuthService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -41,10 +45,28 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<SesionResponse> iniciarSesion(@RequestBody @Valid InicioSesionRequest solicitud) {
+    public ResponseEntity<ResultadoInicioSesion> iniciarSesion(@RequestBody @Valid InicioSesionRequest solicitud) {
+        ResultadoInicioSesion resultado = servicio.iniciarSesion(solicitud);
+        if (resultado instanceof DesafioDobleFactor desafio) {
+            return ResponseEntity.accepted().header("Cache-Control", "no-store").body(desafio);
+        }
+        return ResponseEntity.ok().header("Cache-Control", "no-store").body(resultado);
+    }
+
+    @PostMapping("/login/verificar")
+    public ResponseEntity<SesionResponse> verificarDobleFactor(
+            @RequestBody @Valid VerificarDobleFactorRequest solicitud) {
         return ResponseEntity.ok()
                 .header("Cache-Control", "no-store")
-                .body(servicio.iniciarSesion(solicitud));
+                .body(servicio.verificarDobleFactor(solicitud));
+    }
+
+    @PutMapping("/doble-factor")
+    public ResponseEntity<Void> cambiarDobleFactor(
+            @RequestBody @Valid DobleFactorRequest solicitud,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        servicio.cambiarDobleFactor(usuario.usuarioId(), solicitud);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/refrescar")

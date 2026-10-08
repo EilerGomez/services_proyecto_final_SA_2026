@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.Getter;
@@ -40,4 +42,16 @@ public class Cartera {
 
     @Column(name = "fecha_actualizacion", nullable = false)
     private Instant fechaActualizacion;
+
+    @PrePersist
+    void alCrear() {
+        if (fechaActualizacion == null) {
+            fechaActualizacion = Instant.now();
+        }
+    }
+
+    @PreUpdate
+    void alActualizar() {
+        fechaActualizacion = Instant.now();
+    }
 }

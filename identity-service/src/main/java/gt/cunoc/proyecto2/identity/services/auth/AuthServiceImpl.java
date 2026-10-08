@@ -14,10 +14,12 @@ import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
+import gt.cunoc.proyecto2.identity.models.CodigoDobleFactor;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.TokenRefresco;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
+import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.TokenRecuperacionRepository;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,12 +55,15 @@ public class AuthServiceImpl implements AuthService {
     private static final Duration BLOQUEO = Duration.ofMinutes(15);
     private static final Duration REFRESCO_DURACION = Duration.ofDays(7);
     private static final Duration RECUPERACION_DURACION = Duration.ofMinutes(30);
+    private static final Duration DOBLE_FACTOR_DURACION = Duration.ofMinutes(10);
+    private static final SecureRandom SEGURIDAD = new SecureRandom();
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfiles;
     private final RolRepository roles;
     private final CarteraRepository carteras;
     private final TokenRefrescoRepository refrescos;
     private final TokenRecuperacionRepository recuperaciones;
+    private final CodigoDobleFactorRepository desafios;
     private final PasswordEncoder claves;
     private final ServicioJwt jwt;
     private final long minutosAcceso;
@@ -74,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
             CarteraRepository carteras,
             TokenRefrescoRepository refrescos,
             TokenRecuperacionRepository recuperaciones,
+            CodigoDobleFactorRepository desafios,
             PasswordEncoder claves,
             ServicioJwt jwt,
             @Value("${app.jwt.duracion-minutos:60}") long minutosAcceso,
@@ -88,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
         this.carteras = carteras;
         this.refrescos = refrescos;
         this.recuperaciones = recuperaciones;
+        this.desafios = desafios;
         this.claves = claves;
         this.jwt = jwt;
         this.minutosAcceso = minutosAcceso;
@@ -143,7 +151,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public SesionResponse iniciarSesion(InicioSesionRequest solicitud) {
+    public ResultadoInicioSesion iniciarSesion(InicioSesionRequest solicitud) {
         String correo = solicitud.correo().trim().toLowerCase();
         Usuario usuario = usuarios.findByCorreo(correo).orElse(null);
 
@@ -167,7 +175,59 @@ public class AuthServiceImpl implements AuthService {
         usuario.setIntentosFallidos(0);
         usuario.setUltimoAcceso(Instant.now());
         usuarios.save(usuario);
+
+        if (usuario.isDobleFactorActivo()) {
+            return desafiarDobleFactor(usuario);
+        }
         return crearTokens(usuario);
+    }
+
+    @Override
+    @Transactional
+    public SesionResponse verificarDobleFactor(VerificarDobleFactorRequest solicitud) {
+        String correo = solicitud.correo().trim().toLowerCase();
+        Usuario usuario = usuarios.findByCorreo(correo).orElse(null);
+
+        if (usuario == null || !"ACTIVO".equals(usuario.getEstado()) || !usuario.isDobleFactorActivo()) {
+            throw new NoAutenticadoException("DOBLE_FACTOR_INVALIDO", "El código no es válido");
+        }
+
+        CodigoDobleFactor desafio = desafios
+                .findByUsuarioIdAndUsadoEnIsNullOrderByFechaCreacionDesc(usuario.getId())
+                .stream().findFirst()
+                .orElseThrow(() -> new NoAutenticadoException("DOBLE_FACTOR_INVALIDO", "El código no es válido"));
+
+        if (desafio.getExpiraEn().isBefore(Instant.now())) {
+            throw new NoAutenticadoException("DOBLE_FACTOR_VENCIDO", "El código venció, inicie sesión de nuevo");
+        }
+
+        if (!opacos.calcularHash(solicitud.codigo()).equals(desafio.getCodigoHash())) {
+            int intentos = desafio.getIntentos() + 1;
+            desafio.setIntentos(intentos);
+            desafios.save(desafio);
+
+            if (intentos >= MAX_INTENTOS) {
+                usuario.setEstado("BLOQUEADO");
+                usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
+                usuarios.save(usuario);
+            }
+            throw new NoAutenticadoException("DOBLE_FACTOR_INVALIDO", "El código no es válido");
+        }
+
+        desafio.setUsadoEn(Instant.now());
+        desafios.save(desafio);
+        usuario.setUltimoAcceso(Instant.now());
+        usuarios.save(usuario);
+        return crearTokens(usuario);
+    }
+
+    @Override
+    @Transactional
+    public void cambiarDobleFactor(UUID usuarioId, DobleFactorRequest solicitud) {
+        Usuario usuario = usuarios.findById(usuarioId)
+                .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE", "El usuario no existe"));
+        usuario.setDobleFactorActivo(Boolean.TRUE.equals(solicitud.activado()));
+        usuarios.save(usuario);
     }
 
     @Override
@@ -285,6 +345,24 @@ public class AuthServiceImpl implements AuthService {
             usuario.setIntentosFallidos(intentos);
         }
         usuarios.save(usuario);
+    }
+
+    private DesafioDobleFactor desafiarDobleFactor(Usuario usuario) {
+        String codigo = String.format("%06d", SEGURIDAD.nextInt(1_000_000));
+        CodigoDobleFactor desafio = new CodigoDobleFactor();
+        desafio.setUsuarioId(usuario.getId());
+        desafio.setCodigoHash(opacos.calcularHash(codigo));
+        desafio.setExpiraEn(Instant.now().plus(DOBLE_FACTOR_DURACION));
+        desafio.setFechaCreacion(Instant.now());
+        desafios.save(desafio);
+
+        Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
+        String nombre = perfil == null ? usuario.getCorreo()
+                : perfil.getNombres() + " " + perfil.getApellidos();
+        publicador.publicarCodigoDobleFactor(
+                usuario.getId(), usuario.getCorreo(), nombre, codigo,
+                desafio.getExpiraEn(), LocalDate.now());
+        return new DesafioDobleFactor(usuario.getId(), usuario.getCorreo(), desafio.getExpiraEn());
     }
 
     private void revocarRefrescos(UUID usuarioId) {

@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.controllers.tarifa;
 
-
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.time.LocalDate;
 
-
 /**
  * Tarifas de depreciación (I15, I16).
  */
@@ -42,7 +40,8 @@ public class DepreciationRateController {
     public ResponseEntity<?> listar(
             @RequestParam(required = false, name = "vigenteEn")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate vigenteEn,
-            Pageable paginado) {
+            Pageable paginado,
+            @Parameter(hidden = true) UsuarioActual usuario) {
         if (vigenteEn != null) {
             return ResponseEntity.ok(servicio.vigente(vigenteEn));
         }

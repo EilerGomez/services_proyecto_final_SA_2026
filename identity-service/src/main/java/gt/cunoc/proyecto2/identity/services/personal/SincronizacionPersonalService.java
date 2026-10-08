@@ -30,10 +30,12 @@ public class SincronizacionPersonalService {
     public void desactivarChofer(UUID choferId, UUID sucursalId) {
         Usuario usuario = usuarios.findByChoferId(choferId).orElse(null);
 
-        if (usuario == null || !Objects.equals(sucursalId, usuario.getSucursalId())) {
+        if (usuario == null) {
             return;
         }
-        usuario.setSucursalId(null);
+        if (Objects.equals(sucursalId, usuario.getSucursalId())) {
+            usuario.setSucursalId(null);
+        }
 
         usuario.getRoles().removeIf(rol -> Roles.CHOFER.equals(rol.getCodigo()));
         usuarios.save(usuario);

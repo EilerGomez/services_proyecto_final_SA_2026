@@ -16,5 +16,5 @@ public record SesionResponse(
         UUID usuarioId,
         UsuarioSesion usuario
 
-) {
+) implements ResultadoInicioSesion {
 }
