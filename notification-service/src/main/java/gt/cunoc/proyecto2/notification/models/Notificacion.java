@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.notification.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,7 +13,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
-
 
 /**
  * Correo registrado para envío (idempotente por evento + destinatario + plantilla).

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +25,11 @@ import java.util.UUID;
  */
 @Service
 public class EnvioCorreoService {
+
+    private static final ZoneId ZONA_LOCAL = ZoneId.of("America/Guatemala");
+
+    private static final DateTimeFormatter FORMATO_FECHA =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a").withZone(ZONA_LOCAL);
 
     private final NotificacionRepository notificaciones;
 
@@ -48,7 +55,7 @@ public class EnvioCorreoService {
             return;
         }
         String cuerpo = "Hola " + nombre + ",\n\nSolicitaste recuperar tu contraseña.\n\n"
-                + "Usa este enlace antes de " + expiraEn + ":\n" + url + "\n\n"
+                + "Usa este enlace antes del " + FORMATO_FECHA.format(expiraEn) + " (hora de Guatemala):\n" + url + "\n\n"
                 + "Si no fuiste tú, ignora este correo.";
         enviar(previa.get(), correo, "Recupera tu contraseña", cuerpo);
     }
@@ -66,6 +73,21 @@ public class EnvioCorreoService {
                         ? "\nYa puedes iniciar sesión."
                         : "\nActívala aquí:\n" + urlActivacion + "\n");
         enviar(previa.get(), correo, "Bienvenido a la plataforma", cuerpo);
+    }
+
+    @Transactional
+    public void enviarCodigoDobleFactor(
+            UUID eventoId, String correo, String nombre, String codigo, Instant expiraEn) {
+        Optional<Notificacion> previa = registrada(eventoId, correo, "CODIGO_DOBLE_FACTOR",
+                "Tu código de verificación",
+                "{\"expiraEn\":\"" + expiraEn + "\"}");
+        if (previa.isEmpty()) {
+            return;
+        }
+        String cuerpo = "Hola " + nombre + ",\n\nTu código de verificación es:\n\n"
+                + codigo + "\n\nVence el " + FORMATO_FECHA.format(expiraEn) + " (hora de Guatemala).\n"
+                + "Si no fuiste tú, ignora este correo.";
+        enviar(previa.get(), correo, "Tu código de verificación", cuerpo);
     }
 
     private Optional<Notificacion> registrada(

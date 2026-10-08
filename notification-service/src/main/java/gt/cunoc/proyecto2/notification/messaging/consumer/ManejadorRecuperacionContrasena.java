@@ -1,12 +1,10 @@
 package gt.cunoc.proyecto2.notification.messaging.consumer;
 
-
 import gt.cunoc.proyecto2.comun.eventos.manejadorevento.ManejadorEvento;
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
 import gt.cunoc.proyecto2.notification.evento.recibido.RecuperacionContrasenaSolicitada;
 import gt.cunoc.proyecto2.notification.services.correo.EnvioCorreoService;
 import org.springframework.stereotype.Component;
-
 
 /**
  * Envía el enlace de recuperación por correo.
