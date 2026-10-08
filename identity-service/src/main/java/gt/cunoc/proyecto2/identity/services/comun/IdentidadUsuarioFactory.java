@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.services.comun;
 
-
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import org.springframework.stereotype.Component;
@@ -8,7 +7,6 @@ import org.springframework.stereotype.Component;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 
 /**
  * Construye el {@link UsuarioActual} (claims del JWT) desde un {@link Usuario}.

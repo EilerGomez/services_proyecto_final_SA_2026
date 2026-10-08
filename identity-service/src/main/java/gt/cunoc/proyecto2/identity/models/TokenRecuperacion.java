@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -12,7 +11,6 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
-
 
 /**
  * Token opaco de recuperación de contraseña (se guarda su hash SHA-256).

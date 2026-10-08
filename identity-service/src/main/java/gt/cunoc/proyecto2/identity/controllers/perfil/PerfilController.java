@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.controllers.perfil;
 
-
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
@@ -13,7 +12,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 
 /**
  * Perfil propio (I8–I9).

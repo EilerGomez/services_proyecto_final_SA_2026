@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.controllers.personal;
 
-
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
-
 
 /**
  * R5 de Fleet: crea la cuenta de personal o chofer (idempotente por solicitudId).

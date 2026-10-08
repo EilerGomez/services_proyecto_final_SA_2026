@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.archivos;
 
-
 import gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import com.google.cloud.storage.BlobId;
@@ -8,6 +7,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-
 
 /**
  * Subida de fotos al bucket de Google Cloud Storage (ver 00_convenciones.md §8).
@@ -34,10 +33,15 @@ public class AlmacenFotos {
 
     private final String prefijo;
 
+    @Autowired
     public AlmacenFotos(
             @Value("${app.fotos.bucket}") String bucket,
             @Value("${app.fotos.prefijo:}") String prefijo) {
-        this.storage = StorageOptions.getDefaultInstance().getService();
+        this(StorageOptions.getDefaultInstance().getService(), bucket, prefijo);
+    }
+
+    AlmacenFotos(Storage storage, String bucket, String prefijo) {
+        this.storage = storage;
         this.bucket = bucket;
         this.prefijo = prefijo;
     }

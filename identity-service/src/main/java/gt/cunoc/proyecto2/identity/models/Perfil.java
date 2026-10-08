@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -12,7 +11,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.UUID;
-
 
 /**
  * Perfil público del usuario (datos personales).

@@ -84,7 +84,7 @@ spring:
               predicates:
                 - Path=/v3/api-docs/notification
               filters:
-                - SetPath=/v3/api-docs
+                - SetPath=/notifications/v3/api-docs
 gateway:
   services:
     identity-url: ${IDENTITY_URL:http://localhost:8081}

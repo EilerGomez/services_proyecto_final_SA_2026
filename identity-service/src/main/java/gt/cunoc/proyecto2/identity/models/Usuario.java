@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.models;
 
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -18,7 +17,6 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
-
 
 /**
  * Cuenta de usuario (credenciales y estado).
@@ -56,6 +54,9 @@ public class Usuario {
 
     @Column(name = "sucursal_id")
     private UUID sucursalId;
+
+    @Column(name = "doble_factor_activo", nullable = false)
+    private boolean dobleFactorActivo = false;
 
     @Column(name = "ultimo_acceso")
     private Instant ultimoAcceso;

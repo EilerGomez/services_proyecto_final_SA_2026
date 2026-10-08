@@ -1,6 +1,5 @@
 package gt.cunoc.proyecto2.identity.services.comun;
 
-
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -9,7 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
-
 
 /**
  * Tokens opacos (refresh y recuperación): generación aleatoria y hash SHA-256.
