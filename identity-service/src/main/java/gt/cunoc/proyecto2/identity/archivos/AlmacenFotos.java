@@ -7,6 +7,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +33,7 @@ public class AlmacenFotos {
 
     private final String prefijo;
 
+    @Autowired
     public AlmacenFotos(
             @Value("${app.fotos.bucket}") String bucket,
             @Value("${app.fotos.prefijo:}") String prefijo) {
