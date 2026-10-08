@@ -38,8 +38,9 @@
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <springdoc.version>3.0.3</springdoc.version>
         <jacoco.version>0.8.15</jacoco.version>
-        <!-- Cobertura mínima de líneas exigida por jacoco:check (0.85 = 85 %) -->
-        <jacoco.cobertura.minima>0.85</jacoco.cobertura.minima>
+        <!-- Cobertura mínima de líneas que exige jacoco:check en mvn verify -->
+        <jacoco.cobertura.minima>0.85</jacoco.cobertura.minima>                          <!-- unitarias (*Test) -->
+        <jacoco.cobertura.minima.integracion>0.65</jacoco.cobertura.minima.integracion>  <!-- integración (*IT) -->
     </properties>
 
     <!-- Solo fija versiones; cada módulo declara lo que realmente usa -->
@@ -77,7 +78,7 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- Heredado por todos los módulos -->
+    <!-- Heredado por todos los módulos: JUnit 5, Mockito, AssertJ, JsonPath, Awaitility, Spring Test -->
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -92,8 +93,12 @@
                 <!--
                   JaCoCo: se configura aquí una sola vez. Se ACTIVA en cada módulo agregando en su pom.xml:
                     <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId></plugin>
-                  mvn test   -> reporte en <modulo>/target/site/jacoco/index.html
-                  mvn verify -> además falla el build si la cobertura de líneas es menor a ${jacoco.cobertura.minima}
+
+                  mvn test   -> unitarias              -> <modulo>/target/site/jacoco/index.html
+                  mvn verify -> además integración      -> <modulo>/target/site/jacoco-it/index.html
+                                y el total (las dos)    -> <modulo>/target/site/jacoco-total/index.html
+                                y falla si unitarias < 85 % o integración < 65 %
+                  Un módulo sin pruebas *IT (p. ej. comun) no genera jacoco-it.exec y esa verificación se omite.
                 -->
                 <plugin>
                     <groupId>org.jacoco</groupId>
@@ -106,6 +111,7 @@
                         </excludes>
                     </configuration>
                     <executions>
+                        <!-- ===== 1. Unitarias (*Test.java, surefire) -> target/jacoco.exec ===== -->
                         <execution>
                             <id>preparar-agente</id>
                             <goals>
@@ -119,6 +125,55 @@
                                 <goal>report</goal>
                             </goals>
                         </execution>
+
+                        <!-- ===== 2. Integración (*IT.java, failsafe) -> target/jacoco-it.exec ===== -->
+                        <execution>
+                            <id>preparar-agente-integracion</id>
+                            <goals>
+                                <goal>prepare-agent-integration</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>reporte-integracion</id>
+                            <goals>
+                                <goal>report-integration</goal>
+                            </goals>
+                        </execution>
+
+                        <!-- ===== 3. Total: une los dos archivos (solo informativo) ===== -->
+                        <execution>
+                            <id>unir-cobertura</id>
+                            <phase>post-integration-test</phase>
+                            <goals>
+                                <goal>merge</goal>
+                            </goals>
+                            <configuration>
+                                <fileSets>
+                                    <fileSet>
+                                        <directory>${project.build.directory}</directory>
+                                        <includes>
+                                            <include>jacoco.exec</include>
+                                            <include>jacoco-it.exec</include>
+                                        </includes>
+                                    </fileSet>
+                                </fileSets>
+                                <destFile>${project.build.directory}/jacoco-total.exec</destFile>
+                            </configuration>
+                        </execution>
+                        <execution>
+                            <id>reporte-total</id>
+                            <phase>post-integration-test</phase>
+                            <goals>
+                                <goal>report</goal>
+                            </goals>
+                            <configuration>
+                                <dataFile>${project.build.directory}/jacoco-total.exec</dataFile>
+                                <outputDirectory>${project.reporting.outputDirectory}/jacoco-total</outputDirectory>
+                            </configuration>
+                        </execution>
+
+                        <!-- ===== 4. Mínimos (mvn verify) ===== -->
+                        <!-- Unitarias: mínimo ${jacoco.cobertura.minima} -->
                         <execution>
                             <id>verificar-cobertura</id>
                             <phase>verify</phase>
@@ -126,6 +181,7 @@
                                 <goal>check</goal>
                             </goals>
                             <configuration>
+                                <dataFile>${project.build.directory}/jacoco.exec</dataFile>
                                 <rules>
                                     <rule>
                                         <element>BUNDLE</element>
@@ -140,14 +196,37 @@
                                 </rules>
                             </configuration>
                         </execution>
+                        <!-- Integración: mínimo ${jacoco.cobertura.minima.integracion} -->
+                        <execution>
+                            <id>verificar-cobertura-integracion</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <dataFile>${project.build.directory}/jacoco-it.exec</dataFile>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>${jacoco.cobertura.minima.integracion}</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
+                        </execution>
                     </executions>
                 </plugin>
             </plugins>
         </pluginManagement>
 
         <plugins>
-            <!-- mvn test    -> pruebas unitarias   (*Test.java)
-                 mvn verify  -> además las de integración (*IT.java) -->
+            <!-- mvn test    -> pruebas unitarias   (*Test.java, surefire)
+                 mvn verify  -> además las de integración (*IT.java, failsafe; necesitan Docker) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>

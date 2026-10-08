@@ -1,0 +1,34 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
+package gt.cunoc.proyecto2.fleet.configuracion;
+
+/**
+ *
+ * @author eiler
+ */
+
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@OpenAPIDefinition(
+        info = @Info(
+                title = "Fleet Service",
+                version = "1.0",
+                description = "Sucursales, personal de sucursal, buses, choferes y kilometraje"),
+        security = @SecurityRequirement(name = ConfiguracionOpenApi.ESQUEMA_JWT))
+@SecurityScheme(
+        name = ConfiguracionOpenApi.ESQUEMA_JWT,
+        type = SecuritySchemeType.HTTP,
+        scheme = "bearer",
+        bearerFormat = "JWT")
+public class ConfiguracionOpenApi {
+
+    public static final String ESQUEMA_JWT = "jwt";
+}

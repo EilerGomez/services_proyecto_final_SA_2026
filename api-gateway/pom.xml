@@ -11,7 +11,9 @@
     <artifactId>api-gateway</artifactId>
     <name>api-gateway</name>
     <description>API Gateway del proyecto (WebFlux). No depende de comun.</description>
-
+    <properties>
+        <start-class>api_gateway.ApiGatewayApplication</start-class>
+    </properties>
     <dependencies>
         <!-- Gateway (stack reactivo) -->
         <dependency>
