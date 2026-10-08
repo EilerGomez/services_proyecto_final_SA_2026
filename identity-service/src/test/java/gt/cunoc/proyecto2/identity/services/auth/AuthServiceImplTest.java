@@ -74,6 +74,7 @@ class AuthServiceImplTest {
     // el SHA-256 es determinista para predecir los hashes guardados.
     @Spy private PasswordEncoder claves = new BCryptPasswordEncoder();
     @Spy private TokenOpacoService opacos = new TokenOpacoService();
+    @Mock private VigilanciaAcceso vigilancia;
 
     private AuthServiceImpl servicio;
 
@@ -82,7 +83,7 @@ class AuthServiceImplTest {
         // Constructor manual: Mockito no inyecta primitivos ni String (minutosAcceso, urlFrontend).
         servicio = new AuthServiceImpl(usuarios, perfiles, roles, carteras, refrescos,
                 recuperaciones, desafios, claves, jwt, 60L, new IdentidadUsuarioFactory(),
-                opacos, publicador, servicioUsuarios, "http://localhost:5173");
+                opacos, vigilancia, publicador, servicioUsuarios, "http://localhost:5173");
     }
 
     @Test
@@ -106,7 +107,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void credencialesMalasCuentanIntento() {
+    void credencialesMalasRegistranFallo() {
         // Arrange
         Usuario usuario = usuarioActivo();
         when(usuarios.findByCorreo("ana@correo.com")).thenReturn(Optional.of(usuario));
@@ -118,12 +119,11 @@ class AuthServiceImplTest {
         // Assert
         assertAll(
                 () -> assertEquals("CREDENCIALES_INVALIDAS", error.getCodigo()),
-                () -> assertEquals(3, usuario.getIntentosFallidos()),
-                () -> verify(usuarios).save(usuario));
+                () -> verify(vigilancia).falloContrasena(USUARIO_ID));
     }
 
     @Test
-    void quintoFalloBloqueaLaCuenta() {
+    void quintoFalloLoRegistraVigilancia() {
         // Arrange
         Usuario usuario = usuarioActivo();
         usuario.setIntentosFallidos(4);
@@ -134,9 +134,7 @@ class AuthServiceImplTest {
                 () -> servicio.iniciarSesion(new InicioSesionRequest("ana@correo.com", "otra")));
 
         // Assert
-        assertAll(
-                () -> assertEquals("BLOQUEADO", usuario.getEstado()),
-                () -> assertNotNull(usuario.getBloqueadoHasta()));
+        verify(vigilancia).falloContrasena(USUARIO_ID);
     }
 
     @Test

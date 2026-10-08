@@ -51,8 +51,6 @@ import java.util.stream.Collectors;
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private static final int MAX_INTENTOS = 5;
-    private static final Duration BLOQUEO = Duration.ofMinutes(15);
     private static final Duration REFRESCO_DURACION = Duration.ofDays(7);
     private static final Duration RECUPERACION_DURACION = Duration.ofMinutes(30);
     private static final Duration DOBLE_FACTOR_DURACION = Duration.ofMinutes(10);
@@ -69,6 +67,7 @@ public class AuthServiceImpl implements AuthService {
     private final long minutosAcceso;
     private final IdentidadUsuarioFactory fabrica;
     private final TokenOpacoService opacos;
+    private final VigilanciaAcceso vigilancia;
     private final UsuarioEventPublisher publicador;
     private final UserService servicioUsuarios;
     private final String urlFrontend;
@@ -86,6 +85,7 @@ public class AuthServiceImpl implements AuthService {
             @Value("${app.jwt.duracion-minutos:60}") long minutosAcceso,
             IdentidadUsuarioFactory fabrica,
             TokenOpacoService opacos,
+            VigilanciaAcceso vigilancia,
             UsuarioEventPublisher publicador,
             UserService servicioUsuarios,
             @Value("${FRONTEND_URL:http://localhost:5173}") String urlFrontend) {
@@ -101,6 +101,7 @@ public class AuthServiceImpl implements AuthService {
         this.minutosAcceso = minutosAcceso;
         this.fabrica = fabrica;
         this.opacos = opacos;
+        this.vigilancia = vigilancia;
         this.publicador = publicador;
         this.servicioUsuarios = servicioUsuarios;
         this.urlFrontend = urlFrontend;
@@ -156,7 +157,9 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = usuarios.findByCorreo(correo).orElse(null);
 
         if (usuario == null || !claves.matches(solicitud.contrasena(), usuario.getClaveCifrada())) {
-            registrarFallo(usuario);
+            if (usuario != null) {
+                vigilancia.falloContrasena(usuario.getId());
+            }
             throw new NoAutenticadoException("CREDENCIALES_INVALIDAS", "Correo o contraseña incorrectos");
         }
         if ("BLOQUEADO".equals(usuario.getEstado())) {
@@ -202,15 +205,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         if (!opacos.calcularHash(solicitud.codigo()).equals(desafio.getCodigoHash())) {
-            int intentos = desafio.getIntentos() + 1;
-            desafio.setIntentos(intentos);
-            desafios.save(desafio);
-
-            if (intentos >= MAX_INTENTOS) {
-                usuario.setEstado("BLOQUEADO");
-                usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
-                usuarios.save(usuario);
-            }
+            vigilancia.falloCodigo(desafio.getId(), usuario.getId());
             throw new NoAutenticadoException("DOBLE_FACTOR_INVALIDO", "El código no es válido");
         }
 
@@ -329,21 +324,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         usuario.setClaveCifrada(claves.encode(solicitud.nuevaContrasena()));
-        usuarios.save(usuario);
-    }
-
-    private void registrarFallo(Usuario usuario) {
-        if (usuario == null) {
-            return;
-        }
-        int intentos = usuario.getIntentosFallidos() + 1;
-        if (intentos >= MAX_INTENTOS) {
-            usuario.setEstado("BLOQUEADO");
-            usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
-            usuario.setIntentosFallidos(0);
-        } else {
-            usuario.setIntentosFallidos(intentos);
-        }
         usuarios.save(usuario);
     }
 
