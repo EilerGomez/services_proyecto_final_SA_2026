@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.errores.operaciones.ErrorOperacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
+import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.SalidaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
@@ -28,15 +29,18 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
     private final SalidaViajeRepositorio salidas;
     private final LlegadaViajeRepositorio llegadas;
     private final VistaTarifaDepreciacionRepositorio tarifas;
+    private final AlquilerPrivadoRepositorio alquileres;
 
     public OperacionViajeServicioImpl(ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
                                       SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas,
-                                      VistaTarifaDepreciacionRepositorio tarifas) {
+                                      VistaTarifaDepreciacionRepositorio tarifas,
+                                      AlquilerPrivadoRepositorio alquileres) {
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
         this.salidas = salidas;
         this.llegadas = llegadas;
         this.tarifas = tarifas;
+        this.alquileres = alquileres;
     }
 
     @Override
@@ -64,7 +68,12 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
         llegadas.saveAndFlush(solicitud.crearEntidad(viaje, salida,
                 tarifaVigente(Fechas.diaEnGuatemala(solicitud.fechaHoraLlegada())), usuario.usuarioId()));
         viaje = viajeRepositorio.saveAndFlush(viaje);
-        // Paso 5: si el viaje es PRIVADO, su alquiler pasa a COMPLETADO
+        if (viaje.esPrivado()) {
+            alquileres.findById(viaje.getAlquilerId()).ifPresent(alquiler -> {
+                alquiler.completar();
+                alquileres.saveAndFlush(alquiler);
+            });
+        }
         // Paso 6: aquí se publica el evento ViajeCompletado (businessDate = día de fechaHoraLlegada)
         return viajes.detalle(viaje);
     }

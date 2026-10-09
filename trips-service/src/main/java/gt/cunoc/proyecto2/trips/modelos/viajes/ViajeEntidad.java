@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.trips.modelos.viajes;
 
 import gt.cunoc.proyecto2.trips.errores.operaciones.ErrorOperacionViaje;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
+import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,6 +30,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ViajeEntidad {
 
+    /** El chofer de un viaje PRIVADO gana 15 % más (enunciado). */
     private static final BigDecimal RECARGO_PRIVADO = new BigDecimal("1.15");
 
     @Id
@@ -91,8 +93,21 @@ public class ViajeEntidad {
         return viaje;
     }
 
-    /**
-     * T11. Cambia bus, chofer u horario de un viaje PROGRAMADO.
+    public static ViajeEntidad programarPrivado(AlquilerPrivadoEntidad alquiler, AsignacionViaje asignacion,
+                                                UUID creadoPor) {
+        ViajeEntidad viaje = new ViajeEntidad();
+        viaje.id = UUID.randomUUID();
+        viaje.tipo = TipoViaje.PRIVADO;
+        viaje.alquilerId = alquiler.getId();
+        viaje.sucursalId = alquiler.getSucursalId();
+        viaje.estado = EstadoViaje.PROGRAMADO;
+        viaje.creadoPor = creadoPor;
+        viaje.aplicar(asignacion);
+        return viaje;
+    }
+
+    /*
+     * Cambia bus, chofer u horario de un viaje PROGRAMADO.
      * El bus nuevo no puede tener menos asientos: Sales ya pudo vender hasta la capacidad actual.
      */
     public void reprogramar(AsignacionViaje asignacion) {
@@ -103,14 +118,14 @@ public class ViajeEntidad {
         aplicar(asignacion);
     }
 
-    /** 422 VIAJE_YA_INICIO si ya salió (T11, T12). */
+    /*VIAJE_YA_INICIO si ya salió (T11, T12). */
     public void verificarProgramado() {
         if (estado != EstadoViaje.PROGRAMADO) {
             throw ErrorViaje.VIAJE_YA_INICIO.excepcion();
         }
     }
 
-    /** T14. PROGRAMADO → EN_RUTA. 409 SALIDA_YA_REGISTRADA si ya salió. */
+    /* PROGRAMADO → EN_RUTA. 409 SALIDA_YA_REGISTRADA si ya salió. */
     public void iniciar() {
         if (estado != EstadoViaje.PROGRAMADO) {
             throw ErrorOperacionViaje.SALIDA_YA_REGISTRADA.excepcion();
@@ -118,7 +133,7 @@ public class ViajeEntidad {
         this.estado = EstadoViaje.EN_RUTA;
     }
 
-    /** T15. EN_RUTA → COMPLETADO. 422 VIAJE_NO_INICIADO o 409 LLEGADA_YA_REGISTRADA. */
+    /* EN_RUTA → COMPLETADO. 422 VIAJE_NO_INICIADO o 409 LLEGADA_YA_REGISTRADA. */
     public void completar() {
         if (estado == EstadoViaje.PROGRAMADO) {
             throw ErrorOperacionViaje.VIAJE_NO_INICIADO.excepcion();
@@ -129,7 +144,7 @@ public class ViajeEntidad {
         this.estado = EstadoViaje.COMPLETADO;
     }
 
-    /** Lo que gana el chofer por este viaje: el salario base copiado, × 1.15 si es PRIVADO. */
+    /* Lo que gana el chofer por este viaje: el salario base copiado, × 1.15 si es PRIVADO. */
     public BigDecimal salarioChoferPorViaje() {
         if (tipo == TipoViaje.PRIVADO) {
             return salarioBaseChofer.multiply(RECARGO_PRIVADO).setScale(2, RoundingMode.HALF_UP);
@@ -137,7 +152,7 @@ public class ViajeEntidad {
         return salarioBaseChofer;
     }
 
-    /** R2: por qué no se pueden vender boletos (null = sí se puede). */
+    /* por qué no se pueden vender boletos (null = sí se puede). */
     public MotivoNoVendible motivoNoVendible() {
         if (tipo == TipoViaje.PRIVADO) {
             return MotivoNoVendible.VIAJE_PRIVADO;
@@ -150,6 +165,10 @@ public class ViajeEntidad {
 
     public boolean esRegular() {
         return tipo == TipoViaje.REGULAR;
+    }
+
+    public boolean esPrivado() {
+        return tipo == TipoViaje.PRIVADO;
     }
 
     private void aplicar(AsignacionViaje asignacion) {

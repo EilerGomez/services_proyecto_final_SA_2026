@@ -13,12 +13,14 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
+import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
+import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
@@ -55,11 +57,13 @@ public class ViajeServicioImpl implements ViajeServicio {
     private final AsignacionViajeServicio asignaciones;
     private final SalidaViajeRepositorio salidas;
     private final LlegadaViajeRepositorio llegadas;
+    private final AlquilerPrivadoRepositorio alquileres;
 
     public ViajeServicioImpl(ViajeRepositorio repositorio, RutaServicio rutas, RutaRepositorio rutaRepositorio,
                              VistaSucursalServicio sucursales, VistaBusRepositorio buses,
                              VistaChoferRepositorio choferes, AsignacionViajeServicio asignaciones,
-                             SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas) {
+                             SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas,
+                             AlquilerPrivadoRepositorio alquileres) {
         this.repositorio = repositorio;
         this.rutas = rutas;
         this.rutaRepositorio = rutaRepositorio;
@@ -69,6 +73,7 @@ public class ViajeServicioImpl implements ViajeServicio {
         this.asignaciones = asignaciones;
         this.salidas = salidas;
         this.llegadas = llegadas;
+        this.alquileres = alquileres;
     }
 
     @Override
@@ -138,9 +143,14 @@ public class ViajeServicioImpl implements ViajeServicio {
         viaje.verificarProgramado();                                  // el trigger también lo impide
         repositorio.delete(viaje);
         repositorio.flush();
+        if (viaje.esPrivado()) {                                      // el alquiler vuelve a PAGADO: otro bus
+            alquileres.findById(viaje.getAlquilerId()).ifPresent(alquiler -> {
+                alquiler.liberar();
+                alquileres.saveAndFlush(alquiler);
+            });
+        }
         // Paso 6: aquí se publica el evento ViajeEliminado con el motivo
         //         (aggregateVersion = version + 1, leída antes del delete; businessDate = hoy)
-        // Paso 5: si el viaje es PRIVADO, su alquiler vuelve a PAGADO para asignarle otro bus
     }
 
     @Override
@@ -163,7 +173,7 @@ public class ViajeServicioImpl implements ViajeServicio {
         return new ViajesActivosRespuesta(activos);
     }
 
-    /**
+    /*
      * Un viaje PRIVADO lo ven: ADMIN_SISTEMA, el personal (ADMIN_SUCURSAL, CAJERO) de su sucursal y el
      * chofer asignado. 403 VIAJE_PRIVADO a los demás.
      */
@@ -187,7 +197,7 @@ public class ViajeServicioImpl implements ViajeServicio {
         return respuestas(List.of(viaje)).get(0);
     }
 
-    /** Carga rutas, sucursales, placas y choferes de todos los viajes con una consulta por tabla. */
+    /* Carga rutas, alquileres, sucursales, placas y choferes de todos los viajes con una consulta por tabla. */
     private List<ViajeRespuesta> respuestas(List<ViajeEntidad> viajes) {
         Map<UUID, RutaEntidad> rutasPorId = rutaRepositorio.findAllById(idsDe(viajes, ViajeEntidad::getRutaId))
                 .stream().collect(Collectors.toMap(RutaEntidad::getId, Function.identity()));
@@ -198,7 +208,11 @@ public class ViajeServicioImpl implements ViajeServicio {
                 .collect(Collectors.toMap(VistaBusEntidad::getId, VistaBusEntidad::getPlaca));
         Map<UUID, String> nombresChoferes = choferes.findAllById(idsDe(viajes, ViajeEntidad::getChoferId)).stream()
                 .collect(Collectors.toMap(VistaChoferEntidad::getId, VistaChoferEntidad::getNombreCompleto));
-        NombresViaje nombres = new NombresViaje(rutasPorId, sucursales.nombres(sucursalIds), placas, nombresChoferes);
+        Map<UUID, AlquilerPrivadoEntidad> alquileresPorId = alquileres
+                .findAllById(idsDe(viajes, ViajeEntidad::getAlquilerId)).stream()
+                .collect(Collectors.toMap(AlquilerPrivadoEntidad::getId, Function.identity()));
+        NombresViaje nombres = new NombresViaje(rutasPorId, alquileresPorId, sucursales.nombres(sucursalIds),
+                placas, nombresChoferes);
         return viajes.stream().map(viaje -> new ViajeRespuesta(viaje, nombres)).toList();
     }
 

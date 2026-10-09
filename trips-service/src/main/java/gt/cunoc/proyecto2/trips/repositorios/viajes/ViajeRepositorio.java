@@ -44,5 +44,7 @@ public interface ViajeRepositorio extends JpaRepository<ViajeEntidad, UUID>, Jpa
     List<ViajeEntidad> findByChoferIdAndEstadoInOrderByFechaSalidaProgramadaAsc(UUID choferId,
                                                                               Collection<EstadoViaje> estados);
 
+    List<ViajeEntidad> findByAlquilerIdIn(Collection<UUID> alquilerIds);
+
     boolean existsByRutaId(UUID rutaId);
 }
