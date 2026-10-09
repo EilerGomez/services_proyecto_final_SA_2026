@@ -1,0 +1,43 @@
+package gt.cunoc.proyecto2.trips.dtos.viajes;
+
+import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.MotivoNoVendible;
+import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
+import gt.cunoc.proyecto2.trips.utilidades.Fechas;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+/*
+ * Respuesta de GET /trips/interno/viajes/{id}/vendible (la usa Sales antes de confirmar una venta).
+ * Siempre 200: vendible = false con motivo si no se puede vender (es una pregunta, no un error).
+ */
+public record VendibleRespuesta(
+        UUID viajeId,
+        boolean vendible,
+        MotivoNoVendible motivo,
+        EstadoViaje estado,
+        TipoViaje tipo,
+        OffsetDateTime fechaSalidaProgramada,
+        BigDecimal precioBoleto,
+        Integer capacidad,
+        UUID sucursalOrigenId) {
+
+    public VendibleRespuesta(ViajeEntidad viaje) {
+        this(viaje.getId(),
+                viaje.motivoNoVendible() == null,
+                viaje.motivoNoVendible(),
+                viaje.getEstado(),
+                viaje.getTipo(),
+                Fechas.enGuatemala(viaje.getFechaSalidaProgramada()),
+                viaje.getPrecioBoleto(),
+                viaje.getCapacidadBus(),
+                viaje.getSucursalId());
+    }
+
+    public static VendibleRespuesta noExiste(UUID viajeId) {
+        return new VendibleRespuesta(viajeId, false, MotivoNoVendible.VIAJE_NO_EXISTE,
+                null, null, null, null, null, null);
+    }
+}

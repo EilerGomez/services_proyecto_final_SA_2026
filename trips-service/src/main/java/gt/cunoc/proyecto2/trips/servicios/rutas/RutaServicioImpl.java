@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.trips.errores.rutas.ErrorRuta;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.sucursales.VistaSucursalEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.rutas.RutaRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
 import gt.cunoc.proyecto2.trips.utilidades.VerificadorVersion;
 import java.util.Comparator;
@@ -27,10 +28,12 @@ public class RutaServicioImpl implements RutaServicio {
 
     private final RutaRepositorio repositorio;
     private final VistaSucursalServicio sucursales;
+    private final ViajeRepositorio viajes;
 
-    public RutaServicioImpl(RutaRepositorio repositorio, VistaSucursalServicio sucursales) {
+    public RutaServicioImpl(RutaRepositorio repositorio, VistaSucursalServicio sucursales, ViajeRepositorio viajes) {
         this.repositorio = repositorio;
         this.sucursales = sucursales;
+        this.viajes = viajes;
     }
 
     @Override
@@ -96,7 +99,9 @@ public class RutaServicioImpl implements RutaServicio {
     public void eliminar(UUID id, UsuarioActual usuario) {
         RutaEntidad ruta = obtenerPorId(id);
         usuario.verificarAccesoSucursal(ruta.getSucursalOrigenId());
-        // Paso 3 (viajes): si la ruta tiene viajes → throw ErrorRuta.RUTA_CON_VIAJES.excepcion()
+        if (viajes.existsByRutaId(id)) {
+            throw ErrorRuta.RUTA_CON_VIAJES.excepcion();      // la FK ON DELETE RESTRICT también lo impide
+        }
         repositorio.delete(ruta);
         repositorio.flush();
         // Paso 6: aquí se publica el evento RutaEliminada (businessDate = hoy)
