@@ -2,11 +2,14 @@ package gt.cunoc.proyecto2.trips.servicios.viajes;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.trips.dtos.operaciones.LlegadaRespuesta;
+import gt.cunoc.proyecto2.trips.dtos.operaciones.SalidaRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ActualizarViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.FiltroViajes;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NombresViaje;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NuevoViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.VendibleRespuesta;
+import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
@@ -18,6 +21,8 @@ import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.operaciones.SalidaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.rutas.RutaRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.EspecificacionesViaje;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
@@ -48,10 +53,13 @@ public class ViajeServicioImpl implements ViajeServicio {
     private final VistaBusRepositorio buses;
     private final VistaChoferRepositorio choferes;
     private final AsignacionViajeServicio asignaciones;
+    private final SalidaViajeRepositorio salidas;
+    private final LlegadaViajeRepositorio llegadas;
 
     public ViajeServicioImpl(ViajeRepositorio repositorio, RutaServicio rutas, RutaRepositorio rutaRepositorio,
                              VistaSucursalServicio sucursales, VistaBusRepositorio buses,
-                             VistaChoferRepositorio choferes, AsignacionViajeServicio asignaciones) {
+                             VistaChoferRepositorio choferes, AsignacionViajeServicio asignaciones,
+                             SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas) {
         this.repositorio = repositorio;
         this.rutas = rutas;
         this.rutaRepositorio = rutaRepositorio;
@@ -59,6 +67,8 @@ public class ViajeServicioImpl implements ViajeServicio {
         this.buses = buses;
         this.choferes = choferes;
         this.asignaciones = asignaciones;
+        this.salidas = salidas;
+        this.llegadas = llegadas;
     }
 
     @Override
@@ -69,10 +79,18 @@ public class ViajeServicioImpl implements ViajeServicio {
 
     @Override
     @Transactional(readOnly = true)
-    public ViajeRespuesta obtener(UUID id, UsuarioActual usuario) {
+    public ViajeDetalleRespuesta obtener(UUID id, UsuarioActual usuario) {
         ViajeEntidad viaje = obtenerPorId(id);
         verificarPuedeVer(viaje, usuario);
-        return respuesta(viaje);
+        return detalle(viaje);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ViajeDetalleRespuesta detalle(ViajeEntidad viaje) {
+        return new ViajeDetalleRespuesta(respuesta(viaje),
+                salidas.findById(viaje.getId()).map(SalidaRespuesta::new).orElse(null),
+                llegadas.findById(viaje.getId()).map(LlegadaRespuesta::new).orElse(null));
     }
 
     @Override

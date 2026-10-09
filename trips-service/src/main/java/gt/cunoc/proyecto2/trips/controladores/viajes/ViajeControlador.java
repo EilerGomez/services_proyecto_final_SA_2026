@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ActualizarViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.FiltroViajes;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NuevoViajeSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
@@ -67,8 +68,8 @@ public class ViajeControlador {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "T9 · Detalle de un viaje (un PRIVADO solo para el personal de su sucursal y su chofer)")
-    public ResponseEntity<ViajeRespuesta> obtener(@PathVariable UUID id,
+    @Operation(summary = "T9 · Detalle de un viaje con su salida y llegada (un PRIVADO solo para el personal de su sucursal y su chofer)")
+    public ResponseEntity<ViajeDetalleRespuesta> obtener(@PathVariable UUID id,
                                                   @Parameter(hidden = true) @Nullable UsuarioActual usuario) {
         return ResponseEntity.ok(servicio.obtener(id, usuario));
     }

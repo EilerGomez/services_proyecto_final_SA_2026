@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ActualizarViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.FiltroViajes;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NuevoViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.VendibleRespuesta;
+import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
@@ -15,7 +16,9 @@ public interface ViajeServicio {
 
     List<ViajeRespuesta> buscar(FiltroViajes filtro);
 
-    ViajeRespuesta obtener(UUID id, UsuarioActual usuario);
+    ViajeDetalleRespuesta obtener(UUID id, UsuarioActual usuario);
+
+    ViajeDetalleRespuesta detalle(ViajeEntidad viaje);
 
     ViajeEntidad obtenerPorId(UUID id);
 
