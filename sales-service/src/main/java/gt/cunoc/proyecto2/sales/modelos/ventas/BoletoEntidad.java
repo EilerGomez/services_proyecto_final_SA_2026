@@ -49,4 +49,8 @@ public class BoletoEntidad {
         boleto.estado = EstadoBoleto.ACTIVO;
         return boleto;
     }
+
+    public void cancelar() {
+        this.estado = EstadoBoleto.CANCELADO;
+    }
 }

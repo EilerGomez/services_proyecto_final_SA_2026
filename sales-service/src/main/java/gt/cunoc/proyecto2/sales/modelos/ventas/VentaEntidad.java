@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.sales.modelos.ventas;
 
+import gt.cunoc.proyecto2.sales.errores.ventas.ErrorVenta;
 import gt.cunoc.proyecto2.sales.modelos.viajes.VistaViajeEntidad;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -72,7 +73,6 @@ public class VentaEntidad {
     @Column(name = "fecha_cancelacion")
     private LocalDate fechaCancelacion;
 
-    /** Null al crear (así Spring Data sabe que es nueva); Hibernate pone 0 y la sube en cada UPDATE. */
     @Version
     private Integer version;
 
@@ -86,8 +86,37 @@ public class VentaEntidad {
         return venta;
     }
 
+    public static VentaEntidad registrarEnLinea(VistaViajeEntidad viaje, ClienteVenta cliente,
+                                                int cantidadAsientos, LocalDate fechaPago) {
+        VentaEntidad venta = nueva(viaje, cliente, cantidadAsientos, fechaPago);
+        venta.canal = CanalVenta.EN_LINEA;
+        venta.metodoPago = MetodoPago.CARTERA;
+        venta.estado = EstadoVenta.PENDIENTE_PAGO;
+        return venta;
+    }
+
+    public void cancelar(String motivo, LocalDate fecha) {
+        verificarEstado(EstadoVenta.CONFIRMADA);
+        if (fecha.isBefore(fechaPago)) {
+            throw ErrorVenta.FECHA_CANCELACION_INVALIDA.excepcion(fecha, fechaPago);
+        }
+        this.motivoCancelacion = motivo;
+        this.fechaCancelacion = fecha;
+        this.estado = EstadoVenta.CANCELADA;
+    }
+
+    public boolean pagadaConCartera() {
+        return metodoPago == MetodoPago.CARTERA;
+    }
+
     public boolean esDelCliente(UUID usuarioId) {
         return clienteUsuarioId != null && clienteUsuarioId.equals(usuarioId);
+    }
+
+    private void verificarEstado(EstadoVenta requerido) {
+        if (estado != requerido) {
+            throw ErrorVenta.ESTADO_INVALIDO.excepcion(estado, requerido);
+        }
     }
 
     private static VentaEntidad nueva(VistaViajeEntidad viaje, ClienteVenta cliente, int cantidadAsientos,

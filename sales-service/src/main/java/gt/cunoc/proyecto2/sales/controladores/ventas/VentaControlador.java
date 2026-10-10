@@ -3,8 +3,11 @@ package gt.cunoc.proyecto2.sales.controladores.ventas;
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
+import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.CanalVenta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.EstadoVenta;
@@ -37,12 +40,29 @@ public class VentaControlador {
         this.servicio = servicio;
     }
 
+    @PostMapping("/en-linea")
+    @RequiereRol(Roles.CLIENTE)
+    @Operation(summary = "S2 · Compra en línea: reserva los asientos y cobra la cartera (consultar S3 hasta que termine)")
+    public ResponseEntity<VentaPendienteRespuesta> venderEnLinea(@RequestBody @Valid NuevaVentaEnLineaSolicitud solicitud,
+                                                                 @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(servicio.venderEnLinea(solicitud, usuario));
+    }
+
     @PostMapping("/mostrador")
     @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL})
     @Operation(summary = "S4 · Venta en mostrador (efectivo, confirmada al instante)")
     public ResponseEntity<VentaRespuesta> venderEnMostrador(@RequestBody @Valid NuevaVentaMostradorSolicitud solicitud,
                                                             @Parameter(hidden = true) UsuarioActual usuario) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servicio.venderEnMostrador(solicitud, usuario));
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @RequiereRol(Roles.ADMIN_SUCURSAL)
+    @Operation(summary = "S5 · Cancela una venta confirmada de un viaje que no ha salido (libera los asientos)")
+    public ResponseEntity<VentaRespuesta> cancelar(@PathVariable UUID id,
+                                                   @RequestBody @Valid CancelarVentaSolicitud solicitud,
+                                                   @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.cancelar(id, solicitud, usuario));
     }
 
     @GetMapping("/{id}")

@@ -1,8 +1,11 @@
 package gt.cunoc.proyecto2.sales.servicios.ventas;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
+import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import java.util.List;
 import java.util.UUID;
@@ -10,6 +13,12 @@ import java.util.UUID;
 public interface VentaServicio {
 
     VentaRespuesta venderEnMostrador(NuevaVentaMostradorSolicitud solicitud, UsuarioActual usuario);
+
+    VentaPendienteRespuesta venderEnLinea(NuevaVentaEnLineaSolicitud solicitud, UsuarioActual usuario);
+
+    VentaRespuesta cancelar(UUID id, CancelarVentaSolicitud solicitud, UsuarioActual usuario);
+
+    int liberarReservasVencidas();
 
     VentaRespuesta obtener(UUID id, UsuarioActual usuario);
 
