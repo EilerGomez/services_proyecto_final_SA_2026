@@ -5,7 +5,8 @@ import gt.cunoc.proyecto2.sales.errores.TipoError;
 
 public enum ErrorViaje implements CodigoError {
 
-    VIAJE_NO_DISPONIBLE(TipoError.NO_ENCONTRADO, "El viaje no existe o ya no está a la venta");
+    VIAJE_NO_DISPONIBLE(TipoError.NO_ENCONTRADO, "El viaje no existe o ya no está a la venta"),
+    VIAJE_NO_VENDIBLE(TipoError.REGLA_NEGOCIO, "El viaje no se puede vender: %s");
 
     private final TipoError tipo;
     private final String mensaje;
