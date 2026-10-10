@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_ventas}
-    username: usr_ventas
-    password: ${DB_PASSWORD:cambiar_ventas}
+    username: postgres
+    password: ${DB_PASSWORD:postgresql}
 
   jpa:
     open-in-view: false
@@ -34,21 +34,27 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
-# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
-comun:
-  eventos:
-    exchange: sales.eventos            # publica en este exchange (outbox)
-    cola: sales.q
-    suscripciones:
-      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]
-      "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, CotizacionAlquilerConfirmada]
+# Eventos (módulo comun): SE ACTIVA EN EL PASO 6 (eventos). Mientras tanto queda comentado:
+# sin exchange/cola no se crean el relay ni el consumidor.
+#comun:
+#  eventos:
+#    exchange: sales.eventos            # publica en este exchange (outbox → RelayOutbox)
+#    cola: sales.q                      # consume de esta cola (DLQ: sales.q.dlq)
+#    suscripciones:
+#      "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeIniciado, ViajeEliminado,
+#                          CotizacionAlquilerConfirmada]
+#      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado,
+#                             CarteraReembolsada]
 
 app:
   jwt:
     duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
   servicios:
-    trips-url: ${TRIPS_URL:http://localhost:8083}
+    trips-url: ${TRIPS_URL:http://localhost:8083}   # R2: ¿se puede vender este viaje?
+  ventas:
+    minutos-reserva: 5                              # S2: cuánto dura el bloqueo de asientos en línea
+    liberar-reservas-ms: 30000                      # tarea que libera reservas vencidas
 
 springdoc:
   swagger-ui:
