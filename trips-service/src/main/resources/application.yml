@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_viajes}
-    username: usr_viajes
-    password: ${DB_PASSWORD:cambiar_viajes}
+    username: postgres
+    password: ${DB_PASSWORD:postgresql}
 
   jpa:
     open-in-view: false
@@ -34,22 +34,25 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
-# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo
+# Eventos (módulo comun). SE ACTIVA EN EL PASO 6 (cuando exista la tabla eventos_salida).
+# Publica: RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado,
+#          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada
 comun:
   eventos:
-    exchange: trips.eventos            # publica en este exchange (outbox)
-    cola: trips.q
+    exchange: trips.eventos            # publica en este exchange (outbox → RelayOutbox)
+    cola: trips.q                      # consume de esta cola (DLQ: trips.q.dlq)
     suscripciones:
+      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado,
+                          ChoferCreado, ChoferActualizado, ChoferDesactivado]
       "[identity.eventos]": [TarifaDepreciacionCambiada]
-      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado, ChoferCreado, ChoferActualizado, ChoferDesactivado]
       "[sales.eventos]": [AlquilerPagado]
-
+ 
 app:
   jwt:
     duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
   servicios:
-    fleet-url: ${FLEET_URL:http://localhost:8082}
+    fleet-url: ${FLEET_URL:http://localhost:8082}     # R1a y R1b
 
 springdoc:
   swagger-ui:
@@ -60,3 +63,7 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"
