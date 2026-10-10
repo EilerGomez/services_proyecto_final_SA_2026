@@ -20,8 +20,10 @@ import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.AsignacionViajeServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.ViajeServicio;
+import gt.cunoc.proyecto2.trips.utilidades.Fechas;
 import gt.cunoc.proyecto2.trips.utilidades.VerificadorVersion;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,7 +64,17 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         }
         sucursales.verificarActiva(solicitud.sucursalId());
         solicitud.recorrido();                                                   // 400 si el retorno es antes
+        
+
+        LocalDate hoy = Fechas.hoy();
+        // BigDecimal precioEstimado = precios.vigenteEn(hoy).precioPara(solicitud.kmEstimados());
+        
+        if (solicitud.fechaSolicitud().isBefore(hoy)) {
+           throw ErrorAlquiler.FECHA_SOLICITUD_PASADA.excepcion(solicitud.fechaSolicitud(), hoy);
+        }
+        
         BigDecimal precioEstimado = precios.vigenteEn(solicitud.fechaSolicitud()).precioPara(solicitud.kmEstimados());
+
         AlquilerPrivadoEntidad alquiler = enMostrador
                 ? solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, null, null, precioEstimado, usuario.usuarioId())
                 : solicitud.crearEntidad(CanalAlquiler.EN_LINEA, usuario.usuarioId(), usuario.correo(),
