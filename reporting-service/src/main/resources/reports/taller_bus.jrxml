@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="taller_bus" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20"
+              topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+    <parameter name="FROM_DATE" class="java.lang.String"/>
+    <parameter name="TO_DATE" class="java.lang.String"/>
+    <parameter name="TOTAL" class="java.lang.String"/>
+    <field name="placa" class="java.lang.String"/>
+    <field name="categoria" class="java.lang.String"/>
+    <field name="manoObra" class="java.math.BigDecimal"/>
+    <field name="repuestos" class="java.math.BigDecimal"/>
+    <field name="total" class="java.math.BigDecimal"/>
+    <title>
+        <band height="80">
+            <rectangle><reportElement x="0" y="0" width="555" height="55" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <textField><reportElement x="0" y="6" width="555" height="30" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="16" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="36" width="555" height="16" forecolor="#CCCCCC"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA["Período: " + $P{FROM_DATE} + "  al  " + $P{TO_DATE} + "    ·    Total: " + $P{TOTAL}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="22">
+            <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <staticText><reportElement x="5" y="3" width="80" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Bus]]></text></staticText>
+            <staticText><reportElement x="88" y="3" width="180" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Categoría]]></text></staticText>
+            <staticText><reportElement x="271" y="3" width="90" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Mano de obra]]></text></staticText>
+            <staticText><reportElement x="364" y="3" width="90" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Repuestos]]></text></staticText>
+            <staticText><reportElement x="457" y="3" width="93" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Total]]></text></staticText>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="20">
+            <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
+            <textField><reportElement x="5" y="2" width="80" height="16"/><textElement><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{placa}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="88" y="2" width="180" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="271" y="2" width="90" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{manoObra}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="364" y="2" width="90" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{repuestos}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="457" y="2" width="93" height="16"/><textElement textAlignment="Right"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{total}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter><band height="20">
+        <textField><reportElement x="0" y="3" width="555" height="14"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Página " + $V{PAGE_NUMBER}]]></textFieldExpression></textField>
+    </band></pageFooter>
+    <summary><band height="30">
+        <line><reportElement x="0" y="2" width="555" height="1" forecolor="#0D1B2A"/></line>
+        <staticText><reportElement x="271" y="6" width="183" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><text><![CDATA[TOTAL]]></text></staticText>
+        <textField><reportElement x="457" y="6" width="93" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{TOTAL}]]></textFieldExpression></textField>
+    </band></summary>
+    <noData><band height="40">
+        <staticText><reportElement x="0" y="10" width="555" height="20"/><textElement textAlignment="Center"><font size="11" isItalic="true"/></textElement><text><![CDATA[No se encontraron gastos de taller para el período indicado.]]></text></staticText>
+    </band></noData>
+</jasperReport>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="buses" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20"
+              topMargin="20" bottomMargin="20" whenNoDataType="AllSectionsNoDetail">
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+    <parameter name="TOTAL_BUSES" class="java.lang.String"/>
+    <field name="placa" class="java.lang.String"/>
+    <field name="marca" class="java.lang.String"/>
+    <field name="modelo" class="java.lang.String"/>
+    <field name="capacidadPasajeros" class="java.lang.Integer"/>
+    <field name="estado" class="java.lang.String"/>
+    <field name="choferActual" class="java.lang.String"/>
+    <field name="kilometrajeActual" class="java.math.BigDecimal"/>
+    <field name="totalViajes" class="java.lang.Integer"/>
+    <title>
+        <band height="80">
+            <rectangle><reportElement x="0" y="0" width="555" height="55" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <textField><reportElement x="0" y="6" width="555" height="30" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="16" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="36" width="555" height="16" forecolor="#CCCCCC"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA["Total buses: " + $P{TOTAL_BUSES}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="22">
+            <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <staticText><reportElement x="5" y="3" width="65" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Placa]]></text></staticText>
+            <staticText><reportElement x="73" y="3" width="110" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Marca / Modelo]]></text></staticText>
+            <staticText><reportElement x="186" y="3" width="50" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Cap.]]></text></staticText>
+            <staticText><reportElement x="239" y="3" width="65" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Estado]]></text></staticText>
+            <staticText><reportElement x="307" y="3" width="115" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Chofer actual]]></text></staticText>
+            <staticText><reportElement x="425" y="3" width="75" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Km]]></text></staticText>
+            <staticText><reportElement x="503" y="3" width="47" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Viajes]]></text></staticText>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="20">
+            <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
+            <textField><reportElement x="5" y="2" width="65" height="16"/><textElement><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{placa}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="73" y="2" width="110" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{marca} + " " + $F{modelo}]]></textFieldExpression></textField>
+            <textField><reportElement x="186" y="2" width="50" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{capacidadPasajeros}]]></textFieldExpression></textField>
+            <textField><reportElement x="239" y="2" width="65" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{estado}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="307" y="2" width="115" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{choferActual}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement x="425" y="2" width="75" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{kilometrajeActual}]]></textFieldExpression></textField>
+            <textField><reportElement x="503" y="2" width="47" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{totalViajes}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter><band height="20">
+        <textField><reportElement x="0" y="3" width="555" height="14"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Página " + $V{PAGE_NUMBER}]]></textFieldExpression></textField>
+    </band></pageFooter>
+    <noData><band height="40">
+        <staticText><reportElement x="0" y="10" width="555" height="20"/><textElement textAlignment="Center"><font size="11" isItalic="true"/></textElement><text><![CDATA[La sucursal no tiene buses registrados.]]></text></staticText>
+    </band></noData>
+</jasperReport>
