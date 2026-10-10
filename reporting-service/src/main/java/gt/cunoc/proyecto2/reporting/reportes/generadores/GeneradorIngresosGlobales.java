@@ -71,10 +71,8 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
                 .toList();
 
         Map<String, List<Map<String, Object>>> porSucursal = new LinkedHashMap<>();
-        Map<String, UUID> ids = new HashMap<>();
         for (IngresoEntidad i : entidades) {
             String clave = String.valueOf(i.getSucursalId());
-            ids.putIfAbsent(clave, i.getSucursalId());
             porSucursal.computeIfAbsent(clave, k -> new ArrayList<>()).add(fila(i));
         }
 
@@ -96,7 +94,6 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
             g.put("subtotal", subtotal);
             grupos.add(g);
         }
-        ids.keySet().removeAll(grupos.stream().map(g -> g.get("sucursalId").toString()).toList());
 
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("desde", params.getDesde());

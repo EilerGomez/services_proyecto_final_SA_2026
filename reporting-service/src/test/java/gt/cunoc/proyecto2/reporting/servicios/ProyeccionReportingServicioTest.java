@@ -7,10 +7,23 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.fleet.BusEvento;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.fleet.ChoferEvento;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.fleet.SucursalEvento;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.maintenance.GastoTallerRegistrado;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.sales.AlquilerPagado;
 import gt.cunoc.proyecto2.reporting.eventos.recibidos.sales.BoletoVendido;
 import gt.cunoc.proyecto2.reporting.eventos.recibidos.sales.VentaCancelada;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.trips.RutaEvento;
 import gt.cunoc.proyecto2.reporting.eventos.recibidos.trips.ViajeCompletado;
+import gt.cunoc.proyecto2.reporting.eventos.recibidos.trips.ViajeEvento;
+import gt.cunoc.proyecto2.reporting.modelos.BusEntidad;
+import gt.cunoc.proyecto2.reporting.modelos.ChoferEntidad;
+import gt.cunoc.proyecto2.reporting.modelos.GastoEntidad;
 import gt.cunoc.proyecto2.reporting.modelos.IngresoEntidad;
+import gt.cunoc.proyecto2.reporting.modelos.RutaEntidad;
+import gt.cunoc.proyecto2.reporting.modelos.SucursalEntidad;
 import gt.cunoc.proyecto2.reporting.modelos.ViajeEntidad;
 import gt.cunoc.proyecto2.reporting.repositorios.BusRepositorio;
 import gt.cunoc.proyecto2.reporting.repositorios.ChoferRepositorio;
@@ -173,5 +186,228 @@ class ProyeccionReportingServicioTest {
 
         assertThatThrownBy(() -> proyeccion.marcarViajeEnRuta(viajeId, UUID.randomUUID(), 1L))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void tarifaNuevaSeGuardaDuplicadaSeIgnora() {
+        UUID tarifaId = UUID.randomUUID();
+        when(tarifas.existsById(tarifaId)).thenReturn(false, true);
+        var evento = new TarifaDepreciacionCambiada(tarifaId,
+                new BigDecimal("1.25"), LocalDate.of(2026, 10, 1));
+
+        proyeccion.aplicarTarifa(evento);
+        proyeccion.aplicarTarifa(evento);
+        proyeccion.aplicarTarifa(null);
+        proyeccion.aplicarTarifa(new TarifaDepreciacionCambiada(null, null, null));
+
+        verify(tarifas).save(any());
+    }
+
+    @Test
+    void sucursalCreaActualizaYDescartaVersionVieja() {
+        UUID id = UUID.randomUUID();
+        when(sucursales.findById(id)).thenReturn(Optional.empty());
+        var evento = new SucursalEvento(id, "C", "Norte", "D", "M",
+                BigDecimal.ONE, BigDecimal.ONE, true);
+        proyeccion.aplicarSucursal(evento, 0L);
+
+        SucursalEntidad guardada = new SucursalEntidad();
+        guardada.setId(id);
+        guardada.setNombre("Vieja");
+        guardada.setVersion(3);
+        when(sucursales.findById(id)).thenReturn(Optional.of(guardada));
+        proyeccion.aplicarSucursal(evento, 5L);
+        proyeccion.aplicarSucursal(evento, 0L); // vieja: se descarta
+
+        verify(sucursales, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    @Test
+    void busCreaActualizaDesactivaYDescartaVersionVieja() {
+        UUID id = UUID.randomUUID();
+        when(buses.findById(id)).thenReturn(Optional.empty());
+        var evento = new BusEvento(id, UUID.randomUUID(), "P1", null, null, null, null, null);
+        proyeccion.aplicarBus(evento, 0L);
+
+        BusEntidad guardado = new BusEntidad();
+        guardado.setId(id);
+        guardado.setVersion(3);
+        when(buses.findById(id)).thenReturn(Optional.of(guardado));
+        proyeccion.aplicarBus(evento, 3L);
+        proyeccion.aplicarBus(evento, 0L); // vieja
+        proyeccion.desactivarBus(id, 9L);
+        assertThat(guardado.getEstado()).isEqualTo("INACTIVO");
+        guardado.setVersion(20);
+        proyeccion.desactivarBus(id, 0L); // vieja
+        proyeccion.desactivarBus(UUID.randomUUID(), 1L); // no existe
+
+        verify(buses, org.mockito.Mockito.times(3)).save(any());
+    }
+
+    @Test
+    void choferCreaActualizaDesactivaYDescartaVersionVieja() {
+        UUID id = UUID.randomUUID();
+        when(choferes.findById(id)).thenReturn(Optional.empty());
+        var evento = new ChoferEvento(id, UUID.randomUUID(), UUID.randomUUID(), "N", "L",
+                null, LocalDate.of(2027, 1, 1), null, null);
+        proyeccion.aplicarChofer(evento, 0L);
+
+        ChoferEntidad guardado = new ChoferEntidad();
+        guardado.setId(id);
+        guardado.setVersion(3);
+        when(choferes.findById(id)).thenReturn(Optional.of(guardado));
+        proyeccion.aplicarChofer(evento, 5L);
+        proyeccion.aplicarChofer(evento, 0L); // vieja
+        proyeccion.desactivarChofer(id, 7L);
+        assertThat(guardado.getEstado()).isEqualTo("INACTIVO");
+        guardado.setVersion(20);
+        proyeccion.desactivarChofer(id, 0L); // vieja
+        proyeccion.desactivarChofer(UUID.randomUUID(), 1L); // no existe
+
+        verify(choferes, org.mockito.Mockito.times(3)).save(any());
+    }
+
+    @Test
+    void rutaAplicaConNombresDeSucursalYSeElimina() {
+        UUID id = UUID.randomUUID();
+        UUID origenId = UUID.randomUUID();
+        SucursalEntidad origen = new SucursalEntidad();
+        origen.setId(origenId);
+        origen.setNombre("Origen");
+        when(rutas.findById(id)).thenReturn(Optional.empty());
+        when(sucursales.findById(any(UUID.class))).thenAnswer(inv -> {
+            UUID pedido = inv.getArgument(0);
+            return pedido.equals(origenId) ? Optional.of(origen) : Optional.empty();
+        });
+        var evento = new RutaEvento(id, origenId, UUID.randomUUID(), null, null,
+                new BigDecimal("10"), new BigDecimal("20"), null);
+
+        proyeccion.aplicarRuta(evento);
+
+        ArgumentCaptor<RutaEntidad> captor = ArgumentCaptor.forClass(RutaEntidad.class);
+        verify(rutas).save(captor.capture());
+        assertThat(captor.getValue().getOrigenNombre()).isEqualTo("Origen");
+        assertThat(captor.getValue().getDestinoNombre()).isEqualTo("-");
+        assertThat(captor.getValue().isActiva()).isTrue();
+
+        proyeccion.eliminarRuta(id);
+        verify(rutas).deleteById(id);
+    }
+
+    @Test
+    void viajeProgramadoActualizadoEliminadoYChoferActual() {
+        UUID viajeId = UUID.randomUUID();
+        UUID busId = UUID.randomUUID();
+        UUID busNuevo = UUID.randomUUID();
+        when(viajes.findById(viajeId)).thenReturn(Optional.empty());
+        var programado = new ViajeEvento(viajeId, null, null, UUID.randomUUID(), busId,
+                UUID.randomUUID(), null);
+        proyeccion.aplicarViaje(programado, 0L);
+
+        ViajeEntidad guardado = new ViajeEntidad();
+        guardado.setViajeId(viajeId);
+        guardado.setBusId(busId);
+        guardado.setEstado("PROGRAMADO");
+        when(viajes.findById(viajeId)).thenReturn(Optional.of(guardado));
+        var actualizado = new ViajeEvento(viajeId, "PRIVADO", null, UUID.randomUUID(), busNuevo,
+                UUID.randomUUID(), null);
+        proyeccion.aplicarViajeActualizado(actualizado, 1L);
+        proyeccion.aplicarViaje(actualizado, 0L); // versión vieja
+        guardado.setEstado("COMPLETADO");
+        proyeccion.aplicarViaje(actualizado, 9L); // completado no revive
+
+        proyeccion.eliminarViaje(viajeId);
+        proyeccion.eliminarViaje(UUID.randomUUID()); // sin bus
+        proyeccion.recalcularChoferActual(null); // sin bus
+        proyeccion.marcarViajeEnRuta(viajeId, busId, 0L); // no programado
+        guardado.setEstado("PROGRAMADO");
+        proyeccion.marcarViajeEnRuta(viajeId, busId, 0L); // vieja
+        proyeccion.marcarViajeEnRuta(viajeId, null, 5L);
+        assertThat(guardado.getEstado()).isEqualTo("EN_RUTA");
+
+        verify(viajes, org.mockito.Mockito.atLeastOnce()).save(any());
+        verify(viajes).deleteById(viajeId);
+    }
+
+    @Test
+    void viajeCompletadoRepetidoNoDuplicaGastos() {
+        UUID eventoId = UUID.randomUUID();
+        ViajeEntidad viaje = new ViajeEntidad();
+        viaje.setViajeId(UUID.randomUUID());
+        viaje.setBusId(UUID.randomUUID());
+        viaje.setSucursalId(UUID.randomUUID());
+        viaje.setEstado("COMPLETADO");
+        when(viajes.findById(viaje.getViajeId())).thenReturn(Optional.of(viaje));
+        when(buses.findById(any())).thenReturn(Optional.empty());
+        var evento = new ViajeCompletado(viaje.getViajeId(), "REGULAR", null, viaje.getSucursalId(),
+                viaje.getBusId(), null, null, new BigDecimal("10"), null, new BigDecimal("5"),
+                null, null);
+
+        proyeccion.aplicarViajeCompletado(eventoId, evento, 9L, LocalDate.now());
+
+        verify(gastos, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    @Test
+    void alquilerSinDatosSeIgnoraYDuplicadoNoDuplica() {
+        UUID eventoId = UUID.randomUUID();
+        when(ingresos.existsByEventoOrigenId(eventoId)).thenReturn(false, true);
+        var sinDatos = new AlquilerPagado(null, null, null, null, null, null, null, null, null, null);
+        proyeccion.aplicarAlquilerPagado(eventoId, sinDatos, LocalDate.now());
+        var ok = new AlquilerPagado(UUID.randomUUID(), null, UUID.randomUUID(), "CF", "CF",
+                "X", "Y", new BigDecimal("100"), null, null);
+        proyeccion.aplicarAlquilerPagado(eventoId, ok, null);
+        proyeccion.aplicarAlquilerPagado(eventoId, ok, null);
+
+        verify(ingresos).save(any());
+    }
+
+    @Test
+    void tallerGuardaUnaFilaPorLinea() {
+        UUID eventoId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID busId = UUID.randomUUID();
+        var linea = new GastoTallerRegistrado.Linea(UUID.randomUUID(), UUID.randomUUID(),
+                "Llantas", "Cambio", "REPUESTO", new BigDecimal("6800.00"));
+        var evento = new GastoTallerRegistrado(UUID.randomUUID(), busId, sucursalId,
+                LocalDate.of(2026, 10, 20), List.of(linea));
+
+        proyeccion.aplicarGastoTaller(eventoId, evento, LocalDate.of(2026, 10, 21));
+
+        ArgumentCaptor<GastoEntidad> captor = ArgumentCaptor.forClass(GastoEntidad.class);
+        verify(gastos).save(captor.capture());
+        assertThat(captor.getValue().getMonto()).isEqualByComparingTo("6800.00");
+        assertThat(captor.getValue().getFechaNegocio()).isEqualTo(LocalDate.of(2026, 10, 20));
+        assertThat(captor.getValue().getTipo()).isEqualTo("REPUESTO");
+    }
+
+    @Test
+    void tallerSinDatosSeIgnoraLineaNulaSeSalta() {
+        UUID eventoId = UUID.randomUUID();
+        proyeccion.aplicarGastoTaller(eventoId,
+                new GastoTallerRegistrado(null, null, null, null, null), LocalDate.now());
+        proyeccion.aplicarGastoTaller(eventoId,
+                new GastoTallerRegistrado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                        LocalDate.of(2026, 10, 20), List.of()), LocalDate.now());
+        var lineaNula = new GastoTallerRegistrado(UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), null, java.util.Arrays.asList(null,
+                        new GastoTallerRegistrado.Linea(null, null, null, null, null, null)));
+        proyeccion.aplicarGastoTaller(eventoId, lineaNula, LocalDate.of(2026, 10, 20));
+
+        verify(gastos, never()).save(any());
+    }
+
+    @Test
+    void categoriaEnBlancoSeIgnoraYConDatosActualiza() {
+        proyeccion.aplicarCategoriaActualizada(null, "X");
+        proyeccion.aplicarCategoriaActualizada(UUID.randomUUID(), "  ");
+        UUID categoriaId = UUID.randomUUID();
+        GastoEntidad gasto = new GastoEntidad();
+        when(gastos.findByCategoriaIdOrderByFechaNegocioDesc(categoriaId))
+                .thenReturn(List.of(gasto));
+        proyeccion.aplicarCategoriaActualizada(categoriaId, "Motor");
+
+        assertThat(gasto.getCategoriaNombre()).isEqualTo("Motor");
+        verify(gastos).saveAll(any());
     }
 }

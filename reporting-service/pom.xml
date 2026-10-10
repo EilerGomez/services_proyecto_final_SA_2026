@@ -72,6 +72,12 @@
             <artifactId>testcontainers-rabbitmq</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Espera efectos asíncronos (el consumidor procesa en otro hilo) -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Getters/setters de entidades (versión fijada por Spring Boot) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

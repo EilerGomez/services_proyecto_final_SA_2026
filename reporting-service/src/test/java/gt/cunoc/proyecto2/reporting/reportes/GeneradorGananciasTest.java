@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.reporting.reportes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +56,15 @@ class GeneradorGananciasTest {
         assertThat((Map<String, Object>) datos.get("totales")).containsEntry("ingresos", new BigDecimal("1000.00"));
         assertThat((Map<String, Object>) datos.get("totales")).containsEntry("gastos", new BigDecimal("400.00"));
         assertThat((Map<String, Object>) datos.get("totales")).containsEntry("ganancia", new BigDecimal("600.00"));
+    }
+
+    @Test
+    void compiladorCacheaPlantillasYFallaSinPlantilla() throws Exception {
+        CompiladorJasper compilador = new CompiladorJasper();
+        assertThat(compilador.obtener("ganancias")).isSameAs(compilador.obtener("ganancias"));
+        assertThatThrownBy(() -> compilador.obtener("no-existe"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no-existe");
     }
 
     @Test

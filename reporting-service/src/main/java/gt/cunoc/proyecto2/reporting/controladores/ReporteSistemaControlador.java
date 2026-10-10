@@ -40,7 +40,7 @@ public class ReporteSistemaControlador {
                 .datos(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()));
     }
 
-    @GetMapping("/ingresos/|")
+    @GetMapping("/ingresos/pdf")
     @Operation(summary = "RG1 · Ingresos por sucursal (PDF)")
     public ResponseEntity<byte[]> ingresosPdf(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
