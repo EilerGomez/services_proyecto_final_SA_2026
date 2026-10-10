@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="mapa_rutas_rutas" pageWidth="555" pageHeight="842"
+              columnWidth="555" leftMargin="0" rightMargin="0"
+              topMargin="0" bottomMargin="0" whenNoDataType="NoPages" isTitleNewPage="false" isSummaryNewPage="false">
+    <field name="origen" class="java.lang.String"/>
+    <field name="destino" class="java.lang.String"/>
+    <field name="distanciaKm" class="java.math.BigDecimal"/>
+    <field name="precioBoleto" class="java.math.BigDecimal"/>
+    <field name="activa" class="java.lang.Boolean"/>
+    <columnHeader>
+        <band height="22">
+            <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <staticText><reportElement x="5" y="3" width="165" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Origen]]></text></staticText>
+            <staticText><reportElement x="173" y="3" width="165" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Destino]]></text></staticText>
+            <staticText><reportElement x="341" y="3" width="75" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Dist. km]]></text></staticText>
+            <staticText><reportElement x="419" y="3" width="80" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Boleto]]></text></staticText>
+            <staticText><reportElement x="502" y="3" width="48" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Center"><font isBold="true" size="8"/></textElement><text><![CDATA[Activa]]></text></staticText>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="20">
+            <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
+            <textField isStretchWithOverflow="true"><reportElement x="5" y="2" width="165" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{origen}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="173" y="2" width="165" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{destino}]]></textFieldExpression></textField>
+            <textField pattern="#,##0.00"><reportElement x="341" y="2" width="75" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{distanciaKm}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="419" y="2" width="80" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{precioBoleto}]]></textFieldExpression></textField>
+            <textField><reportElement x="502" y="2" width="48" height="16"/><textElement textAlignment="Center"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{activa} ? "Sí" : "No"]]></textFieldExpression></textField>
+        </band>
+    </detail>
+</jasperReport>
