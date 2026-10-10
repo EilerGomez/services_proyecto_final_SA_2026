@@ -10,6 +10,7 @@ import gt.cunoc.proyecto2.trips.dtos.alquileres.FiltroAlquileres;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.NuevoAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.errores.alquileres.ErrorAlquiler;
+import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.CanalAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
@@ -28,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AlquilerServicioImpl implements AlquilerServicio {
 
+    private static final Logger log = LoggerFactory.getLogger(AlquilerServicioImpl.class);
     private static final Sort POR_SALIDA = Sort.by("fechaSalida");
 
     private final AlquilerPrivadoRepositorio repositorio;
@@ -43,16 +47,19 @@ public class AlquilerServicioImpl implements AlquilerServicio {
     private final AsignacionViajeServicio asignaciones;
     private final ViajeServicio viajes;
     private final ViajeRepositorio viajeRepositorio;
+    private final PublicadorEventosTrips eventos;
 
     public AlquilerServicioImpl(AlquilerPrivadoRepositorio repositorio, ConfiguracionAlquilerServicio precios,
                                 VistaSucursalServicio sucursales, AsignacionViajeServicio asignaciones,
-                                ViajeServicio viajes, ViajeRepositorio viajeRepositorio) {
+                                ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
+                                PublicadorEventosTrips eventos) {
         this.repositorio = repositorio;
         this.precios = precios;
         this.sucursales = sucursales;
         this.asignaciones = asignaciones;
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
+        this.eventos = eventos;
     }
 
     @Override
@@ -64,17 +71,14 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         }
         sucursales.verificarActiva(solicitud.sucursalId());
         solicitud.recorrido();                                                   // 400 si el retorno es antes
-        
-
         LocalDate hoy = Fechas.hoy();
-        // BigDecimal precioEstimado = precios.vigenteEn(hoy).precioPara(solicitud.kmEstimados());
-        
-        if (solicitud.fechaSolicitud().isBefore(hoy)) {
-           throw ErrorAlquiler.FECHA_SOLICITUD_PASADA.excepcion(solicitud.fechaSolicitud(), hoy);
+        if (solicitud.fechaSolicitud().isBefore(hoy)) {                          // 400 si la fecha ya pasó
+            throw ErrorAlquiler.FECHA_SOLICITUD_PASADA.excepcion(solicitud.fechaSolicitud(), hoy);
         }
-        
+        // Por requisito de calificación, la fecha la indica el usuario ("con la fecha actual como valor inicial").
         BigDecimal precioEstimado = precios.vigenteEn(solicitud.fechaSolicitud()).precioPara(solicitud.kmEstimados());
-
+        // En un entorno real la fecha la pone el sistema:
+        // BigDecimal precioEstimado = precios.vigenteEn(hoy).precioPara(solicitud.kmEstimados());
         AlquilerPrivadoEntidad alquiler = enMostrador
                 ? solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, null, null, precioEstimado, usuario.usuarioId())
                 : solicitud.crearEntidad(CanalAlquiler.EN_LINEA, usuario.usuarioId(), usuario.correo(),
@@ -113,8 +117,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         VerificadorVersion.verificar(alquiler.getVersion(), solicitud.version());
         alquiler.cotizar(solicitud.precioConfirmado(), usuario.usuarioId());     // 422 si no está SOLICITADO
         alquiler = repositorio.saveAndFlush(alquiler);
-        // Paso 6: aquí se publica el evento CotizacionAlquilerConfirmada (businessDate = hoy):
-        //         Sales crea la orden de pago y Notification avisa al cliente
+        eventos.cotizacionAlquilerConfirmada(alquiler);    // Sales crea la orden de pago, Notification avisa
         return respuesta(alquiler);
     }
 
@@ -147,8 +150,22 @@ public class AlquilerServicioImpl implements AlquilerServicio {
                 ViajeEntidad.programarPrivado(alquiler, asignacion, usuario.usuarioId()));
         alquiler.asignar();
         repositorio.saveAndFlush(alquiler);
-        // Paso 6: aquí se publica el evento ViajeProgramado (tipo PRIVADO; businessDate = día de la salida)
-        return viajes.detalle(viaje);
+        ViajeDetalleRespuesta detalle = viajes.detalle(viaje);
+        eventos.viajeProgramado(detalle.viaje());                               // tipo PRIVADO
+        return detalle;
+    }
+
+    @Override
+    @Transactional
+    public void registrarPago(UUID alquilerId) {
+        repositorio.findById(alquilerId).ifPresentOrElse(alquiler -> {
+            if (alquiler.marcarPagado()) {
+                repositorio.saveAndFlush(alquiler);
+            } else {
+                log.info("AlquilerPagado ignorado: el alquiler {} está {} (evento repetido o ya avanzó)",
+                        alquilerId, alquiler.getEstado());
+            }
+        }, () -> log.warn("AlquilerPagado ignorado: el alquiler {} no existe", alquilerId));
     }
 
     private AlquilerPrivadoEntidad obtenerPorId(UUID id) {

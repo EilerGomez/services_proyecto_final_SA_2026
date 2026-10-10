@@ -6,6 +6,8 @@ import gt.cunoc.proyecto2.trips.dtos.operaciones.RegistrarLlegadaSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.operaciones.RegistrarSalidaSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.errores.operaciones.ErrorOperacionViaje;
+import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
@@ -30,17 +32,19 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
     private final LlegadaViajeRepositorio llegadas;
     private final VistaTarifaDepreciacionRepositorio tarifas;
     private final AlquilerPrivadoRepositorio alquileres;
+    private final PublicadorEventosTrips eventos;
 
     public OperacionViajeServicioImpl(ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
                                       SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas,
                                       VistaTarifaDepreciacionRepositorio tarifas,
-                                      AlquilerPrivadoRepositorio alquileres) {
+                                      AlquilerPrivadoRepositorio alquileres, PublicadorEventosTrips eventos) {
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
         this.salidas = salidas;
         this.llegadas = llegadas;
         this.tarifas = tarifas;
         this.alquileres = alquileres;
+        this.eventos = eventos;
     }
 
     @Override
@@ -50,9 +54,9 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
         ViajeEntidad viaje = viajes.obtenerPorId(viajeId);
         verificarPuedeOperar(viaje, usuario);
         viaje.iniciar();                                                        // 409 si ya salió
-        salidas.saveAndFlush(solicitud.crearEntidad(viaje, usuario.usuarioId()));
+        SalidaViajeEntidad salida = salidas.saveAndFlush(solicitud.crearEntidad(viaje, usuario.usuarioId()));
         viaje = viajeRepositorio.saveAndFlush(viaje);
-        // Paso 6: aquí se publica el evento ViajeIniciado (businessDate = día de fechaHoraSalida)
+        eventos.viajeIniciado(viaje, salida);
         return viajes.detalle(viaje);
     }
 
@@ -65,7 +69,7 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
         viaje.completar();                                                      // 422 / 409 según el estado
         SalidaViajeEntidad salida = salidas.findById(viajeId)
                 .orElseThrow(() -> ErrorOperacionViaje.VIAJE_NO_INICIADO.excepcion());
-        llegadas.saveAndFlush(solicitud.crearEntidad(viaje, salida,
+        LlegadaViajeEntidad llegada = llegadas.saveAndFlush(solicitud.crearEntidad(viaje, salida,
                 tarifaVigente(Fechas.diaEnGuatemala(solicitud.fechaHoraLlegada())), usuario.usuarioId()));
         viaje = viajeRepositorio.saveAndFlush(viaje);
         if (viaje.esPrivado()) {
@@ -74,11 +78,11 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
                 alquileres.saveAndFlush(alquiler);
             });
         }
-        // Paso 6: aquí se publica el evento ViajeCompletado (businessDate = día de fechaHoraLlegada)
+        eventos.viajeCompletado(viaje, salida, llegada);
         return viajes.detalle(viaje);
     }
 
-    /** El chofer asignado, o un ADMIN_SUCURSAL de la sucursal del viaje. */
+    /* El chofer asignado, o un ADMIN_SUCURSAL de la sucursal del viaje. */
     private static void verificarPuedeOperar(ViajeEntidad viaje, UsuarioActual usuario) {
         if (viaje.getChoferId().equals(usuario.choferId())) {
             return;

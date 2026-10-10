@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.trips.dtos.rutas.ActualizarRutaSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.rutas.NuevaRutaSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.rutas.RutaRespuesta;
 import gt.cunoc.proyecto2.trips.errores.rutas.ErrorRuta;
+import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.sucursales.VistaSucursalEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.rutas.RutaRepositorio;
@@ -29,11 +30,14 @@ public class RutaServicioImpl implements RutaServicio {
     private final RutaRepositorio repositorio;
     private final VistaSucursalServicio sucursales;
     private final ViajeRepositorio viajes;
+    private final PublicadorEventosTrips eventos;
 
-    public RutaServicioImpl(RutaRepositorio repositorio, VistaSucursalServicio sucursales, ViajeRepositorio viajes) {
+    public RutaServicioImpl(RutaRepositorio repositorio, VistaSucursalServicio sucursales, ViajeRepositorio viajes,
+                            PublicadorEventosTrips eventos) {
         this.repositorio = repositorio;
         this.sucursales = sucursales;
         this.viajes = viajes;
+        this.eventos = eventos;
     }
 
     @Override
@@ -73,9 +77,9 @@ public class RutaServicioImpl implements RutaServicio {
         if (repositorio.existsBySucursalOrigenIdAndSucursalDestinoId(origen.getId(), destino.getId())) {
             throw ErrorRuta.RUTA_DUPLICADA.excepcion(origen.getNombre(), destino.getNombre());
         }
-        RutaEntidad ruta = repositorio.saveAndFlush(nueva);
-        // Paso 6: aquí se publica el evento RutaCreada (businessDate = hoy)
-        return respuesta(ruta);
+        RutaRespuesta respuesta = respuesta(repositorio.saveAndFlush(nueva));
+        eventos.rutaCreada(respuesta);
+        return respuesta;
     }
 
     @Override
@@ -89,9 +93,9 @@ public class RutaServicioImpl implements RutaServicio {
             sucursales.verificarActiva(ruta.getSucursalDestinoId());
         }
         solicitud.aplicarA(ruta);
-        ruta = repositorio.saveAndFlush(ruta);
-        // Paso 6: aquí se publica el evento RutaActualizada (businessDate = hoy)
-        return respuesta(ruta);
+        RutaRespuesta respuesta = respuesta(repositorio.saveAndFlush(ruta));
+        eventos.rutaActualizada(respuesta);
+        return respuesta;
     }
 
     @Override
@@ -100,11 +104,11 @@ public class RutaServicioImpl implements RutaServicio {
         RutaEntidad ruta = obtenerPorId(id);
         usuario.verificarAccesoSucursal(ruta.getSucursalOrigenId());
         if (viajes.existsByRutaId(id)) {
-            throw ErrorRuta.RUTA_CON_VIAJES.excepcion();      // la FK ON DELETE RESTRICT también lo impide
+            throw ErrorRuta.RUTA_CON_VIAJES.excepcion();      //
         }
         repositorio.delete(ruta);
         repositorio.flush();
-        // Paso 6: aquí se publica el evento RutaEliminada (businessDate = hoy)
+        eventos.rutaEliminada(ruta);                          // version + 1
     }
 
     private RutaRespuesta respuesta(RutaEntidad ruta) {

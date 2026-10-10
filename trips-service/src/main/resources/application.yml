@@ -37,16 +37,16 @@ spring:
 # Eventos (módulo comun). SE ACTIVA EN EL PASO 6 (cuando exista la tabla eventos_salida).
 # Publica: RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado,
 #          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada
-#comun:
-#  eventos:
-#    exchange: trips.eventos
-#    cola: trips.q
-#    suscripciones:
-#      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado,
-#                          ChoferCreado, ChoferActualizado, ChoferDesactivado]
-#      "[identity.eventos]": [TarifaDepreciacionCambiada]
-#      "[sales.eventos]": [AlquilerPagado]
-
+comun:
+  eventos:
+    exchange: trips.eventos            # publica en este exchange (outbox → RelayOutbox)
+    cola: trips.q                      # consume de esta cola (DLQ: trips.q.dlq)
+    suscripciones:
+      "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado,
+                          ChoferCreado, ChoferActualizado, ChoferDesactivado]
+      "[identity.eventos]": [TarifaDepreciacionCambiada]
+      "[sales.eventos]": [AlquilerPagado]
+ 
 app:
   jwt:
     duracion-minutos: 60

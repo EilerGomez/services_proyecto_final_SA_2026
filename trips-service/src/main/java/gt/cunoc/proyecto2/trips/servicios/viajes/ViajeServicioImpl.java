@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
+import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
@@ -58,12 +59,13 @@ public class ViajeServicioImpl implements ViajeServicio {
     private final SalidaViajeRepositorio salidas;
     private final LlegadaViajeRepositorio llegadas;
     private final AlquilerPrivadoRepositorio alquileres;
+    private final PublicadorEventosTrips eventos;
 
     public ViajeServicioImpl(ViajeRepositorio repositorio, RutaServicio rutas, RutaRepositorio rutaRepositorio,
                              VistaSucursalServicio sucursales, VistaBusRepositorio buses,
                              VistaChoferRepositorio choferes, AsignacionViajeServicio asignaciones,
                              SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas,
-                             AlquilerPrivadoRepositorio alquileres) {
+                             AlquilerPrivadoRepositorio alquileres, PublicadorEventosTrips eventos) {
         this.repositorio = repositorio;
         this.rutas = rutas;
         this.rutaRepositorio = rutaRepositorio;
@@ -74,6 +76,7 @@ public class ViajeServicioImpl implements ViajeServicio {
         this.salidas = salidas;
         this.llegadas = llegadas;
         this.alquileres = alquileres;
+        this.eventos = eventos;
     }
 
     @Override
@@ -116,8 +119,9 @@ public class ViajeServicioImpl implements ViajeServicio {
         AsignacionViaje asignacion = asignaciones.validarNueva(ruta.getSucursalOrigenId(), solicitud.busId(),
                 solicitud.choferId(), solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
         ViajeEntidad viaje = repositorio.saveAndFlush(solicitud.crearEntidad(ruta, asignacion, usuario.usuarioId()));
-        // Paso 6: aquí se publica el evento ViajeProgramado (businessDate = día de la salida)
-        return respuesta(viaje);
+        ViajeRespuesta respuesta = respuesta(viaje);
+        eventos.viajeProgramado(respuesta);
+        return respuesta;
     }
 
     @Override
@@ -130,9 +134,9 @@ public class ViajeServicioImpl implements ViajeServicio {
         AsignacionViaje asignacion = asignaciones.validarCambio(viaje, solicitud.busId(), solicitud.choferId(),
                 solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
         viaje.reprogramar(asignacion);
-        viaje = repositorio.saveAndFlush(viaje);
-        // Paso 6: aquí se publica el evento ViajeActualizado (businessDate = día de la salida)
-        return respuesta(viaje);
+        ViajeRespuesta respuesta = respuesta(repositorio.saveAndFlush(viaje));
+        eventos.viajeActualizado(respuesta);
+        return respuesta;
     }
 
     @Override
@@ -149,8 +153,7 @@ public class ViajeServicioImpl implements ViajeServicio {
                 alquileres.saveAndFlush(alquiler);
             });
         }
-        // Paso 6: aquí se publica el evento ViajeEliminado con el motivo
-        //         (aggregateVersion = version + 1, leída antes del delete; businessDate = hoy)
+        eventos.viajeEliminado(viaje, motivo);                       // version + 1
     }
 
     @Override
@@ -197,7 +200,6 @@ public class ViajeServicioImpl implements ViajeServicio {
         return respuestas(List.of(viaje)).get(0);
     }
 
-    /* Carga rutas, alquileres, sucursales, placas y choferes de todos los viajes con una consulta por tabla. */
     private List<ViajeRespuesta> respuestas(List<ViajeEntidad> viajes) {
         Map<UUID, RutaEntidad> rutasPorId = rutaRepositorio.findAllById(idsDe(viajes, ViajeEntidad::getRutaId))
                 .stream().collect(Collectors.toMap(RutaEntidad::getId, Function.identity()));

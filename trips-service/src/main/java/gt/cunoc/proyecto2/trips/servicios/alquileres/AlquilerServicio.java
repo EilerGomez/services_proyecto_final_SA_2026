@@ -27,4 +27,6 @@ public interface AlquilerServicio {
     AlquilerRespuesta cancelar(UUID id, CancelarAlquilerSolicitud solicitud, UsuarioActual usuario);
 
     ViajeDetalleRespuesta asignar(UUID id, AsignarAlquilerSolicitud solicitud, UsuarioActual usuario);
+
+    void registrarPago(UUID alquilerId);
 }
