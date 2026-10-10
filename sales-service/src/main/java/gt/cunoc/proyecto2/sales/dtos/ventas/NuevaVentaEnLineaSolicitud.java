@@ -13,7 +13,6 @@ public record NuevaVentaEnLineaSolicitud(
         @NotEmpty @Size(max = 60) List<@NotNull @Positive Integer> asientos,
         @NotNull LocalDate fechaPago) {
 
-    /** Los asientos pedidos, en orden. 400 ASIENTOS_REPETIDOS / ASIENTO_FUERA_DE_RANGO. */
     public List<Integer> asientosValidados(int capacidad) {
         return Asientos.validar(asientos, capacidad);
     }
