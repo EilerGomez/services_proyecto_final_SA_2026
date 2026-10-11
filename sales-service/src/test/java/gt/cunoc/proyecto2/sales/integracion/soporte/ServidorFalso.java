@@ -12,15 +12,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
+/*
  * Servidor HTTP mínimo (del JDK) que simula a Trips (R2) en las pruebas de integración.
  * Responde lo que la prueba le indica y guarda las peticiones que recibió.
- *
- * <pre>
- * TRIPS.responder("GET", "/trips/interno/viajes/" + viajeId + "/vendible", 200, "{...}");
- * ...
- * assertThat(TRIPS.peticiones()).hasSize(2);
- * </pre>
  */
 public final class ServidorFalso {
 

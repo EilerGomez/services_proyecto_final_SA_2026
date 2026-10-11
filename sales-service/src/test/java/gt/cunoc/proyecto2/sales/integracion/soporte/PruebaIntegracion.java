@@ -41,18 +41,6 @@ import org.springframework.web.client.RestClient;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
 
-/**
- * Base de las pruebas de integración de Sales.
- *
- * <ul>
- *   <li>PostgreSQL 16 y RabbitMQ 4 reales en Docker (Testcontainers). Se levantan una sola vez para todas
- *       las clases *IT y Spring reutiliza el mismo contexto.</li>
- *   <li>Sales corre completo en un puerto aleatorio: filtros de comun, JWT, roles, controladores, servicios,
- *       JPA, Flyway, outbox, relay y consumidor de eventos.</li>
- *   <li>Trips (R2) es un {@link ServidorFalso}. Identity y Trips "publican" con {@link #publicarEvento}.</li>
- *   <li>Antes de cada prueba se vacían las tablas, la cola espía y la DLQ.</li>
- * </ul>
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public abstract class PruebaIntegracion {
 
