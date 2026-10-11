@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.sales.modelos.alquileres;
 
 import gt.cunoc.proyecto2.sales.errores.alquileres.ErrorOrdenAlquiler;
+import gt.cunoc.proyecto2.sales.modelos.ventas.ClienteVenta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.MetodoPago;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,6 +74,23 @@ public class OrdenAlquilerEntidad {
     @Version
     private Integer version;
 
+    public static OrdenAlquilerEntidad registrar(UUID alquilerId, UUID sucursalId, ClienteVenta cliente,
+                                                 String origen, String destino, BigDecimal monto) {
+        OrdenAlquilerEntidad orden = new OrdenAlquilerEntidad();
+        orden.id = UUID.randomUUID();
+        orden.alquilerId = alquilerId;
+        orden.sucursalId = sucursalId;
+        orden.clienteUsuarioId = cliente.usuarioId();
+        orden.clienteNit = cliente.nit();
+        orden.clienteNombre = cliente.nombre();
+        orden.clienteCorreo = cliente.correo();
+        orden.origen = origen;
+        orden.destino = destino;
+        orden.monto = monto;
+        orden.estado = EstadoOrdenAlquiler.PENDIENTE_PAGO;
+        return orden;
+    }
+
     public void solicitarPagoConCartera(LocalDate fecha) {
         if (clienteUsuarioId == null) {
             throw ErrorOrdenAlquiler.ALQUILER_SIN_CUENTA.excepcion();
@@ -95,8 +113,38 @@ public class OrdenAlquilerEntidad {
         this.motivoRechazo = null;
     }
 
+    public void confirmarPagoConCartera() {
+        verificarCobroEnCurso();
+        this.estado = EstadoOrdenAlquiler.PAGADA;
+        this.motivoRechazo = null;
+    }
+
+    public void rechazarPagoConCartera(String motivo) {
+        verificarCobroEnCurso();
+        this.estado = EstadoOrdenAlquiler.RECHAZADA;
+        this.motivoRechazo = motivo;
+    }
+
+    public boolean cobroConCarteraEnCurso() {
+        return estado == EstadoOrdenAlquiler.PENDIENTE_PAGO && metodoPago == MetodoPago.CARTERA;
+    }
+
+    public boolean pagadaConCartera() {
+        return estado == EstadoOrdenAlquiler.PAGADA && metodoPago == MetodoPago.CARTERA;
+    }
+
+    public LocalDate fechaNoAnteriorAlPago(LocalDate fecha) {
+        return fechaPago != null && fecha.isBefore(fechaPago) ? fechaPago : fecha;
+    }
+
     public boolean esDelCliente(UUID usuarioId) {
         return clienteUsuarioId != null && clienteUsuarioId.equals(usuarioId);
+    }
+
+    private void verificarCobroEnCurso() {
+        if (!cobroConCarteraEnCurso()) {
+            throw ErrorOrdenAlquiler.ESTADO_INVALIDO.excepcion(estado);
+        }
     }
 
     private void verificarPagable() {

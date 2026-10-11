@@ -14,4 +14,6 @@ public interface OrdenAlquilerRepositorio extends JpaRepository<OrdenAlquilerEnt
     List<OrdenAlquilerEntidad> findByClienteNitOrderByFechaCreacionDesc(String nit);
 
     List<OrdenAlquilerEntidad> findByClienteUsuarioIdOrderByFechaCreacionDesc(UUID clienteUsuarioId);
+
+    boolean existsByAlquilerId(UUID alquilerId);
 }

@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.FiltroOrdenes;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.OrdenAlquilerRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.PagoOrdenSolicitud;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfirmada;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,4 +19,6 @@ public interface OrdenAlquilerServicio {
     OrdenAlquilerRespuesta pagarConCartera(UUID id, PagoOrdenSolicitud solicitud, UsuarioActual usuario);
 
     OrdenAlquilerRespuesta pagarEnEfectivo(UUID id, PagoOrdenSolicitud solicitud, UsuarioActual usuario);
+
+    void registrarOrden(CotizacionAlquilerConfirmada cotizacion);
 }
