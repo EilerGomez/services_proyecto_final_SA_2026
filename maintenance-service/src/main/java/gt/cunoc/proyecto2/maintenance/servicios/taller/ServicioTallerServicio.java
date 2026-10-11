@@ -1,0 +1,118 @@
+package gt.cunoc.proyecto2.maintenance.servicios.taller;
+
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.maintenance.dtos.servicios.LineaServicioRespuesta;
+import gt.cunoc.proyecto2.maintenance.dtos.servicios.LineaServicioSolicitud;
+import gt.cunoc.proyecto2.maintenance.dtos.servicios.NuevoServicioSolicitud;
+import gt.cunoc.proyecto2.maintenance.dtos.servicios.ServicioRespuesta;
+import gt.cunoc.proyecto2.maintenance.errores.ErrorCategoria;
+import gt.cunoc.proyecto2.maintenance.errores.ErrorTaller;
+import gt.cunoc.proyecto2.maintenance.eventos.PublicadorEventosMaintenance;
+import gt.cunoc.proyecto2.maintenance.modelos.CategoriaEntidad;
+import gt.cunoc.proyecto2.maintenance.modelos.DetalleServicioEntidad;
+import gt.cunoc.proyecto2.maintenance.modelos.ServicioTallerEntidad;
+import gt.cunoc.proyecto2.maintenance.modelos.VistaBusEntidad;
+import gt.cunoc.proyecto2.maintenance.repositorios.CategoriaRepositorio;
+import gt.cunoc.proyecto2.maintenance.repositorios.ServicioRepositorio;
+import gt.cunoc.proyecto2.maintenance.repositorios.VistaBusRepositorio;
+import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ServicioTallerServicio {
+
+    private final ServicioRepositorio servicios;
+    private final CategoriaRepositorio categorias;
+    private final VistaBusRepositorio buses;
+    private final PublicadorEventosMaintenance eventos;
+    private final EntityManager entityManager;
+
+    public ServicioTallerServicio(ServicioRepositorio servicios, CategoriaRepositorio categorias,
+                                  VistaBusRepositorio buses, PublicadorEventosMaintenance eventos,
+                                  EntityManager entityManager) {
+        this.servicios = servicios;
+        this.categorias = categorias;
+        this.buses = buses;
+        this.eventos = eventos;
+        this.entityManager = entityManager;
+    }
+
+    /**
+     * Registra un servicio con su detalle y publica GastoTallerRegistrado.
+     * Los servicios no se editan ni se eliminan: un error se corrige con otro servicio.
+     */
+    @Transactional
+    public ServicioRespuesta registrar(NuevoServicioSolicitud solicitud, UsuarioActual usuario) {
+        VistaBusEntidad bus = buses.findById(solicitud.busId())
+                .orElseThrow(() -> ErrorTaller.BUS_NO_EXISTE.excepcion());
+        usuario.verificarAccesoSucursal(bus.getSucursalId());
+        if (!bus.isActivo()) {
+            throw ErrorTaller.BUS_INACTIVO.excepcion();
+        }
+        Map<UUID, CategoriaEntidad> porId = categoriasPorId(solicitud);
+
+        ServicioTallerEntidad servicio = new ServicioTallerEntidad();
+        servicio.setBusId(bus.getBusId());
+        servicio.setSucursalId(bus.getSucursalId());
+        servicio.setFechaServicio(solicitud.fechaServicio());
+        servicio.setTaller(solicitud.taller());
+        servicio.setObservaciones(solicitud.observaciones());
+        servicio.setRegistradoPor(usuario.usuarioId());
+        for (LineaServicioSolicitud linea : solicitud.lineas()) {
+            DetalleServicioEntidad detalle = new DetalleServicioEntidad();
+            detalle.setCategoriaId(linea.categoriaId());
+            detalle.setCategoria(porId.get(linea.categoriaId()));
+            detalle.setDescripcion(linea.descripcion());
+            detalle.setTipo(linea.tipo());
+            detalle.setMonto(linea.monto());
+            servicio.agregarLinea(detalle);
+        }
+        servicios.saveAndFlush(servicio);   // corre el trigger de totales
+        entityManager.refresh(servicio);    // trae total_mano_obra, total_repuestos y total
+        eventos.gastoRegistrado(servicio);
+        return respuesta(servicio, bus.getPlaca(), true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServicioRespuesta> listar(UUID busId, LocalDate desde, LocalDate hasta,
+                                          UUID categoriaId, UsuarioActual usuario) {
+        UUID sucursalId = usuario.esAdminSistema() ? null : usuario.sucursalId();
+        Map<String, String> placas = new HashMap<>();
+        buses.findAll().forEach(b -> placas.put(b.getBusId().toString(), b.getPlaca()));
+        return servicios.buscar(sucursalId, busId, desde, hasta, categoriaId).stream()
+                .map(s -> respuesta(s, placas.getOrDefault(String.valueOf(s.getBusId()), "-"), false))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ServicioRespuesta obtener(UUID id, UsuarioActual usuario) {
+        ServicioTallerEntidad servicio = servicios.findById(id)
+                .orElseThrow(() -> ErrorTaller.SERVICIO_NO_EXISTE.excepcion());
+        usuario.verificarAccesoSucursal(servicio.getSucursalId());
+        String placa = buses.findById(servicio.getBusId())
+                .map(VistaBusEntidad::getPlaca).orElse("-");
+        return respuesta(servicio, placa, true);
+    }
+
+    private Map<UUID, CategoriaEntidad> categoriasPorId(NuevoServicioSolicitud solicitud) {
+        Map<UUID, CategoriaEntidad> porId = new HashMap<>();
+        for (LineaServicioSolicitud linea : solicitud.lineas()) {
+            porId.computeIfAbsent(linea.categoriaId(), id -> categorias.findById(id)
+                    .orElseThrow(() -> ErrorCategoria.CATEGORIA_NO_EXISTE.excepcion()));
+        }
+        return porId;
+    }
+
+    private ServicioRespuesta respuesta(ServicioTallerEntidad servicio, String placa, boolean conLineas) {
+        List<LineaServicioRespuesta> lineas = conLineas
+                ? servicio.getLineas().stream().map(LineaServicioRespuesta::new).toList()
+                : null;
+        return new ServicioRespuesta(servicio, placa, lineas);
+    }
+}
