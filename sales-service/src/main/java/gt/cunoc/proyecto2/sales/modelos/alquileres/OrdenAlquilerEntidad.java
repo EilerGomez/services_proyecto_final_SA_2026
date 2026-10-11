@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.sales.modelos.alquileres;
 
+import gt.cunoc.proyecto2.sales.errores.alquileres.ErrorOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.modelos.ventas.MetodoPago;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -71,4 +72,36 @@ public class OrdenAlquilerEntidad {
 
     @Version
     private Integer version;
+
+    public void solicitarPagoConCartera(LocalDate fecha) {
+        if (clienteUsuarioId == null) {
+            throw ErrorOrdenAlquiler.ALQUILER_SIN_CUENTA.excepcion();
+        }
+        verificarPagable();
+        if (estado == EstadoOrdenAlquiler.PENDIENTE_PAGO && metodoPago == MetodoPago.CARTERA) {
+            throw ErrorOrdenAlquiler.PAGO_EN_PROCESO.excepcion();
+        }
+        this.metodoPago = MetodoPago.CARTERA;
+        this.fechaPago = fecha;
+        this.estado = EstadoOrdenAlquiler.PENDIENTE_PAGO;
+        this.motivoRechazo = null;
+    }
+
+    public void pagarEnEfectivo(LocalDate fecha) {
+        verificarPagable();
+        this.metodoPago = MetodoPago.EFECTIVO;
+        this.fechaPago = fecha;
+        this.estado = EstadoOrdenAlquiler.PAGADA;
+        this.motivoRechazo = null;
+    }
+
+    public boolean esDelCliente(UUID usuarioId) {
+        return clienteUsuarioId != null && clienteUsuarioId.equals(usuarioId);
+    }
+
+    private void verificarPagable() {
+        if (estado != EstadoOrdenAlquiler.PENDIENTE_PAGO && estado != EstadoOrdenAlquiler.RECHAZADA) {
+            throw ErrorOrdenAlquiler.ESTADO_INVALIDO.excepcion(estado);
+        }
+    }
 }
