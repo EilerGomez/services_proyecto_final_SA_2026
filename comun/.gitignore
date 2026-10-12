@@ -1,0 +1,23 @@
+# ===== Compilación (Maven) =====
+target/
+*.class
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# ===== Secretos: NUNCA al repositorio =====
+.env
+.env.*
+!.env.example
+*-llave.json
+*.pem
+*.key
+
+# ===== IDE y sistema =====
+.idea/
+*.iml
+.vscode/
+nbproject/private/
+nbactions.xml
+nb-configuration.xml
+.DS_Store
+*.log
