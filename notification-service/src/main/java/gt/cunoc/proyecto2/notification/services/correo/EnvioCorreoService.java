@@ -90,6 +90,23 @@ public class EnvioCorreoService {
         enviar(previa.get(), correo, "Tu código de verificación", cuerpo);
     }
 
+    /*
+     * Correo con asunto, datos y cuerpo ya armados (compras, cancelaciones, alquileres y cotizaciones).
+     * Mismo registro idempotente que los demás. Sin correo (venta en mostrador sin correo) no hace nada.
+     */
+    @Transactional
+    public void enviarPlantilla(
+            UUID eventoId, String correo, String plantilla, String asunto, String datos, String cuerpo) {
+        if (correo == null || correo.isBlank()) {
+            return;
+        }
+        Optional<Notificacion> previa = registrada(eventoId, correo, plantilla, asunto, datos);
+        if (previa.isEmpty()) {
+            return;
+        }
+        enviar(previa.get(), correo, asunto, cuerpo);
+    }
+
     private Optional<Notificacion> registrada(
             UUID eventoId, String correo, String plantilla, String asunto, String datos) {
         Optional<Notificacion> existente =

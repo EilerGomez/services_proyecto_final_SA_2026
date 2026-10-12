@@ -13,6 +13,10 @@
     <artifactId>notification-service</artifactId>
     <name>notification-service</name>
 
+    <properties>
+        <start-class>gt.cunoc.proyecto2.notification.NotificationServiceApplication</start-class>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>gt.cunoc.proyecto2</groupId>
@@ -69,6 +73,27 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+        <!-- ===== Pruebas de integración (*IT.java). spring-boot-starter-test viene del POM padre. ===== -->
+        <!-- PostgreSQL 16 real en Docker: corre las migraciones de Flyway (Testcontainers 2.x; versión de Spring Boot).
+             Trae testcontainers (núcleo), que se usa para el contenedor de Mailpit -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- RabbitMQ real en Docker: exchanges de los otros servicios y la cola notification.q -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-rabbitmq</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Espera efectos asíncronos (el consumidor procesa en otro hilo) -->
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
