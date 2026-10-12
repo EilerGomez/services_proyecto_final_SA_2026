@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
 import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,6 +25,8 @@ import tools.jackson.databind.json.JsonMapper;
 @ConditionalOnProperty(prefix = "comun.eventos", name = "exchange")
 public class PublicadorEventos {
 
+    public static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/Guatemala");
+
     private static final String INSERTAR = """
             INSERT INTO eventos_salida (id, tipo_agregado, agregado_id, tipo_evento, version_evento, datos)
             VALUES (?, ?, ?, ?, ?, CAST(? AS jsonb))
@@ -42,7 +45,7 @@ public class PublicadorEventos {
      * @param agregadoId    id principal (va como aggregateId)
      * @param tipoEvento    p. ej. "BoletoVendido" (es la routing key)
      * @param payload       record con los datos del catálogo de eventos
-     * @param fechaNegocio  fecha elegida por el usuario
+     * @param fechaNegocio  fecha elegida por el usuario; si es null, hoy en Guatemala
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public EventoSobre publicar(String tipoAgregado, UUID agregadoId, String tipoEvento,
@@ -71,7 +74,7 @@ public class PublicadorEventos {
                 agregadoId,
                 versionAgregado,
                 Instant.now(),
-                fechaNegocio != null ? fechaNegocio : LocalDate.now(),
+                fechaNegocio != null ? fechaNegocio : LocalDate.now(ZONA_NEGOCIO),
                 ContextoCorrelacion.actualOGenerar(),
                 payload);
 

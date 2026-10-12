@@ -59,7 +59,7 @@ class PublicadorEventosTest {
         EventoSobre sobre = publicador.publicar("Ruta", rutaId, "RutaEliminada", new Pago(rutaId, BigDecimal.ONE), null);
 
         assertThat(sobre.aggregateVersion()).isNull();
-        assertThat(sobre.businessDate()).isEqualTo(LocalDate.now());
+        assertThat(sobre.businessDate()).isEqualTo(LocalDate.now(PublicadorEventos.ZONA_NEGOCIO));
         assertThat(sobre.correlationId()).isNotNull();
         assertThat(sobre.version()).isEqualTo(1);
     }
