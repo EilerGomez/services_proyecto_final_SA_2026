@@ -96,8 +96,16 @@ services:
       DB_USER: ${DB_IDENTIDAD_USER:-usr_identidad}
       DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      # Admin inicial (solo se crea si no hay ningún ADMIN_SISTEMA). NIT y DPI son únicos en perfiles:
+      # no usar "CF" como NIT del admin, o ningún otro usuario podría registrarse con CF.
       ADMIN_CORREO: ${ADMIN_CORREO:-}
       ADMIN_CONTRASENA: ${ADMIN_CONTRASENA:-}
+      ADMIN_NOMBRES: ${ADMIN_NOMBRES:-Administrador}
+      ADMIN_APELLIDOS: ${ADMIN_APELLIDOS:-Sistema}
+      ADMIN_NIT: ${ADMIN_NIT:-1000000-1}
+      ADMIN_DPI: ${ADMIN_DPI:-0000000000000}
+      ADMIN_TELEFONO: ${ADMIN_TELEFONO:-00000000}
+      ADMIN_DIRECCION: ${ADMIN_DIRECCION:-Ciudad}
       FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
       FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
