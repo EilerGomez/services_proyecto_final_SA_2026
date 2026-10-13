@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.reporting.reportes.FabricaGeneradores;
 import gt.cunoc.proyecto2.reporting.reportes.ParametrosReporte;
 import gt.cunoc.proyecto2.reporting.reportes.TipoReporte;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -18,6 +19,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Reportes globales (RG1–RG6). Cada ruta responde JSON o PDF según
+ * {@code ?format=json|pdf} (por defecto PDF).
+ */
 @RestController
 @RequestMapping("/reports")
 @Tag(name = "Reportes del sistema", description = "RG1–RG6: globales (ADMIN_SISTEMA)")
@@ -31,125 +36,99 @@ public class ReporteSistemaControlador {
     }
 
     @GetMapping("/ingresos")
-    @Operation(summary = "RG1 · Ingresos por sucursal")
+    @Operation(summary = "RG1 · Ingresos por sucursal (json | pdf)")
     public ResponseEntity<?> ingresos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS)
-                .datos(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()));
-    }
-
-    @GetMapping("/ingresos/pdf")
-    @Operation(summary = "RG1 · Ingresos por sucursal (PDF)")
-    public ResponseEntity<byte[]> ingresosPdf(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.INGRESOS)
-                .generar(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()),
-                "ingresos", desde, hasta);
+            @RequestParam(required = false) UUID sucursalId,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
+            throws Exception {
+        ParametrosReporte params = ParametrosReporte.builder()
+                .desde(desde).hasta(hasta).sucursalId(sucursalId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.INGRESOS).generar(params), "ingresos", desde, hasta);
     }
 
     @GetMapping("/gastos")
-    @Operation(summary = "RG2 · Gastos por sucursal y tipo")
+    @Operation(summary = "RG2 · Gastos por sucursal y tipo (json | pdf)")
     public ResponseEntity<?> gastos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.GASTOS)
-                .datos(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()));
-    }
-
-    @GetMapping("/gastos/pdf")
-    @Operation(summary = "RG2 · Gastos por sucursal y tipo (PDF)")
-    public ResponseEntity<byte[]> gastosPdf(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.GASTOS)
-                .generar(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()),
-                "gastos", desde, hasta);
+            @RequestParam(required = false) UUID sucursalId,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
+            throws Exception {
+        ParametrosReporte params = ParametrosReporte.builder()
+                .desde(desde).hasta(hasta).sucursalId(sucursalId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.GASTOS).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.GASTOS).generar(params), "gastos", desde, hasta);
     }
 
     @GetMapping("/ganancias")
-    @Operation(summary = "RG3 · Ganancias por sucursal")
+    @Operation(summary = "RG3 · Ganancias por sucursal (json | pdf)")
     public ResponseEntity<?> ganancias(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.GANANCIAS)
-                .datos(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()));
-    }
-
-    @GetMapping("/ganancias/pdf")
-    @Operation(summary = "RG3 · Ganancias por sucursal (PDF)")
-    public ResponseEntity<byte[]> gananciasPdf(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId) throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.GANANCIAS)
-                .generar(ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).build()),
-                "ganancias", desde, hasta);
+            @RequestParam(required = false) UUID sucursalId,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
+            throws Exception {
+        ParametrosReporte params = ParametrosReporte.builder()
+                .desde(desde).hasta(hasta).sucursalId(sucursalId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.GANANCIAS).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.GANANCIAS).generar(params), "ganancias", desde, hasta);
     }
 
     @GetMapping("/rutas-demandadas")
-    @Operation(summary = "RG4 · Rutas más demandadas por boletos")
+    @Operation(summary = "RG4 · Rutas más demandadas por boletos (json | pdf)")
     public ResponseEntity<?> rutasDemandadas(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(defaultValue = "10") int limite) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.RUTAS_DEMANDADAS)
-                .datos(ParametrosReporte.builder().desde(desde).hasta(hasta).limite(limite).build()));
-    }
-
-    @GetMapping("/rutas-demandadas/pdf")
-    @Operation(summary = "RG4 · Rutas más demandadas por boletos (PDF)")
-    public ResponseEntity<byte[]> rutasDemandadasPdf(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(defaultValue = "10") int limite) throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.RUTAS_DEMANDADAS)
-                .generar(ParametrosReporte.builder().desde(desde).hasta(hasta).limite(limite).build()),
+            @RequestParam(defaultValue = "10") int limite,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
+            throws Exception {
+        ParametrosReporte params = ParametrosReporte.builder()
+                .desde(desde).hasta(hasta).limite(limite).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.RUTAS_DEMANDADAS).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.RUTAS_DEMANDADAS).generar(params),
                 "rutas-demandadas", desde, hasta);
     }
 
     @GetMapping("/taller-por-categoria")
-    @Operation(summary = "RG5 · Gastos de taller por categoría")
+    @Operation(summary = "RG5 · Gastos de taller por categoría (json | pdf)")
     public ResponseEntity<?> tallerPorCategoria(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(required = false) UUID sucursalId,
-            @RequestParam(required = false) UUID busId) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_POR_CATEGORIA).datos(
-                ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).busId(busId).build()));
-    }
-
-    @GetMapping("/taller-por-categoria/pdf")
-    @Operation(summary = "RG5 · Gastos de taller por categoría (PDF)")
-    public ResponseEntity<byte[]> tallerPorCategoriaPdf(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-            @RequestParam(required = false) UUID sucursalId,
-            @RequestParam(required = false) UUID busId) throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.TALLER_POR_CATEGORIA).generar(
-                ParametrosReporte.builder().desde(desde).hasta(hasta).sucursalId(sucursalId).busId(busId).build()),
+            @RequestParam(required = false) UUID busId,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
+            throws Exception {
+        ParametrosReporte params = ParametrosReporte.builder()
+                .desde(desde).hasta(hasta).sucursalId(sucursalId).busId(busId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_POR_CATEGORIA).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.TALLER_POR_CATEGORIA).generar(params),
                 "taller-por-categoria", desde, hasta);
     }
 
     @GetMapping("/mapa-rutas")
-    @Operation(summary = "RG6 · Sucursales con coordenadas y rutas (Leaflet)")
-    public ResponseEntity<?> mapaRutas(@RequestParam(required = false) UUID sucursalId) {
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.MAPA_RUTAS)
-                .datos(ParametrosReporte.builder().sucursalId(sucursalId).build()));
-    }
-
-    @GetMapping("/mapa-rutas/pdf")
-    @Operation(summary = "RG6 · Tabla de sucursales y rutas (PDF)")
-    public ResponseEntity<byte[]> mapaRutasPdf(@RequestParam(required = false) UUID sucursalId)
+    @Operation(summary = "RG6 · Sucursales con coordenadas y rutas, Leaflet (json) o tabla (pdf)")
+    public ResponseEntity<?> mapaRutas(
+            @RequestParam(required = false) UUID sucursalId,
+            @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
             throws Exception {
-        return pdf(fabrica.obtener(TipoReporte.MAPA_RUTAS)
-                .generar(ParametrosReporte.builder().sucursalId(sucursalId).build()),
+        ParametrosReporte params = ParametrosReporte.builder().sucursalId(sucursalId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.MAPA_RUTAS).datos(params));
+        }
+        return pdf(fabrica.obtener(TipoReporte.MAPA_RUTAS).generar(params),
                 "mapa-rutas", null, null);
     }
 

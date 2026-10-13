@@ -41,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProyeccionReportingServicioImpl implements ProyeccionReportingServicio {
 
     private static final UUID SIN_DETALLE = UUID.fromString("00000000-0000-0000-0000-000000000000");
-
     private static final Logger log = LoggerFactory.getLogger(ProyeccionReportingServicioImpl.class);
 
     private final SucursalRepositorio sucursales;

@@ -32,7 +32,7 @@ class CategoriaServicioTest {
     PublicadorEventosMaintenance eventos;
 
     @InjectMocks
-    CategoriaServicio servicio;
+    CategoriaServicioImpl servicio;
 
     private CategoriaEntidad categoria(UUID id, String nombre, boolean activa) {
         CategoriaEntidad categoria = new CategoriaEntidad();

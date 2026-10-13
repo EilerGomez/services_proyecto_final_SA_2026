@@ -53,7 +53,7 @@ class ServicioTallerServicioTest {
     EntityManager entityManager;
 
     @InjectMocks
-    ServicioTallerServicio servicio;
+    ServicioTallerServicioImpl servicio;
 
     private final UUID sucursalId = UUID.randomUUID();
     private final UUID busId = UUID.randomUUID();

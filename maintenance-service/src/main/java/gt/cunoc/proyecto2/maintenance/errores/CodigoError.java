@@ -5,9 +5,7 @@ import gt.cunoc.proyecto2.comun.errores.NegocioException;
 public interface CodigoError {
 
     String name();
-
     TipoError tipo();
-
     String mensaje();
 
     default String codigo() {
