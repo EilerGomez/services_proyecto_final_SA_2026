@@ -96,7 +96,9 @@ gateway:
     notification-url: ${NOTIFICATION_URL:http://localhost:8087}
   allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:${FRONTEND_URL:http://localhost:5173}}
   security:
-    enabled: ${GATEWAY_SECURITY_ENABLED:false}
+    # Activada por defecto: valida el JWT HS256 de identity (mismo JWT_SECRET).
+    # GATEWAY_SECURITY_ENABLED=false la apaga (solo para desarrollo).
+    enabled: ${GATEWAY_SECURITY_ENABLED:true}
   timeouts:
     connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
     response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:30s}
@@ -128,10 +130,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        # Solo health (público) e info (con token). /actuator/gateway no se expone:
+        # muestra rutas, URIs internas y filtros.
+        include: health,info
   endpoint:
     gateway:
-      access: read-only
+      access: none
 
 logging:
   level:

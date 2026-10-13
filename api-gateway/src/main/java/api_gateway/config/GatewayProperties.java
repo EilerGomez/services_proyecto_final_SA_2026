@@ -18,7 +18,8 @@ public class GatewayProperties {
     @Getter
     @Setter
     public static class Security {
-        private boolean enabled = false;
+        /** Activada por defecto; GATEWAY_SECURITY_ENABLED=false la apaga (solo desarrollo). */
+        private boolean enabled = true;
     }
 
     @Getter

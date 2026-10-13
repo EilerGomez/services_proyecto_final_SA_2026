@@ -18,7 +18,7 @@ services:
       REPORTING_URL: ${REPORTING_URL:-http://reporting-service:8086}
       NOTIFICATION_URL: ${NOTIFICATION_URL:-http://notification-service:8087}
       JWT_SECRET: ${JWT_SECRET:-solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
-      GATEWAY_SECURITY_ENABLED: ${GATEWAY_SECURITY_ENABLED:-false}
+      GATEWAY_SECURITY_ENABLED: ${GATEWAY_SECURITY_ENABLED:-true}   # false solo en desarrollo
       GATEWAY_CONNECT_TIMEOUT: ${GATEWAY_CONNECT_TIMEOUT:-3000}
       GATEWAY_RESPONSE_TIMEOUT: ${GATEWAY_RESPONSE_TIMEOUT:-30s}
       GATEWAY_LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-INFO}
