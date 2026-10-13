@@ -15,6 +15,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.maintenance.dtos.servicios.LineaServicioSolicitud;
 import gt.cunoc.proyecto2.maintenance.dtos.servicios.NuevoServicioSolicitud;
+import gt.cunoc.proyecto2.maintenance.dtos.servicios.ServicioRespuesta;
 import gt.cunoc.proyecto2.maintenance.eventos.PublicadorEventosMaintenance;
 import gt.cunoc.proyecto2.maintenance.modelos.CategoriaEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.DetalleServicioEntidad;
@@ -154,32 +155,66 @@ class ServicioTallerServicioTest {
                 .isEqualTo("CATEGORIA_NO_EXISTE");
     }
 
-    @Test
-    void listarFiltraPorSucursalDelToken() {
+    private ServicioTallerEntidad servicioDelBus(UUID busDelServicio) {
         ServicioTallerEntidad entidad = new ServicioTallerEntidad();
         entidad.setId(UUID.randomUUID());
-        entidad.setBusId(busId);
+        entidad.setBusId(busDelServicio);
         entidad.setSucursalId(sucursalId);
         entidad.setFechaServicio(LocalDate.of(2026, 10, 22));
-        when(servicios.buscar(any(), any(), any(), any(), any())).thenReturn(List.of(entidad));
-        when(buses.findAll()).thenReturn(List.of(bus(true)));
+        return entidad;
+    }
+
+    @Test
+    void listarFiltraPorSucursalDelToken() {
+        when(servicios.buscar(any(), any(), any(), any(), any())).thenReturn(List.of(servicioDelBus(busId)));
+        when(buses.findAllById(any())).thenReturn(List.of(bus(true)));
 
         var lista = servicio.listar(null, null, null, null, adminSucursal());
 
         assertThat(lista).hasSize(1);
         assertThat(lista.get(0).lineas()).isNull();
+        assertThat(lista.get(0).placa()).isEqualTo("C123ABC");
         var captor = ArgumentCaptor.forClass(UUID.class);
         verify(servicios).buscar(captor.capture(), any(), any(), any(), any());
         assertThat(captor.getValue()).isEqualTo(sucursalId);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void listarBuscaSoloLasPlacasDeLosBusesDelResultado() {
+        UUID sinVista = UUID.randomUUID();
+        when(servicios.buscar(any(), any(), any(), any(), any())).thenReturn(
+                List.of(servicioDelBus(busId), servicioDelBus(busId), servicioDelBus(sinVista)));
+        when(buses.findAllById(any())).thenReturn(List.of(bus(true)));
+
+        var lista = servicio.listar(null, null, null, null, adminSucursal());
+
+        assertThat(lista).extracting(ServicioRespuesta::placa).containsExactly("C123ABC", "C123ABC", "-");
+        ArgumentCaptor<Iterable<UUID>> ids = ArgumentCaptor.forClass(Iterable.class);
+        verify(buses).findAllById(ids.capture());
+        assertThat(ids.getValue()).containsExactlyInAnyOrder(busId, sinVista);
+        verify(buses, never()).findAll();
+    }
+
+    @Test
     void listarAdminSistemaVeTodo() {
         when(servicios.buscar(any(), any(), any(), any(), any())).thenReturn(List.of());
-        when(buses.findAll()).thenReturn(List.of());
 
         assertThat(servicio.listar(null, null, null, null, adminSistema())).isEmpty();
-        verify(servicios).buscar(any(), any(), any(), any(), any());
+        var captor = ArgumentCaptor.forClass(UUID.class);
+        verify(servicios).buscar(captor.capture(), any(), any(), any(), any());
+        assertThat(captor.getValue()).isNull();
+    }
+
+    @Test
+    void listarSinSucursalEnElTokenEs403() {
+        var sinSucursal = new UsuarioActual(UUID.randomUUID(), "a@m.gt", Set.of(Roles.ADMIN_SUCURSAL),
+                null, null);
+
+        var lanzada = catchThrowable(() -> servicio.listar(null, null, null, null, sinSucursal));
+        assertThat(lanzada).isInstanceOf(ProhibidoException.class);
+        assertThat(((ProhibidoException) lanzada).getCodigo()).isEqualTo("SUCURSAL_AJENA");
+        verify(servicios, never()).buscar(any(), any(), any(), any(), any());
     }
 
     @Test

@@ -8,7 +8,6 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -128,14 +127,15 @@ class MantenimientoIT {
                 .retrieve().toEntity(String.class);
     }
 
-    /** Publica un evento de Fleet como lo haría su relay (sobre completo de comun). */
-    private void publicarBus(String tipo, UUID busId, UUID sucursalId, String placa, String estado,
+    /** Publica un evento de Fleet como lo haría su relay (sobre completo de comun). Devuelve el eventId. */
+    private UUID publicarBus(String tipo, UUID busId, UUID sucursalId, String placa, String estado,
                              Long version) {
+        UUID eventId = UUID.randomUUID();
         String payload = "{\"busId\":\"" + busId + "\",\"sucursalId\":\"" + sucursalId + "\","
                 + "\"placa\":\"" + placa + "\",\"marca\":\"Volvo\",\"modelo\":\"B12\","
                 + "\"anioFabricacion\":2018,\"capacidadPasajeros\":50,\"estado\":\"" + estado + "\","
                 + "\"kilometrajeActual\":1000.00}";
-        String sobre = "{\"eventId\":\"" + UUID.randomUUID() + "\",\"eventType\":\"" + tipo + "\","
+        String sobre = "{\"eventId\":\"" + eventId + "\",\"eventType\":\"" + tipo + "\","
                 + "\"version\":1,\"aggregateId\":\"" + busId + "\",\"aggregateVersion\":" + version + ","
                 + "\"occurredAt\":\"2026-10-20T14:00:00Z\",\"businessDate\":\"2026-10-20\","
                 + "\"correlationId\":\"" + UUID.randomUUID() + "\",\"payload\":" + payload + "}";
@@ -143,27 +143,40 @@ class MantenimientoIT {
                 sobre.getBytes(StandardCharsets.UTF_8))
                 .setContentType(MediaType.APPLICATION_JSON_VALUE)
                 .build());
+        return eventId;
     }
 
-    /** Espera (máx. 15 s) los eventos publicados en maintenance.eventos. */
-    private Map<String, String> esperarEventos(String... tipos) {
-        Map<String, String> recibidos = new HashMap<>();
+    /**
+     * Espera (máx. 15 s) en maintenance.eventos el evento de ese tipo que contenga el texto
+     * (servicioId, categoriaId o nombre). La cola espía es compartida: se descartan los eventos
+     * de otras pruebas que el relay publique tarde.
+     */
+    private String esperarEvento(String tipo, String contiene) {
         long limite = System.currentTimeMillis() + 15_000;
-        while (!recibidos.keySet().containsAll(java.util.List.of(tipos))
-                && System.currentTimeMillis() < limite) {
+        while (System.currentTimeMillis() < limite) {
             Message mensaje = rabbit.receive(ESPIA, 500);
-            if (mensaje != null) {
-                String sobre = new String(mensaje.getBody(), StandardCharsets.UTF_8);
-                String compacto = sobre.replace(" ", "");
-                for (String tipo : tipos) {
-                    if (compacto.contains("\"eventType\":\"" + tipo + "\"")) {
-                        recibidos.put(tipo, sobre);
-                    }
-                }
+            if (mensaje == null) {
+                continue;
+            }
+            String sobre = new String(mensaje.getBody(), StandardCharsets.UTF_8);
+            String compacto = sobre.replace(" ", "");   // datos::text de jsonb lleva espacios
+            if (compacto.contains("\"eventType\":\"" + tipo + "\"") && sobre.contains(contiene)) {
+                return sobre;
             }
         }
-        assertThat(recibidos).containsKeys(tipos);
-        return recibidos;
+        throw new AssertionError("No llegó " + tipo + " con " + contiene + " a " + ESPIA);
+    }
+
+    /** Espera a que el consumidor procese (y confirme) el evento recibido. */
+    private void esperarEventoProcesado(UUID eventId) {
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertThat(jdbc.queryForObject("SELECT count(*) FROM eventos_procesados WHERE evento_id = ?",
+                        Integer.class, eventId)).isEqualTo(1));
+    }
+
+    private static String servicioIdDe(String cuerpo) {
+        int inicio = cuerpo.indexOf("\"servicioId\":\"") + 14;
+        return cuerpo.substring(inicio, cuerpo.indexOf('"', inicio));
     }
 
     private void esperarBusEnVista(UUID busId) {
@@ -203,8 +216,8 @@ class MantenimientoIT {
 
         assertThat(respuesta.getStatusCode().value()).isEqualTo(201);
         assertThat(respuesta.getBody()).contains(nombre);
-        Map<String, String> eventos = esperarEventos("CategoriaGastoActualizada");
-        assertThat(eventos.get("CategoriaGastoActualizada")).contains(nombre);
+        assertThat(esperarEvento("CategoriaGastoActualizada", nombre).replace(" ", ""))
+                .contains("\"activa\":true");
     }
 
     @Test
@@ -227,8 +240,7 @@ class MantenimientoIT {
 
         assertThat(respuesta.getStatusCode().value()).isEqualTo(200);
         assertThat(respuesta.getBody()).contains("Frenos Plus");
-        assertThat(esperarEventos("CategoriaGastoActualizada")
-                .get("CategoriaGastoActualizada")).contains("Frenos Plus");
+        assertThat(esperarEvento("CategoriaGastoActualizada", id)).contains("Frenos Plus");
     }
 
     @Test
@@ -265,8 +277,12 @@ class MantenimientoIT {
         assertThat(respuesta.getBody()).contains("\"totalManoObra\":400.00");
         assertThat(respuesta.getBody()).contains("\"totalRepuestos\":6800.00");
         assertThat(respuesta.getBody()).contains("\"total\":7200.00");
-        Map<String, String> eventos = esperarEventos("GastoTallerRegistrado");
-        assertThat(eventos.get("GastoTallerRegistrado")).contains("6800.00").contains("Llantas");
+        String evento = esperarEvento("GastoTallerRegistrado", servicioIdDe(respuesta.getBody()));
+        assertThat(evento).contains("6800.00").contains("Llantas").contains("Taller Hermanos");
+        assertThat(evento.replace(" ", ""))
+                .contains("\"totalManoObra\":400.00")
+                .contains("\"totalRepuestos\":6800.00")
+                .contains("\"total\":7200.00");
     }
 
     @Test
@@ -310,8 +326,7 @@ class MantenimientoIT {
                 "{\"busId\":\"" + busId + "\",\"fechaServicio\":\"2026-10-22\"," + "\"lineas\":["
                         + "{\"categoriaId\":\"" + llantas + "\",\"descripcion\":\"Aceite\","
                         + "\"tipo\":\"MANO_OBRA\",\"monto\":350.00}]}").getBody();
-        String servicioId = creado.substring(creado.indexOf("\"servicioId\":\"") + 14,
-                creado.indexOf('"', creado.indexOf("\"servicioId\":\"") + 14));
+        String servicioId = servicioIdDe(creado);
 
         ResponseEntity<String> lista = get("/maintenance/servicios", sucursal);
         assertThat(lista.getStatusCode().value()).isEqualTo(200);
@@ -327,6 +342,63 @@ class MantenimientoIT {
                 .getStatusCode().value()).isEqualTo(404);
         assertThat(get("/maintenance/servicios/" + servicioId, tokenAdminSucursal(UUID.randomUUID()))
                 .getStatusCode().value()).isEqualTo(403);
+    }
+
+    @Test
+    void m5LineaNulaYMontoConTresDecimalesSon400() {
+        UUID sucursalId = UUID.randomUUID();
+        String sucursal = tokenAdminSucursal(sucursalId);
+        UUID busId = busDePrueba(sucursalId, "C400DDD");
+        String llantas = categoriaIdPorNombre(get("/maintenance/categorias", tokenAdminSistema()).getBody(),
+                "Llantas");
+
+        ResponseEntity<String> lineaNula = post("/maintenance/servicios", sucursal,
+                "{\"busId\":\"" + busId + "\",\"fechaServicio\":\"2026-10-22\",\"lineas\":[null]}");
+        assertThat(lineaNula.getStatusCode().value()).isEqualTo(400);
+        assertThat(lineaNula.getBody()).contains("VALIDACION");
+
+        ResponseEntity<String> tresDecimales = post("/maintenance/servicios", sucursal,
+                "{\"busId\":\"" + busId + "\",\"fechaServicio\":\"2026-10-22\","
+                        + "\"lineas\":[{\"categoriaId\":\"" + llantas + "\",\"descripcion\":\"X\","
+                        + "\"tipo\":\"REPUESTO\",\"monto\":10.123}]}");
+        assertThat(tresDecimales.getStatusCode().value()).isEqualTo(400);
+        assertThat(tresDecimales.getBody()).contains("VALIDACION").contains("monto");
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM servicios_taller WHERE bus_id = ?",
+                Integer.class, busId)).isZero();
+    }
+
+    @Test
+    void m6SinSucursalEnElTokenEs403() {
+        String sinSucursal = jwt.generar(new UsuarioActual(UUID.randomUUID(), "suc@m.gt",
+                Set.of(Roles.ADMIN_SUCURSAL), null, null));
+
+        ResponseEntity<String> respuesta = get("/maintenance/servicios", sinSucursal);
+
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(403);
+        assertThat(respuesta.getBody()).contains("SUCURSAL_AJENA");
+    }
+
+    @Test
+    void busActualizadoConVersionViejaNoCambiaLaVista() {
+        UUID sucursalId = UUID.randomUUID();
+        UUID busId = busDePrueba(sucursalId, "C100AAA");   // BusCreado con version 0
+        esperarEventoProcesado(publicarBus("BusActualizado", busId, sucursalId, "C300CCC", "EN_TALLER", 3L));
+
+        // versiones viejas: se procesan (quedan en eventos_procesados) pero no cambian la fila
+        esperarEventoProcesado(publicarBus("BusActualizado", busId, sucursalId, "C200BBB", "ACTIVO", 2L));
+        esperarEventoProcesado(publicarBus("BusDesactivado", busId, sucursalId, "C200BBB", "INACTIVO", 1L));
+
+        Map<String, Object> fila = jdbc.queryForMap(
+                "SELECT placa, activo, version FROM vista_buses WHERE bus_id = ?", busId);
+        assertThat(fila.get("placa")).isEqualTo("C300CCC");
+        assertThat(fila.get("activo")).isEqualTo(true);
+        assertThat(fila.get("version")).isEqualTo(3);
+
+        // misma versión sí se aplica (<=): BusDesactivado con la versión vigente apaga el bus
+        esperarEventoProcesado(publicarBus("BusDesactivado", busId, sucursalId, "C300CCC", "INACTIVO", 3L));
+        assertThat(jdbc.queryForObject("SELECT activo FROM vista_buses WHERE bus_id = ?",
+                Boolean.class, busId)).isFalse();
     }
 
     @Test

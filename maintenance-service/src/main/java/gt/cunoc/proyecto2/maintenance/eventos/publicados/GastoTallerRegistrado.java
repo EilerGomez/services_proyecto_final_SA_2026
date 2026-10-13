@@ -7,12 +7,19 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Payload de GastoTallerRegistrado. Consume: Reporting. */
+/**
+ * Payload de GastoTallerRegistrado (catálogo de eventos). Consume: Reporting.
+ * Los totales los calcula el trigger: se arma después de saveAndFlush + refresh.
+ */
 public record GastoTallerRegistrado(
         UUID servicioId,
         UUID busId,
         UUID sucursalId,
         LocalDate fechaServicio,
+        String taller,
+        BigDecimal totalManoObra,
+        BigDecimal totalRepuestos,
+        BigDecimal total,
         List<Linea> lineas) {
 
     public record Linea(
@@ -29,7 +36,9 @@ public record GastoTallerRegistrado(
                 .map(GastoTallerRegistrado::linea)
                 .toList();
         return new GastoTallerRegistrado(servicio.getId(), servicio.getBusId(),
-                servicio.getSucursalId(), servicio.getFechaServicio(), lineas);
+                servicio.getSucursalId(), servicio.getFechaServicio(), servicio.getTaller(),
+                servicio.getTotalManoObra(), servicio.getTotalRepuestos(), servicio.getTotal(),
+                lineas);
     }
 
     private static Linea linea(DetalleServicioEntidad detalle) {

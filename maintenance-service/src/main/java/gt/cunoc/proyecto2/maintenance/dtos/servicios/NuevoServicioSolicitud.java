@@ -12,7 +12,8 @@ public record NuevoServicioSolicitud(
         @NotNull LocalDate fechaServicio,
         @Size(max = 150) String taller,
         @Size(max = 500) String observaciones,
-        @NotNull @Size(min = 1) List<@Valid LineaServicioSolicitud> lineas) {
+        // @NotNull en el elemento: "lineas": [null] responde 400 y no llega como NPE al servicio
+        @NotNull @Size(min = 1) List<@Valid @NotNull LineaServicioSolicitud> lineas) {
 
     public NuevoServicioSolicitud {
         taller = taller == null || taller.isBlank() ? null : taller.strip();

@@ -1,7 +1,9 @@
 package gt.cunoc.proyecto2.maintenance.eventos.manejadores;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import gt.cunoc.proyecto2.comun.eventos.manejadorevento.ManejadorEvento;
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
@@ -53,6 +55,15 @@ class ManejadoresBusesTest {
         UUID busId = UUID.randomUUID();
         desactivado.manejar(sobre("BusDesactivado", new BusDesactivado(busId), 2L));
         verify(proyeccion).desactivar(busId, 2L);
-        desactivado.manejar(sobre("BusDesactivado", new BusDesactivado(null), 2L));
+    }
+
+    @Test
+    void busDesactivadoSinBusIdLanzaParaReintentoYDlq() {
+        var desactivado = new ManejadorBusDesactivado(proyeccion);
+
+        assertThatThrownBy(() -> desactivado.manejar(sobre("BusDesactivado", new BusDesactivado(null), 2L)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("busId");
+        verifyNoInteractions(proyeccion);
     }
 }

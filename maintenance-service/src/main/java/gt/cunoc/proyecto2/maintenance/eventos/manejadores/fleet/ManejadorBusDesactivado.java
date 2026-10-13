@@ -28,8 +28,10 @@ public class ManejadorBusDesactivado implements ManejadorEvento<BusDesactivado> 
 
     @Override
     public void manejar(EventoRecibido<BusDesactivado> evento) {
-        if (evento.payload().busId() != null) {
-            proyeccion.desactivar(evento.payload().busId(), evento.aggregateVersion());
+        // no se oculta: un evento sin busId se reintenta y termina en la DLQ para revisarlo
+        if (evento.payload().busId() == null) {
+            throw new IllegalArgumentException("BusDesactivado sin busId (evento " + evento.eventId() + ")");
         }
+        proyeccion.desactivar(evento.payload().busId(), evento.aggregateVersion());
     }
 }

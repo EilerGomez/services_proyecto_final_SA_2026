@@ -6,10 +6,14 @@ import gt.cunoc.proyecto2.maintenance.eventos.publicados.GastoTallerRegistrado;
 import gt.cunoc.proyecto2.maintenance.modelos.CategoriaEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.ServicioTallerEntidad;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PublicadorEventosMaintenance {
+
+    /** "Hoy" del negocio: la fecha de Guatemala, no la del servidor (UTC en Docker). */
+    static final ZoneId ZONA_GUATEMALA = ZoneId.of("America/Guatemala");
 
     private final PublicadorEventos publicador;
 
@@ -26,6 +30,6 @@ public class PublicadorEventosMaintenance {
     public void categoriaActualizada(CategoriaEntidad categoria) {
         publicador.publicar(TipoAgregado.CATEGORIA_GASTO.nombre(), categoria.getId(),
                 TipoEvento.CATEGORIA_GASTO_ACTUALIZADA.nombre(),
-                CategoriaGastoActualizada.desde(categoria), LocalDate.now());
+                CategoriaGastoActualizada.desde(categoria), LocalDate.now(ZONA_GUATEMALA));
     }
 }

@@ -17,7 +17,7 @@ public interface ServicioRepositorio extends JpaRepository<ServicioTallerEntidad
               AND (:desde IS NULL OR s.fechaServicio >= :desde)
               AND (:hasta IS NULL OR s.fechaServicio <= :hasta)
               AND (:categoriaId IS NULL OR l.categoriaId = :categoriaId)
-            ORDER BY s.fechaServicio DESC
+            ORDER BY s.fechaServicio DESC, s.id
             """)
     List<ServicioTallerEntidad> buscar(@Param("sucursalId") UUID sucursalId,
                                        @Param("busId") UUID busId,

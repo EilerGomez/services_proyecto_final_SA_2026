@@ -18,8 +18,10 @@ import gt.cunoc.proyecto2.maintenance.repositorios.VistaBusRepositorio;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,12 +84,28 @@ public class ServicioTallerServicio {
     @Transactional(readOnly = true)
     public List<ServicioRespuesta> listar(UUID busId, LocalDate desde, LocalDate hasta,
                                           UUID categoriaId, UsuarioActual usuario) {
-        UUID sucursalId = usuario.esAdminSistema() ? null : usuario.sucursalId();
-        Map<String, String> placas = new HashMap<>();
-        buses.findAll().forEach(b -> placas.put(b.getBusId().toString(), b.getPlaca()));
-        return servicios.buscar(sucursalId, busId, desde, hasta, categoriaId).stream()
-                .map(s -> respuesta(s, placas.getOrDefault(String.valueOf(s.getBusId()), "-"), false))
+        List<ServicioTallerEntidad> encontrados =
+                servicios.buscar(sucursalDelFiltro(usuario), busId, desde, hasta, categoriaId);
+        // solo las placas de los buses del resultado (no toda la vista)
+        Set<UUID> busIds = new HashSet<>();
+        encontrados.forEach(s -> busIds.add(s.getBusId()));
+        Map<UUID, String> placas = new HashMap<>();
+        buses.findAllById(busIds).forEach(b -> placas.put(b.getBusId(), b.getPlaca()));
+        return encontrados.stream()
+                .map(s -> respuesta(s, placas.getOrDefault(s.getBusId(), "-"), false))
                 .toList();
+    }
+
+    /**
+     * ADMIN_SISTEMA ve todas las sucursales (null); los demás solo la suya.
+     * Si el token no trae sucursalId → 403 SUCURSAL_AJENA (no se cae a "todas").
+     */
+    private static UUID sucursalDelFiltro(UsuarioActual usuario) {
+        if (usuario.esAdminSistema()) {
+            return null;
+        }
+        usuario.verificarAccesoSucursal(usuario.sucursalId());   // con sucursalId null lanza ProhibidoException
+        return usuario.sucursalId();
     }
 
     @Transactional(readOnly = true)
