@@ -54,8 +54,9 @@ public class CategoriaControlador {
     @PutMapping("/{id}")
     @RequiereRol(Roles.ADMIN_SISTEMA)
     @Operation(summary = "M3 · Renombra, activa o desactiva una categoría (publica CategoriaGastoActualizada)")
-    public ResponseEntity<CategoriaRespuesta> actualizar(@PathVariable UUID id,
-                                                         @RequestBody @Valid ActualizarCategoriaSolicitud solicitud) {
+    public ResponseEntity<CategoriaRespuesta> actualizar(
+            @PathVariable UUID id,
+            @RequestBody @Valid ActualizarCategoriaSolicitud solicitud) {
         return ResponseEntity.ok(servicio.actualizar(id, solicitud));
     }
 }

@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Reportes por sucursal (RS1–RS6). Cada ruta responde JSON o PDF según
+ * {@code ?format=json|pdf} (por defecto PDF). ADMIN_SUCURSAL solo su sucursal
+ * (403 SUCURSAL_AJENA si pide otra); ADMIN_SISTEMA cualquiera.
+ */
 @RestController
 @RequestMapping("/reports/sucursales/{id}")
 @Tag(name = "Reportes por sucursal", description = "RS1–RS6 (ADMIN_SUCURSAL su sucursal, ADMIN_SISTEMA cualquiera)")
@@ -44,142 +49,116 @@ public class ReporteSucursalControlador {
     }
 
     @GetMapping("/buses")
-    @Operation(summary = "RS1 · Buses de la sucursal")
+    @Operation(summary = "RS1 · Buses de la sucursal (json | pdf)")
     public ResponseEntity<?> buses(@PathVariable UUID id,
                                    @RequestParam(required = false) String estado,
-                                   @Parameter(hidden = true) UsuarioActual usuario) {
+                                   @Parameter(description = "json o pdf")
+                                   @RequestParam(defaultValue = "pdf") String format,
+                                   @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.BUSES).datos(
-                ParametrosReporte.builder().sucursalId(id).estado(estado).build()));
-    }
-
-    @GetMapping("/buses/pdf")
-    @Operation(summary = "RS1 · Buses de la sucursal (PDF)")
-    public ResponseEntity<byte[]> busesPdf(@PathVariable UUID id,
-                                           @RequestParam(required = false) String estado,
-                                           @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.BUSES).generar(
-                ParametrosReporte.builder().sucursalId(id).estado(estado).build()), "buses", null, null);
+        ParametrosReporte params =
+                ParametrosReporte.builder().sucursalId(id).estado(estado).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.BUSES).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.BUSES).generar(params), "buses", null, null);
     }
 
     @GetMapping("/choferes")
-    @Operation(summary = "RS2 · Choferes de la sucursal")
+    @Operation(summary = "RS2 · Choferes de la sucursal (json | pdf)")
     public ResponseEntity<?> choferes(@PathVariable UUID id,
                                       @RequestParam(required = false) String estado,
-                                      @Parameter(hidden = true) UsuarioActual usuario) {
+                                      @Parameter(description = "json o pdf")
+                                      @RequestParam(defaultValue = "pdf") String format,
+                                      @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.CHOFERES).datos(
-                ParametrosReporte.builder().sucursalId(id).estado(estado).build()));
-    }
-
-    @GetMapping("/choferes/pdf")
-    @Operation(summary = "RS2 · Choferes de la sucursal (PDF)")
-    public ResponseEntity<byte[]> choferesPdf(@PathVariable UUID id,
-                                              @RequestParam(required = false) String estado,
-                                              @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.CHOFERES).generar(
-                ParametrosReporte.builder().sucursalId(id).estado(estado).build()), "choferes", null, null);
+        ParametrosReporte params =
+                ParametrosReporte.builder().sucursalId(id).estado(estado).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.CHOFERES).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.CHOFERES).generar(params), "choferes", null, null);
     }
 
     @GetMapping("/ingresos-boletos")
-    @Operation(summary = "RS3 · Ingresos por boletos (filtros ruta y bus)")
+    @Operation(summary = "RS3 · Ingresos por boletos, filtros ruta y bus (json | pdf)")
     public ResponseEntity<?> ingresosBoletos(@PathVariable UUID id,
                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                                              @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
                                              @RequestParam(required = false) UUID rutaId,
                                              @RequestParam(required = false) UUID busId,
-                                             @Parameter(hidden = true) UsuarioActual usuario) {
+                                             @Parameter(description = "json o pdf")
+                                             @RequestParam(defaultValue = "pdf") String format,
+                                             @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS_BOLETOS).datos(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).rutaId(rutaId).busId(busId).build()));
-    }
-
-    @GetMapping("/ingresos-boletos/pdf")
-    @Operation(summary = "RS3 · Ingresos por boletos (PDF)")
-    public ResponseEntity<byte[]> ingresosBoletosPdf(@PathVariable UUID id,
-                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-                                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-                                                     @RequestParam(required = false) UUID rutaId,
-                                                     @RequestParam(required = false) UUID busId,
-                                                     @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.INGRESOS_BOLETOS).generar(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).rutaId(rutaId).busId(busId).build()),
+        ParametrosReporte params = ParametrosReporte.builder()
+                .sucursalId(id).desde(desde).hasta(hasta).rutaId(rutaId).busId(busId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS_BOLETOS).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.INGRESOS_BOLETOS).generar(params),
                 "ingresos-boletos", desde, hasta);
     }
 
     @GetMapping("/ingresos-alquiler")
-    @Operation(summary = "RS4 · Ingresos por alquiler")
+    @Operation(summary = "RS4 · Ingresos por alquiler (json | pdf)")
     public ResponseEntity<?> ingresosAlquiler(@PathVariable UUID id,
                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-                                              @Parameter(hidden = true) UsuarioActual usuario) {
+                                              @Parameter(description = "json o pdf")
+                                              @RequestParam(defaultValue = "pdf") String format,
+                                              @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS_ALQUILER).datos(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).build()));
-    }
-
-    @GetMapping("/ingresos-alquiler/pdf")
-    @Operation(summary = "RS4 · Ingresos por alquiler (PDF)")
-    public ResponseEntity<byte[]> ingresosAlquilerPdf(@PathVariable UUID id,
-                                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-                                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-                                                      @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.INGRESOS_ALQUILER).generar(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).build()),
+        ParametrosReporte params = ParametrosReporte.builder()
+                .sucursalId(id).desde(desde).hasta(hasta).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.INGRESOS_ALQUILER).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.INGRESOS_ALQUILER).generar(params),
                 "ingresos-alquiler", desde, hasta);
     }
 
     @GetMapping("/depreciacion")
-    @Operation(summary = "RS5 · Depreciación por bus")
+    @Operation(summary = "RS5 · Depreciación por bus (json | pdf)")
     public ResponseEntity<?> depreciacion(@PathVariable UUID id,
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
                                           @RequestParam(required = false) UUID busId,
-                                          @Parameter(hidden = true) UsuarioActual usuario) {
+                                          @Parameter(description = "json o pdf")
+                                          @RequestParam(defaultValue = "pdf") String format,
+                                          @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.DEPRECIACION).datos(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).busId(busId).build()));
-    }
-
-    @GetMapping("/depreciacion/pdf")
-    @Operation(summary = "RS5 · Depreciación por bus (PDF)")
-    public ResponseEntity<byte[]> depreciacionPdf(@PathVariable UUID id,
-                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-                                                  @RequestParam(required = false) UUID busId,
-                                                  @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.DEPRECIACION).generar(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).busId(busId).build()),
+        ParametrosReporte params = ParametrosReporte.builder()
+                .sucursalId(id).desde(desde).hasta(hasta).busId(busId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.DEPRECIACION).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.DEPRECIACION).generar(params),
                 "depreciacion", desde, hasta);
     }
 
     @GetMapping("/taller-por-bus")
-    @Operation(summary = "RS6 · Gastos de taller por bus, agrupados por categoría")
+    @Operation(summary = "RS6 · Gastos de taller por bus, agrupados por categoría (json | pdf)")
     public ResponseEntity<?> tallerPorBus(@PathVariable UUID id,
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
                                           @RequestParam(required = false) UUID busId,
-                                          @Parameter(hidden = true) UsuarioActual usuario) {
+                                          @Parameter(description = "json o pdf")
+                                          @RequestParam(defaultValue = "pdf") String format,
+                                          @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
-        return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_POR_BUS).datos(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).busId(busId).build()));
-    }
-
-    @GetMapping("/taller-por-bus/pdf")
-    @Operation(summary = "RS6 · Gastos de taller por bus (PDF)")
-    public ResponseEntity<byte[]> tallerPorBusPdf(@PathVariable UUID id,
-                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
-                                                  @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
-                                                  @RequestParam(required = false) UUID busId,
-                                                  @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
-        verificarAcceso(id, usuario);
-        return ReporteSistemaControlador.pdf(fabrica.obtener(TipoReporte.TALLER_POR_BUS).generar(
-                ParametrosReporte.builder().sucursalId(id).desde(desde).hasta(hasta).busId(busId).build()),
+        ParametrosReporte params = ParametrosReporte.builder()
+                .sucursalId(id).desde(desde).hasta(hasta).busId(busId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_POR_BUS).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.TALLER_POR_BUS).generar(params),
                 "taller-por-bus", desde, hasta);
     }
 }

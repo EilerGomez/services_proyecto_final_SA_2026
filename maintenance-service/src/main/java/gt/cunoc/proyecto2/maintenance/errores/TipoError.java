@@ -11,7 +11,7 @@ import java.util.function.BiFunction;
 
 public enum TipoError {
 
-    SOLICITUD_INVALIDA(SolicitudInvalidaException::new),        // 400
+    SOLICITUD_INVALIDA(SolicitudInvalidaException::new),         // 400
     PROHIBIDO(ProhibidoException::new),                          // 403
     NO_ENCONTRADO(NoEncontradoException::new),                   // 404
     CONFLICTO(ConflictoException::new),                          // 409

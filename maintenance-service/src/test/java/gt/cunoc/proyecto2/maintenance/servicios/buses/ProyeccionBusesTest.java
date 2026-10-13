@@ -24,7 +24,7 @@ class ProyeccionBusesTest {
     VistaBusRepositorio buses;
 
     @InjectMocks
-    ProyeccionBuses proyeccion;
+    ProyeccionBusesImpl proyeccion;
 
     private final UUID busId = UUID.randomUUID();
     private final UUID sucursalId = UUID.randomUUID();

@@ -101,7 +101,8 @@ class ReportesIT {
     }
 
     private ResponseEntity<String> getJson(String ruta, String token) {
-        var peticion = http.method(HttpMethod.GET).uri(ruta);
+        String url = ruta.contains("?") ? ruta + "&format=json" : ruta + "?format=json";
+        var peticion = http.method(HttpMethod.GET).uri(url);
         if (token != null) {
             peticion.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
         }
@@ -132,9 +133,9 @@ class ReportesIT {
     @Test
     void reportesGlobalesPdfRespondenPdf() {
         String token = tokenAdminSistema();
-        for (String ruta : new String[]{"/reports/ingresos/pdf", "/reports/gastos/pdf",
-                "/reports/ganancias/pdf", "/reports/rutas-demandadas/pdf",
-                "/reports/taller-por-categoria/pdf", "/reports/mapa-rutas/pdf"}) {
+        for (String ruta : new String[]{"/reports/ingresos?format=pdf", "/reports/gastos?format=pdf",
+                "/reports/ganancias?format=pdf", "/reports/rutas-demandadas?format=pdf",
+                "/reports/taller-por-categoria?format=pdf", "/reports/mapa-rutas?format=pdf"}) {
             ResponseEntity<byte[]> respuesta = getPdf(ruta, token);
             assertThat(respuesta.getStatusCode().value()).as(ruta).isEqualTo(200);
             assertThat(respuesta.getHeaders().getContentType()).as(ruta)
@@ -143,6 +144,10 @@ class ReportesIT {
                     .startsWith("attachment;");
             assertThat(new String(respuesta.getBody(), 0, 5)).as(ruta).isEqualTo("%PDF-");
         }
+        // sin format responde PDF por defecto
+        ResponseEntity<byte[]> defecto = getPdf("/reports/ganancias", token);
+        assertThat(defecto.getStatusCode().value()).isEqualTo(200);
+        assertThat(new String(defecto.getBody(), 0, 5)).isEqualTo("%PDF-");
     }
 
     // ----- RS1–RS6 (scoping por sucursal) -----
@@ -167,7 +172,7 @@ class ReportesIT {
     void reportesSucursalPdfRespondenPdf() {
         String token = tokenAdminSistema();
         for (String ruta : rutasSucursal(sucursalPropia)) {
-            ResponseEntity<byte[]> respuesta = getPdf(ruta + "/pdf", token);
+            ResponseEntity<byte[]> respuesta = getPdf(ruta + "?format=pdf", token);
             assertThat(respuesta.getStatusCode().value()).as(ruta).isEqualTo(200);
             assertThat(new String(respuesta.getBody(), 0, 5)).as(ruta).isEqualTo("%PDF-");
         }
