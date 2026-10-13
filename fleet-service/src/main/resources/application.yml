@@ -11,8 +11,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_flota}
-    username: postgres
-    password: ${DB_PASSWORD:postgresql}
+    username: ${DB_USER:usr_flota}
+    password: ${DB_PASSWORD:cambiar_flota}
 
   jpa:
     open-in-view: false

@@ -7,7 +7,7 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_reportes}
-    username: usr_reportes
+    username: ${DB_USER:usr_reportes}
     password: ${DB_PASSWORD:cambiar_reportes}
 
   jpa:

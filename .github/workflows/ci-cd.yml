@@ -3,11 +3,12 @@
 #
 # Pull Request a develop/main -> compila y corre TODAS las pruebas (mvn verify, incluye JaCoCo de comun).
 # Push (merge) a develop      -> compila y corre todas las pruebas (no despliega).
-# Push (merge) a main         -> por cada servicio que cambió: pruebas, imagen :latest y despliegue en PRODUCCIÓN.
+# Push (merge) a main         -> por cada servicio que cambió: SOLO compila (sin pruebas, perfil despliegue),
+#                                imagen :latest y despliegue en PRODUCCIÓN. Las pruebas ya pasaron en el PR.
 # Manual (Actions → Run workflow, rama main) -> despliega TODOS los servicios en producción.
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
-#   VM_HOST     IP externa de la VM de Google Cloud
+#   VM_HOST     IP externa de la VM
 #   VM_USER     deploy
 #   VM_SSH_KEY  llave PRIVADA ed25519 cuya pública está en /home/deploy/.ssh/authorized_keys
 # =====================================================================
@@ -42,7 +43,7 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Compilar y probar todo el repositorio
-        run: mvn -B verify
+        run: mvn -B -ntp verify
 
   # ------------------------------------------------------------------
   cambios:
@@ -92,8 +93,9 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Pruebas y empaquetado (servicio + comun)
-        run: mvn -B -pl "$SERVICIO" -am verify
+      # Perfil despliegue (pom.xml padre): no compila ni corre pruebas y no revisa JaCoCo. Solo arma el JAR.
+      - name: Compilar y empaquetar sin pruebas (servicio + comun)
+        run: mvn -B -ntp -Pdespliegue -pl "$SERVICIO" -am package
 
       - name: Entorno de producción
         run: |

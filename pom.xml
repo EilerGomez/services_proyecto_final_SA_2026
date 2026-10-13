@@ -38,6 +38,8 @@
         <spring-cloud.version>2025.1.3</spring-cloud.version>
         <springdoc.version>3.0.3</springdoc.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <!-- Versión del BOM de Google Cloud (google-cloud-storage para las fotos de identity y fleet) -->
+        <google-cloud-bom.version>26.90.0</google-cloud-bom.version>
         <!-- Cobertura mínima de líneas que exige jacoco:check en mvn verify -->
         <jacoco.cobertura.minima>0.85</jacoco.cobertura.minima>                          <!-- unitarias (*Test) -->
         <jacoco.cobertura.minima.integracion>0.65</jacoco.cobertura.minima.integracion>  <!-- integración (*IT) -->
@@ -71,7 +73,7 @@
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>libraries-bom</artifactId>
-                <version>26.90.0</version>
+                <version>${google-cloud-bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -241,4 +243,21 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          Despliegue (CI/CD al hacer push a main): solo compila el código y arma los JAR.
+            mvn -B -ntp -Pdespliegue -pl <servicio> -am package
+          maven.test.skip: no compila ni ejecuta las pruebas (unitarias ni de integración).
+          jacoco.skip:     no instrumenta ni revisa cobertura.
+          Las pruebas se corren en desarrollo y antes del merge (mvn verify); aquí solo se empaqueta.
+        -->
+        <profile>
+            <id>despliegue</id>
+            <properties>
+                <maven.test.skip>true</maven.test.skip>
+                <jacoco.skip>true</jacoco.skip>
+            </properties>
+        </profile>
+    </profiles>
 </project>

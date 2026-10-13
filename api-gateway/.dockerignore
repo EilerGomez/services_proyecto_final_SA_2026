@@ -1,4 +1,6 @@
-target
+# target/ se excluye, menos el JAR que copia el Dockerfile
+target/*
+!target/api-gateway.jar
 .git
 .idea
 .mvn

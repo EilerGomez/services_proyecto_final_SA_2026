@@ -13,6 +13,11 @@
     <artifactId>identity-service</artifactId>
     <name>identity-service</name>
 
+    <properties>
+        <!-- Clase principal: la usan el botón Run de NetBeans (exec:exec) y spring-boot:run -->
+        <start-class>gt.cunoc.proyecto2.identity.IdentityServiceApplication</start-class>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>gt.cunoc.proyecto2</groupId>

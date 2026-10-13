@@ -4,7 +4,8 @@
 #
 # Desarrollo local (servicios desde NetBeans):
 #   docker compose up -d                       -> solo RabbitMQ y Mailpit
-# Todo en Docker (después de: mvn -DskipTests package):
+# Todo en Docker (primero se arman los JAR sin pruebas):
+#   mvn -B -ntp -Pdespliegue package
 #   docker compose --profile app up -d --build
 # VM, dos entornos:
 #   docker compose -p dev  --env-file .env.dev  --profile app up -d
@@ -82,6 +83,7 @@ services:
       - "${GATEWAY_PORT:-8080}:8080"        # el único puerto público de la aplicación
 
   # ---------- Microservicios ----------
+  # DB_USER / DB_PASSWORD: el usuario dueño de cada base (00_crear_bases.sql). Se pueden cambiar en el .env.
   identity-service:
     <<: *servicio-java
     build: ./identity-service
@@ -89,6 +91,7 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_identidad${DB_SUFIJO:-}
+      DB_USER: ${DB_IDENTIDAD_USER:-usr_identidad}
       DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       ADMIN_CORREO: ${ADMIN_CORREO:-}
@@ -103,7 +106,10 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_flota${DB_SUFIJO:-}
+      DB_USER: ${DB_FLOTA_USER:-usr_flota}
       DB_PASSWORD: ${DB_FLOTA_PASSWORD:-cambiar_flota}
+      IDENTITY_URL: http://identity-service:8081   # R5
+      TRIPS_URL: http://trips-service:8083         # R3
       FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
       FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
@@ -114,7 +120,9 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_viajes${DB_SUFIJO:-}
+      DB_USER: ${DB_VIAJES_USER:-usr_viajes}
       DB_PASSWORD: ${DB_VIAJES_PASSWORD:-cambiar_viajes}
+      FLEET_URL: http://fleet-service:8082         # R1a y R1b
 
   sales-service:
     <<: *servicio-java
@@ -123,7 +131,9 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_ventas${DB_SUFIJO:-}
+      DB_USER: ${DB_VENTAS_USER:-usr_ventas}
       DB_PASSWORD: ${DB_VENTAS_PASSWORD:-cambiar_ventas}
+      TRIPS_URL: http://trips-service:8083         # R2
 
   maintenance-service:
     <<: *servicio-java
@@ -132,6 +142,7 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_mantenimiento${DB_SUFIJO:-}
+      DB_USER: ${DB_MANTENIMIENTO_USER:-usr_mantenimiento}
       DB_PASSWORD: ${DB_MANTENIMIENTO_PASSWORD:-cambiar_mantenimiento}
 
   reporting-service:
@@ -141,6 +152,7 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_reportes${DB_SUFIJO:-}
+      DB_USER: ${DB_REPORTES_USER:-usr_reportes}
       DB_PASSWORD: ${DB_REPORTES_PASSWORD:-cambiar_reportes}
 
   notification-service:
@@ -150,7 +162,9 @@ services:
     environment:
       <<: *env-comun
       DB_NAME: bd_notificaciones${DB_SUFIJO:-}
+      DB_USER: ${DB_NOTIFICACIONES_USER:-usr_notificaciones}
       DB_PASSWORD: ${DB_NOTIFICACIONES_PASSWORD:-cambiar_notificaciones}
+      IDENTITY_URL: http://identity-service:8081   # R4 (recordatorios de licencia)
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
       MAIL_USER: ${MAIL_USER:-}

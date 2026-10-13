@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:5432/${DB_NAME:bd_viajes}
-    username: postgres
-    password: ${DB_PASSWORD:postgresql}
+    username: ${DB_USER:usr_viajes}
+    password: ${DB_PASSWORD:cambiar_viajes}
 
   jpa:
     open-in-view: false
@@ -34,7 +34,7 @@ spring:
           initial-interval: 1000
           multiplier: 2
 
-# Eventos (módulo comun). SE ACTIVA EN EL PASO 6 (cuando exista la tabla eventos_salida).
+# Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo.
 # Publica: RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado,
 #          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada
 comun:
