@@ -217,7 +217,9 @@ class ProyeccionReportingServicioTest {
         guardada.setVersion(3);
         when(sucursales.findById(id)).thenReturn(Optional.of(guardada));
         proyeccion.aplicarSucursal(evento, 5L);
+        assertThat(guardada.getVersion()).isEqualTo(5);
         proyeccion.aplicarSucursal(evento, 0L); // vieja: se descarta
+        assertThat(guardada.getVersion()).isEqualTo(5);
 
         verify(sucursales, org.mockito.Mockito.times(2)).save(any());
     }
@@ -237,6 +239,7 @@ class ProyeccionReportingServicioTest {
         proyeccion.aplicarBus(evento, 0L); // vieja
         proyeccion.desactivarBus(id, 9L);
         assertThat(guardado.getEstado()).isEqualTo("INACTIVO");
+        assertThat(guardado.getVersion()).isEqualTo(9);
         guardado.setVersion(20);
         proyeccion.desactivarBus(id, 0L); // vieja
         proyeccion.desactivarBus(UUID.randomUUID(), 1L); // no existe
@@ -260,6 +263,7 @@ class ProyeccionReportingServicioTest {
         proyeccion.aplicarChofer(evento, 0L); // vieja
         proyeccion.desactivarChofer(id, 7L);
         assertThat(guardado.getEstado()).isEqualTo("INACTIVO");
+        assertThat(guardado.getVersion()).isEqualTo(7);
         guardado.setVersion(20);
         proyeccion.desactivarChofer(id, 0L); // vieja
         proyeccion.desactivarChofer(UUID.randomUUID(), 1L); // no existe
@@ -313,6 +317,7 @@ class ProyeccionReportingServicioTest {
                 UUID.randomUUID(), null);
         proyeccion.aplicarViajeActualizado(actualizado, 1L);
         proyeccion.aplicarViaje(actualizado, 0L); // versión vieja
+        assertThat(guardado.getVersion()).isEqualTo(1);
         guardado.setEstado("COMPLETADO");
         proyeccion.aplicarViaje(actualizado, 9L); // completado no revive
 
@@ -324,6 +329,7 @@ class ProyeccionReportingServicioTest {
         proyeccion.marcarViajeEnRuta(viajeId, busId, 0L); // vieja
         proyeccion.marcarViajeEnRuta(viajeId, null, 5L);
         assertThat(guardado.getEstado()).isEqualTo("EN_RUTA");
+        assertThat(guardado.getVersion()).isEqualTo(5);
 
         verify(viajes, org.mockito.Mockito.atLeastOnce()).save(any());
         verify(viajes).deleteById(viajeId);
@@ -409,5 +415,179 @@ class ProyeccionReportingServicioTest {
 
         assertThat(gasto.getCategoriaNombre()).isEqualTo("Motor");
         verify(gastos).saveAll(any());
+    }
+
+    // ----- version = aggregateVersion del origen (no @Version de JPA) -----
+
+    /** ViajeCompletado de un viaje EN_RUTA del bus: sube total_viajes y recalcula el chofer actual. */
+    private void completarViaje(UUID busId, UUID choferId, long versionViaje) {
+        ViajeEntidad viaje = new ViajeEntidad();
+        viaje.setViajeId(UUID.randomUUID());
+        viaje.setBusId(busId);
+        viaje.setChoferId(choferId);
+        viaje.setSucursalId(UUID.randomUUID());
+        viaje.setEstado("EN_RUTA");
+        when(viajes.findById(viaje.getViajeId())).thenReturn(Optional.of(viaje));
+        var evento = new ViajeCompletado(viaje.getViajeId(), "REGULAR", null, viaje.getSucursalId(),
+                busId, choferId, new BigDecimal("200"), new BigDecimal("400"), new BigDecimal("1.25"),
+                new BigDecimal("250"), new BigDecimal("350"), null);
+        proyeccion.aplicarViajeCompletado(UUID.randomUUID(), evento, versionViaje, LocalDate.of(2026, 10, 20));
+        assertThat(viaje.getVersion()).isEqualTo((int) versionViaje);
+    }
+
+    @Test
+    void busConViajesLocalesAceptaBusActualizadoConLaSiguienteVersion() {
+        UUID busId = UUID.randomUUID();
+        UUID sucursalId = UUID.randomUUID();
+        UUID choferProximo = UUID.randomUUID();
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setSucursalId(sucursalId);
+        bus.setPlaca("C123ABC");
+        bus.setEstado("ACTIVO");
+        bus.setVersion(2); // último BusActualizado de Fleet
+        when(buses.findById(busId)).thenReturn(Optional.of(bus));
+        when(viajes.choferActualDe(any(), any())).thenReturn(List.of(choferProximo));
+
+        completarViaje(busId, null, 4L);
+        completarViaje(busId, null, 4L);
+        completarViaje(busId, null, 4L);
+
+        // Los cambios locales no tocan la versión de Fleet
+        assertThat(bus.getTotalViajes()).isEqualTo(3);
+        assertThat(bus.getChoferActualId()).isEqualTo(choferProximo);
+        assertThat(bus.getVersion()).isEqualTo(2);
+
+        proyeccion.aplicarBus(new BusEvento(busId, sucursalId, "C123ABC", "Volvo", "B12", 50,
+                "EN_TALLER", new BigDecimal("1500.00")), 3L);
+
+        assertThat(bus.getEstado()).isEqualTo("EN_TALLER");
+        assertThat(bus.getKilometrajeActual()).isEqualByComparingTo("1500.00");
+        assertThat(bus.getVersion()).isEqualTo(3);
+        assertThat(bus.getTotalViajes()).isEqualTo(3);
+        assertThat(bus.getChoferActualId()).isEqualTo(choferProximo);
+    }
+
+    @Test
+    void busActualizadoConVersionMenorSeDescartaEIgualSeAplica() {
+        UUID busId = UUID.randomUUID();
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        bus.setEstado("ACTIVO");
+        bus.setTotalViajes(4);
+        bus.setVersion(5);
+        when(buses.findById(busId)).thenReturn(Optional.of(bus));
+        var evento = new BusEvento(busId, UUID.randomUUID(), "C999ZZZ", "Volvo", "B12", 50,
+                "EN_TALLER", null);
+
+        proyeccion.aplicarBus(evento, 4L); // vieja: se descarta
+        proyeccion.desactivarBus(busId, 4L); // vieja: se descarta
+
+        assertThat(bus.getPlaca()).isEqualTo("C123ABC");
+        assertThat(bus.getEstado()).isEqualTo("ACTIVO");
+        assertThat(bus.getVersion()).isEqualTo(5);
+        verify(buses, never()).save(any());
+
+        proyeccion.aplicarBus(evento, 5L); // misma versión (republicación): se aplica
+        assertThat(bus.getPlaca()).isEqualTo("C999ZZZ");
+        assertThat(bus.getVersion()).isEqualTo(5);
+        assertThat(bus.getTotalViajes()).isEqualTo(4);
+        verify(buses).save(bus);
+    }
+
+    @Test
+    void choferDesactivadoDespuesDeVariosViajesSeAplica() {
+        UUID choferId = UUID.randomUUID();
+        ChoferEntidad chofer = new ChoferEntidad();
+        chofer.setId(choferId);
+        chofer.setEstado("ACTIVO");
+        chofer.setVersion(2); // ChoferCreado (1) + ChoferActualizado (2)
+        when(choferes.findById(choferId)).thenReturn(Optional.of(chofer));
+
+        UUID busId = UUID.randomUUID();
+        completarViaje(busId, choferId, 4L);
+        completarViaje(busId, choferId, 4L);
+        completarViaje(busId, choferId, 4L);
+        assertThat(chofer.getTotalViajes()).isEqualTo(3);
+        assertThat(chofer.getVersion()).isEqualTo(2);
+
+        proyeccion.desactivarChofer(choferId, 3L);
+
+        assertThat(chofer.getEstado()).isEqualTo("INACTIVO");
+        assertThat(chofer.getVersion()).isEqualTo(3);
+        assertThat(chofer.getTotalViajes()).isEqualTo(3);
+    }
+
+    @Test
+    void eventoSinVersionSeAplicaYNoBajaLaVersionGuardada() {
+        UUID busId = UUID.randomUUID();
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        bus.setEstado("ACTIVO");
+        bus.setVersion(7);
+        when(buses.findById(busId)).thenReturn(Optional.of(bus));
+
+        proyeccion.aplicarBus(new BusEvento(busId, UUID.randomUUID(), "C999ZZZ", null, null, null,
+                "EN_TALLER", null), null);
+        assertThat(bus.getPlaca()).isEqualTo("C999ZZZ");
+        assertThat(bus.getEstado()).isEqualTo("EN_TALLER");
+        assertThat(bus.getVersion()).isEqualTo(7);
+
+        proyeccion.desactivarBus(busId, null);
+        assertThat(bus.getEstado()).isEqualTo("INACTIVO");
+        assertThat(bus.getVersion()).isEqualTo(7);
+
+        UUID choferId = UUID.randomUUID();
+        ChoferEntidad chofer = new ChoferEntidad();
+        chofer.setId(choferId);
+        chofer.setEstado("ACTIVO");
+        chofer.setVersion(4);
+        when(choferes.findById(choferId)).thenReturn(Optional.of(chofer));
+        proyeccion.desactivarChofer(choferId, null);
+        assertThat(chofer.getEstado()).isEqualTo("INACTIVO");
+        assertThat(chofer.getVersion()).isEqualTo(4);
+
+        // Alta sin versión: la columna NOT NULL queda en 0
+        UUID nuevoId = UUID.randomUUID();
+        when(buses.findById(nuevoId)).thenReturn(Optional.empty());
+        proyeccion.aplicarBus(new BusEvento(nuevoId, UUID.randomUUID(), "P1", null, null, null, null, null),
+                null);
+        ArgumentCaptor<BusEntidad> captor = ArgumentCaptor.forClass(BusEntidad.class);
+        verify(buses, org.mockito.Mockito.times(3)).save(captor.capture());
+        BusEntidad nuevo = captor.getAllValues().get(2);
+        assertThat(nuevo.getId()).isEqualTo(nuevoId);
+        assertThat(nuevo.getVersion()).isZero();
+    }
+
+    @Test
+    void altaGuardaLaVersionDelEventoYLaDeViajeSigueATrips() {
+        UUID busId = UUID.randomUUID();
+        when(buses.findById(busId)).thenReturn(Optional.empty());
+        proyeccion.aplicarBus(new BusEvento(busId, UUID.randomUUID(), "P1", null, null, null, null, null), 1L);
+        ArgumentCaptor<BusEntidad> bus = ArgumentCaptor.forClass(BusEntidad.class);
+        verify(buses).save(bus.capture());
+        assertThat(bus.getValue().getVersion()).isEqualTo(1);
+
+        UUID viajeId = UUID.randomUUID();
+        ViajeEntidad viaje = new ViajeEntidad();
+        viaje.setViajeId(viajeId);
+        viaje.setBusId(busId);
+        viaje.setEstado("PROGRAMADO");
+        viaje.setVersion(1);
+        when(viajes.findById(viajeId)).thenReturn(Optional.of(viaje));
+
+        proyeccion.marcarViajeEnRuta(viajeId, busId, 3L);
+        assertThat(viaje.getEstado()).isEqualTo("EN_RUTA");
+        assertThat(viaje.getVersion()).isEqualTo(3);
+
+        var completado = new ViajeCompletado(viajeId, "REGULAR", null, UUID.randomUUID(), busId, null,
+                new BigDecimal("10"), null, null, null, null, null);
+        proyeccion.aplicarViajeCompletado(UUID.randomUUID(), completado, 2L, LocalDate.now()); // vieja
+        assertThat(viaje.getEstado()).isEqualTo("EN_RUTA");
+        proyeccion.aplicarViajeCompletado(UUID.randomUUID(), completado, 4L, LocalDate.now());
+        assertThat(viaje.getEstado()).isEqualTo("COMPLETADO");
+        assertThat(viaje.getVersion()).isEqualTo(4);
     }
 }

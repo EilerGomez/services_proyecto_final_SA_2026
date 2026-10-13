@@ -363,10 +363,95 @@ class ReportesIT {
                 .contains("INACTIVO");
     }
 
+    // ----- version = aggregateVersion de Fleet/Trips (los cambios locales no la suben) -----
+
+    @Test
+    void busYChoferConViajesCompletadosSiguenAceptandoEventosDeFleet() {
+        UUID sucursalId = sucursalPropia;
+        UUID busId = UUID.randomUUID();
+        UUID choferId = UUID.randomUUID();
+        UUID rutaId = UUID.randomUUID();
+
+        publicar("fleet.eventos", "BusCreado", busId,
+                busJson(busId, sucursalId, "C123ABC", "ACTIVO"), 1L);
+        publicar("fleet.eventos", "ChoferCreado", choferId, choferJson(choferId, sucursalId), 1L);
+        publicar("trips.eventos", "RutaCreada", rutaId,
+                rutaJson(rutaId, sucursalId, sucursalAjena, "Norte", "Sur"));
+        // Tres viajes completos: suben total_viajes y cambian chofer_actual_id (cambios locales)
+        for (int i = 0; i < 3; i++) {
+            UUID viajeId = UUID.randomUUID();
+            publicar("trips.eventos", "ViajeProgramado", viajeId,
+                    viajeJson(viajeId, rutaId, sucursalId, busId, choferId), 1L);
+            publicar("trips.eventos", "ViajeIniciado", viajeId,
+                    "{\"viajeId\":\"" + viajeId + "\",\"busId\":\"" + busId + "\",\"choferId\":\""
+                            + choferId + "\"}", 2L);
+            publicar("trips.eventos", "ViajeCompletado", viajeId,
+                    "{\"viajeId\":\"" + viajeId + "\",\"tipo\":\"REGULAR\",\"rutaId\":\"" + rutaId + "\","
+                            + "\"sucursalId\":\"" + sucursalId + "\",\"busId\":\"" + busId + "\","
+                            + "\"choferId\":\"" + choferId + "\",\"kmRecorridos\":200.00,"
+                            + "\"costoCombustible\":400.00,\"tarifaDepreciacion\":1.2500,"
+                            + "\"costoDepreciacion\":250.00,\"salarioChofer\":350.00}", 3L);
+        }
+        // contar(...) no lanza excepción si la fila todavía no existe
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertThat(contar("buses WHERE id = '" + busId + "' AND total_viajes = 3")).isEqualTo(1);
+            assertThat(contar("choferes WHERE id = '" + choferId + "' AND total_viajes = 3")).isEqualTo(1);
+        });
+        // Los cambios locales no tocaron la versión de Fleet
+        assertThat(jdbc.queryForObject("SELECT version FROM buses WHERE id = ?", Integer.class, busId))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT version FROM choferes WHERE id = ?", Integer.class, choferId))
+                .isEqualTo(1);
+
+        // Siguiente versión de Fleet: se aplica (antes se descartaba sin error)
+        publicar("fleet.eventos", "BusActualizado", busId,
+                busJson(busId, sucursalId, "C123ABC", "EN_TALLER"), 2L);
+        publicar("fleet.eventos", "ChoferDesactivado", choferId,
+                "{\"choferId\":\"" + choferId + "\"}", 2L);
+
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertThat(jdbc.queryForMap("SELECT estado, version, total_viajes FROM buses WHERE id = ?", busId))
+                    .containsEntry("estado", "EN_TALLER")
+                    .containsEntry("version", 2)
+                    .containsEntry("total_viajes", 3);
+            assertThat(jdbc.queryForMap("SELECT estado, version, total_viajes FROM choferes WHERE id = ?",
+                    choferId))
+                    .containsEntry("estado", "INACTIVO")
+                    .containsEntry("version", 2)
+                    .containsEntry("total_viajes", 3);
+        });
+    }
+
+    // ----- cliente_nombre de hasta 201 caracteres (V3) -----
+
+    @Test
+    void clienteNombreDe201CaracteresSeGuarda() {
+        UUID ordenId = UUID.randomUUID();
+        String nombre = "N".repeat(100) + " " + "A".repeat(100);
+        publicar("sales.eventos", "AlquilerPagado", ordenId,
+                "{\"ordenId\":\"" + ordenId + "\",\"sucursalId\":\"" + sucursalPropia + "\","
+                        + "\"clienteNit\":\"CF\",\"clienteNombre\":\"" + nombre + "\","
+                        + "\"origen\":\"Norte\",\"destino\":\"Sur\",\"monto\":100.00}");
+
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(contar("ingresos WHERE referencia_id = '" + ordenId + "'")).isEqualTo(1));
+        assertThat(jdbc.queryForObject(
+                "SELECT cliente_nombre FROM ingresos WHERE referencia_id = ?", String.class, ordenId))
+                .hasSize(201)
+                .isEqualTo(nombre);
+    }
+
     private String busJson(UUID busId, UUID sucursalId, String placa, String estado) {
         return "{\"busId\":\"" + busId + "\",\"sucursalId\":\"" + sucursalId + "\",\"placa\":\"" + placa
                 + "\",\"marca\":\"Volvo\",\"modelo\":\"B12\",\"capacidadPasajeros\":50,\"estado\":\"" + estado
                 + "\",\"kilometrajeActual\":1000.00}";
+    }
+
+    private String choferJson(UUID choferId, UUID sucursalId) {
+        return "{\"choferId\":\"" + choferId + "\",\"usuarioId\":\"" + UUID.randomUUID() + "\","
+                + "\"sucursalId\":\"" + sucursalId + "\",\"nombreCompleto\":\"Luis Pérez\","
+                + "\"numeroLicencia\":\"LIC-112233\",\"tipoLicencia\":\"A\","
+                + "\"fechaVencimientoLicencia\":\"2027-03-15\",\"estado\":\"ACTIVO\"}";
     }
 
     private String rutaJson(UUID rutaId, UUID origenId, UUID destinoId, String origen, String destino) {

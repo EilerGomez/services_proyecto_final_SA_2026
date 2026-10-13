@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -54,6 +53,10 @@ public class ViajeEntidad {
     @Column(nullable = false, length = 12)
     private String estado;
 
-    @Version
-    private Integer version;
+    /**
+     * aggregateVersion del último evento de Trips aplicado (no es @Version de JPA).
+     * Se descarta el evento si su versión es menor.
+     */
+    @Column(nullable = false)
+    private int version;
 }

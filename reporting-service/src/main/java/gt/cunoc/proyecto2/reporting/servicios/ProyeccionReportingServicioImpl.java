@@ -71,13 +71,20 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         this.gastos = gastos;
     }
 
-    /** Versión vieja o igual ya aplicada: se aplica (>=); solo se descarta si es menor. */
-    private boolean versionVigente(Integer guardada, Long recibida) {
+    /**
+     * Compara la aggregateVersion del evento con la del último evento aplicado del origen
+     * (columna version, que los cambios locales no tocan). Igual se aplica (>=); menor se descarta.
+     */
+    private boolean versionVigente(int guardada, Long recibida) {
         if (recibida == null) {
             return true; // sin versión: gana el último en llegar
         }
-        int actual = guardada != null ? guardada : 0;
-        return recibida >= actual;
+        return recibida >= guardada;
+    }
+
+    /** Versión a guardar al aplicar un evento: la del evento; sin versión se conserva la guardada. */
+    private int versionAplicada(int guardada, Long recibida) {
+        return recibida != null ? Math.toIntExact(recibida) : guardada;
     }
 
     @Override
@@ -112,6 +119,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         entidad.setLatitud(evento.latitud());
         entidad.setLongitud(evento.longitud());
         entidad.setActiva(evento.activa());
+        entidad.setVersion(versionAplicada(entidad.getVersion(), versionAgregado));
         sucursales.save(entidad);
     }
 
@@ -133,6 +141,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         if (evento.kilometrajeActual() != null) {
             entidad.setKilometrajeActual(evento.kilometrajeActual());
         }
+        entidad.setVersion(versionAplicada(entidad.getVersion(), versionAgregado));
         // No se tocan total_viajes ni chofer_actual_id: los llevan los eventos de viaje.
         buses.save(entidad);
     }
@@ -145,6 +154,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
                 return;
             }
             bus.setEstado("INACTIVO");
+            bus.setVersion(versionAplicada(bus.getVersion(), versionAgregado));
             buses.save(bus);
         });
     }
@@ -164,6 +174,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         entidad.setTipoLicencia(evento.tipoLicencia() != null ? evento.tipoLicencia() : "-");
         entidad.setFechaVencimientoLicencia(evento.fechaVencimientoLicencia());
         entidad.setEstado(evento.estado() != null ? evento.estado() : "ACTIVO");
+        entidad.setVersion(versionAplicada(entidad.getVersion(), versionAgregado));
         // No se toca total_viajes: lo llevan los eventos de viaje.
         choferes.save(entidad);
     }
@@ -176,6 +187,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
                 return;
             }
             chofer.setEstado("INACTIVO");
+            chofer.setVersion(versionAplicada(chofer.getVersion(), versionAgregado));
             choferes.save(chofer);
         });
     }
@@ -228,6 +240,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         if (evento.fechaSalida() != null) {
             entidad.setFechaSalida(evento.fechaSalida());
         }
+        entidad.setVersion(versionAplicada(entidad.getVersion(), versionAgregado));
         viajes.save(entidad);
         recalcularChoferActual(entidad.getBusId());
     }
@@ -267,6 +280,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
             return;
         }
         viaje.setEstado("EN_RUTA");
+        viaje.setVersion(versionAplicada(viaje.getVersion(), versionAgregado));
         viajes.save(viaje);
         recalcularChoferActual(busId != null ? busId : viaje.getBusId());
     }
@@ -288,6 +302,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
             viaje.setKmRecorridos(evento.kmRecorridos());
             viaje.setTarifaDepreciacion(evento.tarifaDepreciacion());
             viaje.setCostoDepreciacion(evento.costoDepreciacion());
+            viaje.setVersion(versionAplicada(viaje.getVersion(), versionAgregado));
             viajes.save(viaje);
         }
         LocalDate fecha = fechaNegocio != null ? fechaNegocio : LocalDate.now();
@@ -297,6 +312,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
                 evento.viajeId(), evento.costoDepreciacion(), fecha, "Depreciación");
         guardarGastoSiFalta(eventoId, "SALARIO_CHOFER", null, evento.sucursalId(), evento.busId(),
                 evento.viajeId(), evento.salarioChofer(), fecha, "Salario del chofer");
+        // Cambios locales: no tocan la versión de Fleet guardada en buses/choferes
         buses.findById(evento.busId()).ifPresent(bus -> {
             bus.setTotalViajes(bus.getTotalViajes() + 1);
             buses.save(bus);

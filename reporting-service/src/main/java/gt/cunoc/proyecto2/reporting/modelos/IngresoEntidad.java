@@ -49,7 +49,7 @@ public class IngresoEntidad {
     @Column(name = "cliente_nit", length = 20)
     private String clienteNit;
 
-    @Column(name = "cliente_nombre", length = 200)
+    @Column(name = "cliente_nombre", length = 201)
     private String clienteNombre;
 
     @Column(length = 255)

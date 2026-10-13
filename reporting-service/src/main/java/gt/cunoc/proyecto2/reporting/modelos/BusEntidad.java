@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Getter;
@@ -49,6 +48,10 @@ public class BusEntidad {
     @Column(name = "total_viajes", nullable = false)
     private int totalViajes = 0;
 
-    @Version
-    private Integer version;
+    /**
+     * aggregateVersion del último evento de Fleet aplicado (no es @Version de JPA): los cambios
+     * locales (total_viajes, chofer_actual_id) no la tocan. Se descarta el evento si su versión es menor.
+     */
+    @Column(nullable = false)
+    private int version;
 }

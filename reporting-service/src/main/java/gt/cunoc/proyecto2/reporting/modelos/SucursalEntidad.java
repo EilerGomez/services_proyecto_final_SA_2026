@@ -4,7 +4,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Getter;
@@ -34,7 +33,10 @@ public class SucursalEntidad {
     @Column(nullable = false)
     private boolean activa = true;
 
-    /** Null al crear; se descarta el evento si su versión es <= a la guardada. */
-    @Version
-    private Integer version;
+    /**
+     * aggregateVersion del último evento de Fleet aplicado (no es @Version de JPA).
+     * Se descarta el evento si su versión es menor.
+     */
+    @Column(nullable = false)
+    private int version;
 }
