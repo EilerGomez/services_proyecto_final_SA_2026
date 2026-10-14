@@ -36,16 +36,16 @@ public class Perfil {
     @Column(name = "apellidos", length = 100, nullable = false)
     private String apellidos;
 
-    @Column(name = "nit", length = 20, nullable = false, unique = true)
+    @Column(name = "nit", length = 20, unique = true)
     private String nit;
 
-    @Column(name = "dpi", length = 13, nullable = false, unique = true)
+    @Column(name = "dpi", length = 13, unique = true)
     private String dpi;
 
-    @Column(name = "telefono", length = 20, nullable = false)
+    @Column(name = "telefono", length = 20)
     private String telefono;
 
-    @Column(name = "direccion", length = 255, nullable = false)
+    @Column(name = "direccion", length = 255)
     private String direccion;
 
     @Column(name = "foto_url", length = 500)

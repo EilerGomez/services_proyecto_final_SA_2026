@@ -27,13 +27,20 @@ import gt.cunoc.proyecto2.identity.repositories.TokenRefrescoRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
 import gt.cunoc.proyecto2.identity.services.comun.IdentidadUsuarioFactory;
 import gt.cunoc.proyecto2.identity.services.comun.TokenOpacoService;
+import gt.cunoc.proyecto2.identity.services.oauth.CodigosUnSoloUso;
+import gt.cunoc.proyecto2.identity.services.oauth.GoogleOAuthProperties;
+import gt.cunoc.proyecto2.identity.services.oauth.VerificadorGoogle;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
+import gt.cunoc.proyecto2.comun.errores.NegocioException;
+import gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,6 +48,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -71,6 +79,9 @@ public class AuthServiceImpl implements AuthService {
     private final UsuarioEventPublisher publicador;
     private final UserService servicioUsuarios;
     private final String urlFrontend;
+    private final GoogleOAuthProperties oauth;
+    private final CodigosUnSoloUso codigos;
+    private final VerificadorGoogle google;
 
     public AuthServiceImpl(
             UsuarioRepository usuarios,
@@ -88,7 +99,10 @@ public class AuthServiceImpl implements AuthService {
             VigilanciaAcceso vigilancia,
             UsuarioEventPublisher publicador,
             UserService servicioUsuarios,
-            @Value("${FRONTEND_URL:http://localhost:5173}") String urlFrontend) {
+            @Value("${FRONTEND_URL:http://localhost:5173}") String urlFrontend,
+            GoogleOAuthProperties oauth,
+            CodigosUnSoloUso codigos,
+            VerificadorGoogle google) {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
@@ -105,6 +119,9 @@ public class AuthServiceImpl implements AuthService {
         this.publicador = publicador;
         this.servicioUsuarios = servicioUsuarios;
         this.urlFrontend = urlFrontend;
+        this.oauth = oauth;
+        this.codigos = codigos;
+        this.google = google;
     }
 
     @Override
@@ -156,7 +173,8 @@ public class AuthServiceImpl implements AuthService {
         String correo = solicitud.correo().trim().toLowerCase();
         Usuario usuario = usuarios.findByCorreo(correo).orElse(null);
 
-        if (usuario == null || !claves.matches(solicitud.contrasena(), usuario.getClaveCifrada())) {
+        if (usuario == null || usuario.getClaveCifrada() == null
+                || !claves.matches(solicitud.contrasena(), usuario.getClaveCifrada())) {
             if (usuario != null) {
                 vigilancia.falloContrasena(usuario.getId());
             }
@@ -319,7 +337,8 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = usuarios.findById(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE", "El usuario no existe"));
 
-        if (!claves.matches(solicitud.contrasenaActual(), usuario.getClaveCifrada())) {
+        if (usuario.getClaveCifrada() == null
+                || !claves.matches(solicitud.contrasenaActual(), usuario.getClaveCifrada())) {
             throw new ReglaNegocioException("CONTRASENA_ACTUAL_INCORRECTA", "La contraseña actual no es correcta");
         }
 
@@ -327,8 +346,164 @@ public class AuthServiceImpl implements AuthService {
         usuarios.save(usuario);
     }
 
-    private DesafioDobleFactor desafiarDobleFactor(Usuario usuario) {
-        String codigo = String.format("%06d", SEGURIDAD.nextInt(1_000_000));
+    @Override
+    public UrlGoogleResponse urlGoogle() {
+        exigirOAuth();
+        String estado = codigos.emitirEstado(oauth.getStateTtlSegundos());
+        String url = "https://accounts.google.com/o/oauth2/v2/auth"
+                + "?client_id=" + codificar(oauth.getClientId())
+                + "&redirect_uri=" + codificar(oauth.getRedirectUri())
+                + "&response_type=code"
+                + "&scope=" + codificar("openid email profile")
+                + "&state=" + codificar(estado)
+                + "&access_type=online&prompt=select_account";
+        return new UrlGoogleResponse(url, estado);
+    }
+
+    @Override
+    @Transactional
+    public String callbackGoogle(String codigo, String estado) {
+        // Todo error vuelve al frontend como ?error=CODIGO (nunca expone detalle interno).
+        if (!oauth.configurado()) {
+            return destinoOAuth("error", "OAUTH_NO_CONFIGURADO");
+        }
+        try {
+            if (codigos.consumirEstado(estado) == null) {
+                return destinoOAuth("error", "OAUTH_ESTADO_INVALIDO");
+            }
+            if (codigo == null || codigo.isBlank()) {
+                return destinoOAuth("error", "OAUTH_CODIGO_INVALIDO");
+            }
+            VerificadorGoogle.CuentaGoogle cuenta = google.verificar(google.intercambiarCodigo(codigo));
+            if (cuenta.correo() == null || cuenta.correo().isBlank() || !cuenta.verificado()) {
+                return destinoOAuth("error", "OAUTH_CORREO_NO_VERIFICADO");
+            }
+            Usuario usuario = vincularOCrear(cuenta);
+            exigirActivaOAuth(usuario);
+            usuario.setUltimoAcceso(Instant.now());
+            usuarios.save(usuario);
+            String ticket = codigos.emitirTicket(
+                    new CodigosUnSoloUso.Ticket(usuario.getId(), usuario.isDobleFactorActivo()),
+                    oauth.getTicketTtlSegundos());
+            return destinoOAuth("ticket", ticket);
+        } catch (NegocioException e) {
+            return destinoOAuth("error", e.getCodigo());
+        }
+    }
+
+    @Override
+    @Transactional
+    public ResultadoInicioSesion canjearTicketGoogle(CanjeTicketRequest solicitud) {
+        CodigosUnSoloUso.Ticket ticket = codigos.consumirTicket(solicitud.ticket());
+        if (ticket == null) {
+            throw new NoAutenticadoException("OAUTH_TICKET_INVALIDO",
+                    "El ticket venció o ya fue usado");
+        }
+        Usuario usuario = usuarios.findById(ticket.usuarioId())
+                .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE", "El usuario no existe"));
+        exigirActivaOAuth(usuario);
+        usuario.setUltimoAcceso(Instant.now());
+        usuarios.save(usuario);
+        if (ticket.dobleFactorPendiente() && usuario.isDobleFactorActivo()) {
+            return desafiarDobleFactor(usuario);
+        }
+        return crearTokens(usuario);
+    }
+
+    private void exigirOAuth() {
+        if (!oauth.configurado()) {
+            throw new ServicioNoDisponibleException("OAUTH_NO_CONFIGURADO",
+                    "El inicio con Google no está configurado");
+        }
+    }
+
+    private String destinoOAuth(String parametro, String valor) {
+        return oauth.getFrontendUrl() + "/oauth/google/callback?" + parametro + "="
+                + codificar(valor);
+    }
+
+    private String codificar(String valor) {
+        return URLEncoder.encode(valor, StandardCharsets.UTF_8);
+    }
+
+    /** Igual que iniciarSesion: bloque vigente -&gt; 401, bloqueo vencido -&gt; se reactiva. */
+    private void exigirActivaOAuth(Usuario usuario) {
+        if ("BLOQUEADO".equals(usuario.getEstado())) {
+            if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(Instant.now())) {
+                throw new NoAutenticadoException("CUENTA_BLOQUEADA",
+                        "La cuenta está bloqueada hasta " + usuario.getBloqueadoHasta());
+            }
+            usuario.setEstado("ACTIVO");
+            usuario.setBloqueadoHasta(null);
+            usuario.setIntentosFallidos(0);
+        }
+        if (!"ACTIVO".equals(usuario.getEstado())) {
+            throw new NoAutenticadoException("CUENTA_INACTIVA", "La cuenta no está activa");
+        }
+    }
+
+    /**
+     * Regla de enlace: mismo sub de Google -&gt; entra; correo LOCAL sin vínculo -&gt; se vincula
+     * (conserva sus roles, nunca eleva); correo ya vinculado a otro sub -&gt; conflicto;
+     * correo nuevo -&gt; se crea como CLIENTE.
+     */
+    private Usuario vincularOCrear(VerificadorGoogle.CuentaGoogle cuenta) {
+        String correo = cuenta.correo().trim().toLowerCase();
+        Optional<Usuario> porSub = usuarios.findByProveedorAndProveedorId("GOOGLE", cuenta.sub());
+        if (porSub.isPresent()) {
+            return porSub.get();
+        }
+        Usuario existente = usuarios.findByCorreo(correo).orElse(null);
+        if (existente != null) {
+            if (!"LOCAL".equals(existente.getProveedor()) || existente.getProveedorId() != null) {
+                throw new ConflictoException("OAUTH_CUENTA_VINCULADA",
+                        "El correo ya está vinculado a otra cuenta externa");
+            }
+            existente.setProveedor("GOOGLE");
+            existente.setProveedorId(cuenta.sub());
+            return usuarios.save(existente);
+        }
+        return crearDesdeGoogle(cuenta, correo);
+    }
+
+    private Usuario crearDesdeGoogle(VerificadorGoogle.CuentaGoogle cuenta, String correo) {
+        Usuario usuario = new Usuario();
+        usuario.setCorreo(correo);
+        usuario.setClaveCifrada(null);
+        usuario.setEstado("ACTIVO");
+        usuario.setProveedor("GOOGLE");
+        usuario.setProveedorId(cuenta.sub());
+        Rol cliente = roles.findById(Roles.CLIENTE)
+                .orElseThrow(() -> new ReglaNegocioException("ROL_FALTANTE", "No existe el rol CLIENTE"));
+        usuario.getRoles().add(cliente);
+        usuarios.save(usuario);
+
+        String nombre = cuenta.nombre() == null ? "" : cuenta.nombre().trim();
+        if (nombre.isBlank()) {
+            nombre = correo.substring(0, correo.indexOf('@'));
+        }
+        String[] partes = nombre.split("\\s+", 2);
+        Perfil perfil = new Perfil();
+        perfil.setUsuario(usuario);
+        perfil.setNombres(partes[0]);
+        perfil.setApellidos(partes.length > 1 ? partes[1] : "-");
+        perfil.setFotoUrl(cuenta.foto());
+        perfiles.save(perfil);
+
+        Cartera cartera = new Cartera();
+        cartera.setUsuarioId(usuario.getId());
+        cartera.setSaldo(BigDecimal.ZERO);
+        carteras.save(cartera);
+
+        publicador.publicarCuentaCreada(usuario.getId(), correo,
+                (perfil.getNombres() + " " + perfil.getApellidos()).trim(),
+                List.of(Roles.CLIENTE), null, LocalDate.now());
+        // Sin NIT no se publica ClienteRegistrado (sales exige nit): al completar el
+        // perfil, PerfilActualizado lo da de alta en ventas con el upsert existente.
+        return usuario;
+    }
+
+    private DesafioDobleFactor desafiarDobleFactor(Usuario usuario) {        String codigo = String.format("%06d", SEGURIDAD.nextInt(1_000_000));
         CodigoDobleFactor desafio = new CodigoDobleFactor();
         desafio.setUsuarioId(usuario.getId());
         desafio.setCodigoHash(opacos.calcularHash(codigo));
