@@ -2,9 +2,12 @@ package gt.cunoc.proyecto2.identity.controllers.auth;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.controllers.BaseControladorTest;
+import gt.cunoc.proyecto2.identity.dtos.auth.DesafioDobleFactor;
 import gt.cunoc.proyecto2.identity.dtos.auth.RegistroResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
+import gt.cunoc.proyecto2.identity.dtos.auth.UrlGoogleResponse;
 import gt.cunoc.proyecto2.identity.services.auth.AuthService;
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -16,8 +19,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -165,5 +170,53 @@ class AuthControllerTest extends BaseControladorTest {
     private SesionResponse sesion() {
         return new SesionResponse("jwt-test", "Bearer", "2026-10-08T08:00:00Z",
                 "refresco", UUID.randomUUID(), null);
+    }
+
+    @Test
+    void urlGoogleDevuelveUrlYState() throws Exception {
+        when(servicio.urlGoogle()).thenReturn(
+                new UrlGoogleResponse("https://accounts.google.com/?state=abc", "abc"));
+
+        mvc.perform(get("/identity/auth/oauth2/google/url"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("abc"));
+        verify(servicio).urlGoogle();
+    }
+
+    @Test
+    void callbackGoogleRedirigeAlFrontend() throws Exception {
+        when(servicio.callbackGoogle(eq("code"), eq("state")))
+                .thenReturn("http://localhost:4200/oauth/google/callback?ticket=t");
+
+        mvc.perform(get("/identity/auth/oauth2/google/callback")
+                        .queryParam("code", "code")
+                        .queryParam("state", "state"))
+                .andExpect(status().isFound())
+                .andExpect(header().string("Location",
+                        "http://localhost:4200/oauth/google/callback?ticket=t"));
+    }
+
+    @Test
+    void canjearTicketDevuelveSesion() throws Exception {
+        when(servicio.canjearTicketGoogle(any())).thenReturn(sesion());
+
+        mvc.perform(post("/identity/auth/oauth2/canjear")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ticket":"crudo"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenAcceso").value("jwt-test"));
+    }
+
+    @Test
+    void canjearTicketConDobleFactorDevuelve202() throws Exception {
+        when(servicio.canjearTicketGoogle(any())).thenReturn(
+                new DesafioDobleFactor(UUID.randomUUID(), "ana@correo.com", Instant.now()));
+
+        mvc.perform(post("/identity/auth/oauth2/canjear")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ticket":"crudo"}"""))
+                .andExpect(status().isAccepted());
     }
 }

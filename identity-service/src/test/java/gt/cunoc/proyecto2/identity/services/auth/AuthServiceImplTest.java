@@ -26,6 +26,9 @@ import gt.cunoc.proyecto2.identity.repositories.TokenRefrescoRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
 import gt.cunoc.proyecto2.identity.services.comun.IdentidadUsuarioFactory;
 import gt.cunoc.proyecto2.identity.services.comun.TokenOpacoService;
+import gt.cunoc.proyecto2.identity.services.oauth.CodigosUnSoloUso;
+import gt.cunoc.proyecto2.identity.services.oauth.GoogleOAuthProperties;
+import gt.cunoc.proyecto2.identity.services.oauth.VerificadorGoogle;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import java.time.Instant;
 import java.util.List;
@@ -75,6 +78,7 @@ class AuthServiceImplTest {
     @Spy private PasswordEncoder claves = new BCryptPasswordEncoder();
     @Spy private TokenOpacoService opacos = new TokenOpacoService();
     @Mock private VigilanciaAcceso vigilancia;
+    @Mock private VerificadorGoogle google;
 
     private AuthServiceImpl servicio;
 
@@ -83,7 +87,8 @@ class AuthServiceImplTest {
         // Constructor manual: Mockito no inyecta primitivos ni String (minutosAcceso, urlFrontend).
         servicio = new AuthServiceImpl(usuarios, perfiles, roles, carteras, refrescos,
                 recuperaciones, desafios, claves, jwt, 60L, new IdentidadUsuarioFactory(),
-                opacos, vigilancia, publicador, servicioUsuarios, "http://localhost:5173");
+                opacos, vigilancia, publicador, servicioUsuarios, "http://localhost:5173",
+                new GoogleOAuthProperties(), new CodigosUnSoloUso(opacos), google);
     }
 
     @Test
