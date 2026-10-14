@@ -236,6 +236,9 @@ class OAuthGoogleTest {
         oauth.setClientId(CLIENTE_ID);
         oauth.setRedirectUri(null);
         assertFalse(oauth.configurado());
+        oauth.setRedirectUri("http://x/callback");
+        oauth.setClientId("${GOOGLE_OAUTH_CLIENT_ID}");
+        assertFalse(oauth.configurado(), "un placeholder sin resolver no es configuración");
     }
     @Test
     void callbackConCuentaBloqueadaRedirigeConError() {

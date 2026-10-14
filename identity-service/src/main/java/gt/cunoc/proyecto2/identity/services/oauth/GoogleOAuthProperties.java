@@ -40,8 +40,14 @@ public class GoogleOAuthProperties {
     private long ticketTtlSegundos = 120;
 
     public boolean configurado() {
-        return clientId != null && !clientId.isBlank()
-                && clientSecret != null && !clientSecret.isBlank()
-                && redirectUri != null && !redirectUri.isBlank();
+        return informado(clientId) && informado(clientSecret) && informado(redirectUri);
+    }
+
+    /**
+     * Vacío, null o un placeholder sin resolver (${...}, que Boot deja literal
+     * cuando la variable no existe y no hay default) cuentan como no configurado.
+     */
+    private static boolean informado(String valor) {
+        return valor != null && !valor.isBlank() && !(valor.contains("${") && valor.contains("}"));
     }
 }

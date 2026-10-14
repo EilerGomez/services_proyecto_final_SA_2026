@@ -59,8 +59,8 @@ app:
   oauth2:
     google:
       # Credenciales OAuth de Google (consola cloud, tipo Web). Vacías = login con Google apagado.
-      client-id: ${GOOGLE_OAUTH_CLIENT_ID}
-      client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
+      client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:}
       # Debe coincidir con una "Authorized redirect URI" de la credencial (vía gateway).
       redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:8080/identity/auth/oauth2/google/callback}
       # Frontend al que vuelve el callback con ?ticket= o ?error=.
