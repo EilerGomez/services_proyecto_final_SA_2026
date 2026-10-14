@@ -110,6 +110,7 @@ class ManejadoresTest {
         var off = new BusDesactivado(payload.busId());
         desactivado.manejar(sobre("BusDesactivado", off));
         verify(proyeccion).desactivarBus(payload.busId(), 1L);
+        desactivado.manejar(sobre("BusDesactivado", new BusDesactivado(null)));
     }
 
     @Test
@@ -129,6 +130,7 @@ class ManejadoresTest {
         var off = new ChoferDesactivado(payload.choferId());
         desactivado.manejar(sobre("ChoferDesactivado", off));
         verify(proyeccion).desactivarChofer(payload.choferId(), 1L);
+        desactivado.manejar(sobre("ChoferDesactivado", new ChoferDesactivado(null)));
     }
 
     @Test

@@ -77,9 +77,11 @@ class ControladoresTest {
         assertThat(pdf.getHeaders().getContentDisposition().getFilename())
                 .isEqualTo("ganancias_todos_todos.pdf");
         // por defecto (sin format) responde PDF, como el ejemplo de referencia
-        var defecto = sistema.ingresos(null, null, null, "pdf");
+        var defecto = sistema.ganancias(
+                java.time.LocalDate.of(2026, 10, 1), java.time.LocalDate.of(2026, 10, 31),
+                null, "pdf");
         assertThat(defecto.getHeaders().getContentDisposition().getFilename())
-                .startsWith("ingresos_");
+                .isEqualTo("ganancias_2026-10-01_2026-10-31.pdf");
         assertThat(sistema.gastos(null, null, null, "otro").getHeaders().getContentType())
                 .isEqualTo(MediaType.APPLICATION_PDF);
         assertThat(sistema.rutasDemandadas(null, null, 5, "pdf").getStatusCode())

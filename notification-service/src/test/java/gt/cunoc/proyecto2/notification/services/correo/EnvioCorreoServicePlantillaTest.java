@@ -85,4 +85,22 @@ class EnvioCorreoServicePlantillaTest {
         // Assert
         verify(correos, never()).send(any(SimpleMailMessage.class));
     }
+
+    @Test
+    void fallidaPreviaSeReintentaYSeMarcaEnviada() {
+        // Arrange
+        Notificacion previa = new Notificacion();
+        previa.setEstado("FALLIDA");
+        previa.setIntentos(1);
+        when(notificaciones.findByEventoIdAndDestinatarioAndPlantilla(EVENTO_ID, "ana@correo.com", "COMPRA_BOLETO"))
+                .thenReturn(Optional.of(previa));
+
+        // Act
+        servicio.enviarPlantilla(EVENTO_ID, "ana@correo.com", "COMPRA_BOLETO", "Tu compra", "{}", "Hola Ana");
+
+        // Assert
+        verify(correos).send(any(SimpleMailMessage.class));
+        assertEquals("ENVIADA", previa.getEstado());
+        assertEquals(2, previa.getIntentos());
+    }
 }

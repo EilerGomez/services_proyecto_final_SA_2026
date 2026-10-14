@@ -44,10 +44,7 @@ public class CategoriaServicioImpl implements CategoriaServicio {
         if (categorias.existsByNombreIgnoreCase(solicitud.nombre())) {
             throw ErrorCategoria.CATEGORIA_DUPLICADA.excepcion(solicitud.nombre());
         }
-        CategoriaEntidad categoria = new CategoriaEntidad();
-        categoria.setNombre(solicitud.nombre());
-        categoria.setDescripcion(solicitud.descripcion());
-        categoria.setActiva(true);
+        CategoriaEntidad categoria = solicitud.createEntity();
         categorias.save(categoria);
         eventos.categoriaActualizada(categoria);
         return new CategoriaRespuesta(categoria);

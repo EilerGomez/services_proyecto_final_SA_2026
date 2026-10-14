@@ -141,6 +141,11 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Cobertura: la configuración (reportes y mínimos 85 % / 65 %) está en el POM padre -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+            </plugin>
         </plugins>
     </build>
 </project>

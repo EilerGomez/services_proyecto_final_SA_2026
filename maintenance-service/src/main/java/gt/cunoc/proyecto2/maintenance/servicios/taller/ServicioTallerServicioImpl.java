@@ -9,7 +9,6 @@ import gt.cunoc.proyecto2.maintenance.errores.ErrorCategoria;
 import gt.cunoc.proyecto2.maintenance.errores.ErrorTaller;
 import gt.cunoc.proyecto2.maintenance.eventos.PublicadorEventosMaintenance;
 import gt.cunoc.proyecto2.maintenance.modelos.CategoriaEntidad;
-import gt.cunoc.proyecto2.maintenance.modelos.DetalleServicioEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.ServicioTallerEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.VistaBusEntidad;
 import gt.cunoc.proyecto2.maintenance.repositorios.CategoriaRepositorio;
@@ -56,21 +55,9 @@ public class ServicioTallerServicioImpl implements ServicioTallerServicio {
         }
         Map<UUID, CategoriaEntidad> porId = categoriasPorId(solicitud);
 
-        ServicioTallerEntidad servicio = new ServicioTallerEntidad();
-        servicio.setBusId(bus.getBusId());
-        servicio.setSucursalId(bus.getSucursalId());
-        servicio.setFechaServicio(solicitud.fechaServicio());
-        servicio.setTaller(solicitud.taller());
-        servicio.setObservaciones(solicitud.observaciones());
-        servicio.setRegistradoPor(usuario.usuarioId());
+        ServicioTallerEntidad servicio = solicitud.crearEntidad(bus, usuario);
         for (LineaServicioSolicitud linea : solicitud.lineas()) {
-            DetalleServicioEntidad detalle = new DetalleServicioEntidad();
-            detalle.setCategoriaId(linea.categoriaId());
-            detalle.setCategoria(porId.get(linea.categoriaId()));
-            detalle.setDescripcion(linea.descripcion());
-            detalle.setTipo(linea.tipo());
-            detalle.setMonto(linea.monto());
-            servicio.agregarLinea(detalle);
+            servicio.agregarLinea(solicitud.crearDetalle(linea, porId.get(linea.categoriaId())));
         }
         servicios.saveAndFlush(servicio);   // corre el trigger de totales
         entityManager.refresh(servicio);    // trae total_mano_obra, total_repuestos y total

@@ -5,13 +5,11 @@ import gt.cunoc.proyecto2.maintenance.modelos.CategoriaEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.DetalleServicioEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.ServicioTallerEntidad;
 import gt.cunoc.proyecto2.maintenance.modelos.VistaBusEntidad;
-import gt.cunoc.proyecto2.maintenance.servicios.taller.ServicioTallerServicio;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 public record NuevoServicioSolicitud(
