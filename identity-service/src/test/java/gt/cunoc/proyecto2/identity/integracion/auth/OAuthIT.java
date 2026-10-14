@@ -31,7 +31,8 @@ class OAuthIT extends PruebaIntegracion {
     }
 
     @Test
-    void callbackSinStateRedirigeConError() throws Exception {
+    void callbackSinConfigPriorizaErrorDeConfiguracion() throws Exception {
+        // Sin configurar, el error de configuración precede a la validación del state.
         HttpClient sinRedirect = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
@@ -42,7 +43,7 @@ class OAuthIT extends PruebaIntegracion {
                 HttpResponse.BodyHandlers.discarding());
         assertThat(respuesta.statusCode()).isEqualTo(302);
         assertThat(respuesta.headers().firstValue("location").orElse(""))
-                .contains("OAUTH_ESTADO_INVALIDO");
+                .contains("OAUTH_NO_CONFIGURADO");
     }
 
     @Test
