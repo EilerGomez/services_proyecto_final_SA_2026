@@ -103,7 +103,7 @@ class SecurityConfigTest {
     void consultasPublicasSinToken() {
         for (String ruta : List.of("/fleet/sucursales/" + UN_ID, "/trips/rutas", "/trips/rutas/" + UN_ID,
                 "/trips/viajes", "/trips/viajes/" + UN_ID, "/sales/viajes/" + UN_ID + "/asientos",
-                "/v3/api-docs/fleet", "/identity/v3/api-docs")) {
+                "/identity/auth/oauth2/google/url", "/v3/api-docs/fleet", "/identity/v3/api-docs")) {
             cliente.get().uri(ruta).exchange().expectStatus().isOk();
         }
     }

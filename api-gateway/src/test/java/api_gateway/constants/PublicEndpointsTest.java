@@ -24,6 +24,9 @@ class PublicEndpointsTest {
         "POST, /identity/auth/refrescar",
         "POST, /identity/auth/recuperar",
         "POST, /identity/auth/restablecer",
+        "POST, /identity/auth/oauth2/canjear",
+        "GET, /identity/auth/oauth2/google/url",
+        "GET, /identity/auth/oauth2/google/callback",
         // Fleet F1, F2
         "GET, /fleet/sucursales",
         "GET, /fleet/sucursales/7f3a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90",
