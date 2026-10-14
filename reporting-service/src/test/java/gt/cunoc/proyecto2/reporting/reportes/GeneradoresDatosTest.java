@@ -203,6 +203,9 @@ class GeneradoresDatosTest {
                 sucursales, rutas, compilador).datos(ParametrosReporte.builder().build());
         assertThat((List<?>) todo.get("sucursales")).hasSize(2);
         assertThat((List<?>) todo.get("rutas")).hasSize(1);
+        Map<String, Object> filaRuta = (Map<String, Object>) ((List<?>) todo.get("rutas")).get(0);
+        assertThat(filaRuta.get("origen")).isEqualTo("Norte");
+        assertThat(filaRuta.get("destino")).isEqualTo("Sur");
 
         Map<String, Object> filtrado = (Map<String, Object>) new GeneradorMapaRutas(
                 sucursales, rutas, compilador).datos(

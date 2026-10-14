@@ -76,6 +76,8 @@ public class GeneradorMapaRutas implements GeneradorReporte {
             fila.put("rutaId", r.getRutaId());
             fila.put("sucursalOrigenId", r.getSucursalOrigenId());
             fila.put("sucursalDestinoId", r.getSucursalDestinoId());
+            fila.put("origen", r.getOrigen());
+            fila.put("destino", r.getDestino());
             fila.put("distanciaKm", r.getDistanciaKm());
             fila.put("precioBoleto", r.getPrecioBoleto());
             fila.put("activa", r.getActiva());

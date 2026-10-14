@@ -18,7 +18,37 @@ class CorsConfigTest {
     /** URL absoluta: CorsUtils compara esquema, host y puerto con el Origin. */
     private static final String GATEWAY = "http://localhost:8080";
 
-    private final CorsConfigurationSource source = fuente();
+    private static final String ANGULAR = "http://localhost:4200";
+
+    @Test
+    void segundoOrigenPermitido() {
+        CorsConfigurationSource multi = fuente(FRONTEND, ANGULAR);
+
+        boolean angular = new DefaultCorsProcessor().process(
+                multi.getCorsConfiguration(preflight(ANGULAR)), preflight(ANGULAR));
+        boolean vite = new DefaultCorsProcessor().process(
+                multi.getCorsConfiguration(preflight(FRONTEND)), preflight(FRONTEND));
+        boolean otro = new DefaultCorsProcessor().process(
+                multi.getCorsConfiguration(preflight("http://otro.example")), preflight("http://otro.example"));
+
+        assertThat(angular).isTrue();
+        assertThat(vite).isTrue();
+        assertThat(otro).isFalse();
+    }
+
+    private static MockServerWebExchange preflight(String origen) {
+        return MockServerWebExchange.from(MockServerHttpRequest.options(GATEWAY + "/identity/auth/login")
+                .header(HttpHeaders.ORIGIN, origen)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"));
+    }
+
+    private static CorsConfigurationSource fuente(String... origenes) {
+        GatewayProperties propiedades = new GatewayProperties();
+        propiedades.setAllowedOrigins(List.of(origenes));
+        return new CorsConfig().corsConfigurationSource(propiedades);
+    }
+
+    private final CorsConfigurationSource source = fuente(FRONTEND);
 
     @Test
     void exponeCorrelationIdYContentDisposition() {

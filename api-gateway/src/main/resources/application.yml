@@ -94,7 +94,10 @@ gateway:
     maintenance-url: ${MAINTENANCE_URL:http://localhost:8085}
     reporting-url: ${REPORTING_URL:http://localhost:8086}
     notification-url: ${NOTIFICATION_URL:http://localhost:8087}
-  allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:${FRONTEND_URL:http://localhost:5173}}
+  # Orígenes web permitidos por CORS (lista separada por comas). Incluye el dev-server
+  # de Angular (:4200) y el de Vite (:5173). Para producción defina GATEWAY_ALLOWED_ORIGINS
+  # con sus dominios exactos, p. ej.: GATEWAY_ALLOWED_ORIGINS=https://app.midominio.com
+  allowed-origins: ${GATEWAY_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:5173}
   security:
     # Activada por defecto: valida el JWT HS256 de identity (mismo JWT_SECRET).
     # GATEWAY_SECURITY_ENABLED=false la apaga (solo para desarrollo).
