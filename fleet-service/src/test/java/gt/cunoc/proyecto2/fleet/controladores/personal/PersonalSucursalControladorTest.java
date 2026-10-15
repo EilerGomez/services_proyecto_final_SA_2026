@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.fleet.controladores.personal;
 
+import gt.cunoc.proyecto2.fleet.dtos.personal.ReintegrarPersonalSolicitud;
 import static gt.cunoc.proyecto2.fleet.DatosPrueba.FECHA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -72,5 +73,17 @@ class PersonalSucursalControladorTest {
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(respuesta.getBody()).isSameAs(traslado);
+    }
+
+    @Test
+    void reintegrarResponde201() {
+        ReintegrarPersonalSolicitud solicitud = new ReintegrarPersonalSolicitud(sucursalId, RolPersonal.CAJERO, FECHA);
+        PersonalSucursalRespuesta reintegrado = new PersonalSucursalRespuesta(cajero);
+        when(servicio.reintegrar(cajero.getId(), solicitud, admin)).thenReturn(reintegrado);
+
+        var respuesta = controlador.reintegrar(cajero.getId(), solicitud, admin);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(respuesta.getBody()).isSameAs(reintegrado);
     }
 }

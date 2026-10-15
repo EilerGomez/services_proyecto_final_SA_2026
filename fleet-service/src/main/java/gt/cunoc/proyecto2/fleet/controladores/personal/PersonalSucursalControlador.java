@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.fleet.dtos.personal.DesactivarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.personal.ReintegrarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladoPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
@@ -79,5 +80,15 @@ public class PersonalSucursalControlador {
             @PathVariable UUID id,
             @RequestBody @Valid TrasladarPersonalSolicitud solicitud) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servicio.trasladar(id, solicitud));
+    }
+
+    @PostMapping("/personal/{id}/reintegro")
+    @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
+    @Operation(summary = "F10 · Vuelve a asignar a una persona retirada (ADMIN_SUCURSAL: solo cajeros de su sucursal)")
+    public ResponseEntity<PersonalSucursalRespuesta> reintegrar(
+            @PathVariable UUID id,
+            @RequestBody @Valid ReintegrarPersonalSolicitud solicitud,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(servicio.reintegrar(id, solicitud, usuario));
     }
 }

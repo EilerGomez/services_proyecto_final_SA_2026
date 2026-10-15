@@ -4,10 +4,12 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.fleet.clientes.identity.ClienteIdentity;
 import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.identity.EstadoCuentaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.dtos.personal.DesactivarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.personal.ReintegrarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladoPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.generales.ErrorGeneral;
@@ -20,7 +22,10 @@ import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.personal.PersonalSucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.utilidades.VerificadorVersion;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,6 +38,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
+
+    private static final DateTimeFormatter FORMATO_BLOQUEO =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("America/Guatemala"));
 
     private final PersonalSucursalRepositorio repositorio;
     private final SucursalRepositorio sucursales;
@@ -159,8 +167,56 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
 
     @Override
     @Transactional
+    public PersonalSucursalRespuesta reintegrar(UUID id, ReintegrarPersonalSolicitud solicitud,
+                                                UsuarioActual usuario) {
+        PersonalSucursalEntidad retirado = obtenerPorId(id);
+        // El admin de sucursal solo reintegra cajeros que fueron de su sucursal y a su misma sucursal
+        usuario.verificarAccesoSucursal(retirado.getSucursalId());
+        usuario.verificarAccesoSucursal(solicitud.sucursalId());
+        verificarPuedeGestionar(solicitud.rol(), usuario);
+
+        if (retirado.isActivo()) {
+            throw ErrorPersonal.PERSONAL_ACTIVO.excepcion();
+        }
+        if (repositorio.existsByUsuarioIdAndActivoTrue(retirado.getUsuarioId())) {
+            throw ErrorPersonal.PERSONAL_EN_OTRA_SUCURSAL.excepcion();
+        }
+        SucursalEntidad destino = sucursales.findById(solicitud.sucursalId())
+                .orElseThrow(() -> ErrorSucursal.SUCURSAL_NO_EXISTE.excepcion());
+        if (!destino.isActiva()) {
+            throw ErrorSucursal.SUCURSAL_INACTIVA.excepcion();
+        }
+        // Al final (después de las validaciones locales) para no llamar a Identity si ya no procede.
+        verificarCuentaUtilizable(retirado.getUsuarioId());
+
+        // Sin R5: la cuenta ya existe. Identity le devuelve el rol y la sucursal con el evento.
+        PersonalSucursalEntidad nueva = repositorio.saveAndFlush(
+                retirado.reintegrar(destino.getId(), solicitud.rol(), solicitud.fechaAsignacion()));
+        eventos.personalAsignado(nueva, solicitud.fechaAsignacion());
+        return new PersonalSucursalRespuesta(nueva);
+    }
+
+    @Override
+    @Transactional
     public int actualizarDatosDePerfil(UUID usuarioId, String nombreCompleto, String correo) {
         return repositorio.actualizarDatosDePerfil(usuarioId, nombreCompleto, correo);
+    }
+
+    /**
+     * R4c: la cuenta en Identity debe estar activa. Una cuenta desactivada se activa primero en
+     * Usuarios; una bloqueada (intentos fallidos) espera a que venza el bloqueo.
+     */
+    private void verificarCuentaUtilizable(UUID usuarioId) {
+        EstadoCuentaRespuesta cuenta = identity.estadoCuenta(usuarioId);
+        if (cuenta.bloqueada(Instant.now())) {
+            String hasta = cuenta.bloqueadoHasta() == null
+                    ? "por tiempo indefinido"
+                    : "hasta el " + FORMATO_BLOQUEO.format(cuenta.bloqueadoHasta());
+            throw ErrorPersonal.PERSONAL_CUENTA_BLOQUEADA.excepcion(hasta);
+        }
+        if (cuenta.inactiva()) {
+            throw ErrorPersonal.PERSONAL_CUENTA_INACTIVA.excepcion();
+        }
     }
 
     /** ADMIN_SISTEMA gestiona a todos; ADMIN_SUCURSAL solo a los cajeros. */

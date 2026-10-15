@@ -379,6 +379,7 @@ public class AuthServiceImpl implements AuthService {
                 return destinoOAuth("error", "OAUTH_CORREO_NO_VERIFICADO");
             }
             Usuario usuario = vincularOCrear(cuenta);
+            completarFotoGoogle(usuario, cuenta.foto());
             exigirActivaOAuth(usuario);
             usuario.setUltimoAcceso(Instant.now());
             usuarios.save(usuario);
@@ -424,6 +425,22 @@ public class AuthServiceImpl implements AuthService {
 
     private String codificar(String valor) {
         return URLEncoder.encode(valor, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Si la cuenta no tiene foto propia (p. ej. una cuenta LOCAL que se acaba de vincular),
+     * usa la foto de Google. Una foto ya guardada (subida al bucket) nunca se reemplaza.
+     */
+    private void completarFotoGoogle(Usuario usuario, String foto) {
+        if (foto == null || foto.isBlank()) {
+            return;
+        }
+        perfiles.findById(usuario.getId())
+                .filter(perfil -> perfil.getFotoUrl() == null || perfil.getFotoUrl().isBlank())
+                .ifPresent(perfil -> {
+                    perfil.setFotoUrl(foto);
+                    perfiles.save(perfil);
+                });
     }
 
     /** Igual que iniciarSesion: bloque vigente -&gt; 401, bloqueo vencido -&gt; se reactiva. */

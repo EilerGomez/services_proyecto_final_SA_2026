@@ -258,6 +258,24 @@ class UserServiceImplTest {
                 () -> assertEquals("5555", respuesta.telefono()));
     }
 
+    @Test
+    void estadoCuentaDeDevuelveEstadoYBloqueo() {
+        // Arrange
+        var actual = adminSistema();
+        actual.setEstado("BLOQUEADO");
+        actual.setBloqueadoHasta(java.time.Instant.parse("2026-10-20T15:00:00Z"));
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(actual));
+
+        // Act
+        var respuesta = servicio.estadoCuentaDe(ADMIN_ID);
+
+        // Assert
+        assertAll(
+                () -> assertEquals(ADMIN_ID, respuesta.usuarioId()),
+                () -> assertEquals("BLOQUEADO", respuesta.estado()),
+                () -> assertEquals(java.time.Instant.parse("2026-10-20T15:00:00Z"), respuesta.bloqueadoHasta()));
+    }
+
     private Usuario adminSistema() {
         Usuario usuario = new Usuario();
         usuario.setId(ADMIN_ID);

@@ -3,6 +3,7 @@ package gt.cunoc.proyecto2.identity.services.usuario;
 
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
@@ -39,4 +40,7 @@ public interface UserService {
     List<AdminContactoResponse> administradoresDe(UUID sucursalId);
 
     ContactoResponse contactoDe(UUID usuarioId);
+
+    /** Estado de la cuenta (R4c): lo usa Fleet antes de reintegrar a una persona del personal. */
+    EstadoCuentaResponse estadoCuentaDe(UUID usuarioId);
 }

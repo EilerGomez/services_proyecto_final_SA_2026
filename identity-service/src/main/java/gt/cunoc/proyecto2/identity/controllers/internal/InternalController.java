@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 /**
  * R4 de Notification: administradores de una sucursal y contacto de un usuario.
+ * R4c de Fleet: estado de la cuenta (activa, inactiva o bloqueada) antes de reintegrar personal.
  *
  * <p>Solo red interna con token de servicio.
  */
@@ -40,5 +42,10 @@ public class InternalController {
     @GetMapping("/usuarios/{id}/contacto")
     public ResponseEntity<ContactoResponse> contacto(@PathVariable UUID id) {
         return ResponseEntity.ok(servicioUsuarios.contactoDe(id));
+    }
+
+    @GetMapping("/usuarios/{id}/estado")
+    public ResponseEntity<EstadoCuentaResponse> estadoCuenta(@PathVariable UUID id) {
+        return ResponseEntity.ok(servicioUsuarios.estadoCuentaDe(id));
     }
 }

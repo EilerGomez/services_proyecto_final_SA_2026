@@ -26,6 +26,9 @@ public interface PersonalSucursalRepositorio extends JpaRepository<PersonalSucur
 
     boolean existsBySucursalIdAndRolAndActivoTrueAndIdNot(UUID sucursalId, RolPersonal rol, UUID id);
 
+    /** Reintegro: la persona no debe tener otra asignación activa (también lo cuida ux_personal_activo). */
+    boolean existsByUsuarioIdAndActivoTrue(UUID usuarioId);
+
     /**
      * Evento PerfilActualizado: copia de nombre y correo en todas las filas de la persona (activas o no).
      * Es solo una copia de Identity: no sube la version ni publica eventos.

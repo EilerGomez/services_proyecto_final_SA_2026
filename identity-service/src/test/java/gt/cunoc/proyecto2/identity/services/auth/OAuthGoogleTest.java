@@ -293,6 +293,44 @@ class OAuthGoogleTest {
     }
 
     @Test
+    void callbackVinculaCuentaSinFotoYUsaLaDeGoogle() {
+        Usuario local = usuarioLocal();
+        Perfil perfil = perfilCon(null);
+        when(usuarios.findByProveedorAndProveedorId("GOOGLE", "sub-9")).thenReturn(Optional.empty());
+        when(usuarios.findByCorreo("ana@correo.com")).thenReturn(Optional.of(local));
+        when(usuarios.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(perfiles.findById(USUARIO_ID)).thenReturn(Optional.of(perfil));
+        ticketDe("sub-9", "ana@correo.com");
+        assertEquals("http://foto/x.jpg", perfil.getFotoUrl());
+        verify(perfiles).save(perfil);
+    }
+
+    @Test
+    void callbackNoReemplazaLaFotoPropia() {
+        Usuario usuario = usuarioGoogle();
+        Perfil perfil = perfilCon("https://storage.googleapis.com/fotos/propia.jpg");
+        when(usuarios.findByProveedorAndProveedorId("GOOGLE", "sub-1")).thenReturn(Optional.of(usuario));
+        when(perfiles.findById(USUARIO_ID)).thenReturn(Optional.of(perfil));
+        ticketDe("sub-1", "ana@correo.com");
+        assertEquals("https://storage.googleapis.com/fotos/propia.jpg", perfil.getFotoUrl());
+        verify(perfiles, never()).save(any(Perfil.class));
+    }
+
+    @Test
+    void callbackConFotoVaciaDeGoogleNoTocaElPerfil() {
+        Usuario usuario = usuarioGoogle();
+        when(usuarios.findByProveedorAndProveedorId("GOOGLE", "sub-1")).thenReturn(Optional.of(usuario));
+        for (String foto : new String[] {null, " "}) {
+            String estado = servicio.urlGoogle().state();
+            when(google.intercambiarCodigo("code")).thenReturn("idtoken");
+            when(google.verificar("idtoken")).thenReturn(
+                    new VerificadorGoogle.CuentaGoogle("sub-1", "ana@correo.com", true, "Ana", foto));
+            assertTrue(servicio.callbackGoogle("code", estado).contains("?ticket="));
+        }
+        verify(perfiles, never()).findById(any());
+    }
+
+    @Test
     void callbackRechazaCorreoVinculadoAOtroSub() {
         Usuario vinculado = usuarioGoogle();
         vinculado.setProveedorId("sub-otro");
@@ -583,6 +621,14 @@ class OAuthGoogleTest {
         cliente.setCodigo(Roles.CLIENTE);
         usuario.getRoles().add(cliente);
         return usuario;
+    }
+
+    private Perfil perfilCon(String fotoUrl) {
+        Perfil perfil = new Perfil();
+        perfil.setNombres("Ana");
+        perfil.setApellidos("Pérez");
+        perfil.setFotoUrl(fotoUrl);
+        return perfil;
     }
 
     private Usuario usuarioLocal() {

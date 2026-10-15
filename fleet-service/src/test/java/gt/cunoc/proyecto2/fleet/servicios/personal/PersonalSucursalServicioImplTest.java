@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.fleet.servicios.personal;
 
+import gt.cunoc.proyecto2.fleet.dtos.personal.ReintegrarPersonalSolicitud;
 import static gt.cunoc.proyecto2.fleet.DatosPrueba.FECHA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,6 +19,7 @@ import gt.cunoc.proyecto2.fleet.VerificarError;
 import gt.cunoc.proyecto2.fleet.clientes.identity.ClienteIdentity;
 import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.identity.EstadoCuentaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.dtos.personal.DesactivarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
@@ -33,6 +35,7 @@ import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.repositorios.personal.PersonalSucursalRepositorio;
 import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -280,5 +283,157 @@ class PersonalSucursalServicioImplTest {
 
         VerificarError.lanza(() -> servicio.desactivar(admin.getId(), new DesactivarPersonalSolicitud(FECHA, 0),
                 adminSistema), ErrorSucursal.SUCURSAL_NO_EXISTE);
+    }
+
+    // ----- F10 reintegro -----
+
+    private PersonalSucursalEntidad retirado(RolPersonal rol) {
+        PersonalSucursalEntidad p = DatosPrueba.personal(xela.getId(), rol);
+        p.desactivar(FECHA);
+        when(repositorio.findById(p.getId())).thenReturn(Optional.of(p));
+        return p;
+    }
+
+    private void cuentaEnIdentity(PersonalSucursalEntidad p, String estado, Instant bloqueadoHasta) {
+        when(identity.estadoCuenta(p.getUsuarioId()))
+                .thenReturn(new EstadoCuentaRespuesta(p.getUsuarioId(), estado, bloqueadoHasta));
+    }
+
+    private SucursalEntidad sucursalActiva() {
+        SucursalEntidad s = DatosPrueba.sucursal(true);
+        when(sucursales.findById(s.getId())).thenReturn(Optional.of(s));
+        return s;
+    }
+
+    @Test
+    void noSeReintegraConLaCuentaDesactivada() {
+        PersonalSucursalEntidad admin = retirado(RolPersonal.ADMIN_SUCURSAL);
+        SucursalEntidad guate = sucursalActiva();
+        cuentaEnIdentity(admin, "INACTIVO", null);
+
+        VerificarError.lanza(() -> servicio.reintegrar(admin.getId(),
+                new ReintegrarPersonalSolicitud(guate.getId(), RolPersonal.ADMIN_SUCURSAL, FECHA), adminSistema),
+                ErrorPersonal.PERSONAL_CUENTA_INACTIVA);
+        verify(repositorio, never()).saveAndFlush(any(PersonalSucursalEntidad.class));
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void noSeReintegraConLaCuentaBloqueada() {
+        PersonalSucursalEntidad admin = retirado(RolPersonal.ADMIN_SUCURSAL);
+        SucursalEntidad guate = sucursalActiva();
+        cuentaEnIdentity(admin, "BLOQUEADO", Instant.now().plusSeconds(600));
+
+        assertThatThrownBy(() -> servicio.reintegrar(admin.getId(),
+                new ReintegrarPersonalSolicitud(guate.getId(), RolPersonal.ADMIN_SUCURSAL, FECHA), adminSistema))
+                .hasMessageContaining("bloqueada hasta el");
+        verify(repositorio, never()).saveAndFlush(any(PersonalSucursalEntidad.class));
+    }
+
+    @Test
+    void noSeReintegraConLaCuentaBloqueadaSinFecha() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        when(sucursales.findById(xela.getId())).thenReturn(Optional.of(xela));
+        cuentaEnIdentity(cajero, "BLOQUEADO", null);
+
+        VerificarError.lanza(() -> servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(xela.getId(), RolPersonal.CAJERO, FECHA), adminXela),
+                ErrorPersonal.PERSONAL_CUENTA_BLOQUEADA);
+    }
+
+    @Test
+    void unBloqueoVencidoNoImpideElReintegro() {
+        PersonalSucursalEntidad admin = retirado(RolPersonal.ADMIN_SUCURSAL);
+        SucursalEntidad guate = sucursalActiva();
+        cuentaEnIdentity(admin, "BLOQUEADO", Instant.now().minusSeconds(60));
+        guardarDevuelveLaMisma();
+
+        PersonalSucursalRespuesta respuesta = servicio.reintegrar(admin.getId(),
+                new ReintegrarPersonalSolicitud(guate.getId(), RolPersonal.ADMIN_SUCURSAL, FECHA), adminSistema);
+
+        assertThat(respuesta.activo()).isTrue();
+    }
+
+    @Test
+    void reintegrarAAlguienQueSigueActivo() {
+        PersonalSucursalEntidad activo = DatosPrueba.personal(xela.getId(), RolPersonal.CAJERO);
+        when(repositorio.findById(activo.getId())).thenReturn(Optional.of(activo));
+
+        VerificarError.lanza(() -> servicio.reintegrar(activo.getId(),
+                new ReintegrarPersonalSolicitud(xela.getId(), RolPersonal.CAJERO, FECHA), adminXela),
+                ErrorPersonal.PERSONAL_ACTIVO);
+        verify(repositorio, never()).saveAndFlush(any(PersonalSucursalEntidad.class));
+    }
+
+    @Test
+    void noSeReintegraSiYaTrabajaEnOtraSucursal() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        when(repositorio.existsByUsuarioIdAndActivoTrue(cajero.getUsuarioId())).thenReturn(true);
+
+        VerificarError.lanza(() -> servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(xela.getId(), RolPersonal.CAJERO, FECHA), adminSistema),
+                ErrorPersonal.PERSONAL_EN_OTRA_SUCURSAL);
+    }
+
+    @Test
+    void noSeReintegraEnUnaSucursalQueNoExiste() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        UUID otra = UUID.randomUUID();
+
+        VerificarError.lanza(() -> servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(otra, RolPersonal.CAJERO, FECHA), adminSistema),
+                ErrorSucursal.SUCURSAL_NO_EXISTE);
+    }
+
+    @Test
+    void noSeReintegraEnUnaSucursalInactiva() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        SucursalEntidad cerrada = DatosPrueba.sucursal(false);
+        when(sucursales.findById(cerrada.getId())).thenReturn(Optional.of(cerrada));
+
+        VerificarError.lanza(() -> servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(cerrada.getId(), RolPersonal.CAJERO, FECHA), adminSistema),
+                ErrorSucursal.SUCURSAL_INACTIVA);
+    }
+
+    @Test
+    void unAdminDeSucursalSoloReintegraCajeros() {
+        PersonalSucursalEntidad admin = retirado(RolPersonal.ADMIN_SUCURSAL);
+
+        VerificarError.lanza(() -> servicio.reintegrar(admin.getId(),
+                new ReintegrarPersonalSolicitud(xela.getId(), RolPersonal.ADMIN_SUCURSAL, FECHA), adminXela),
+                ErrorPersonal.SOLO_CAJEROS);
+    }
+
+    @Test
+    void unAdminDeSucursalNoReintegraEnOtraSucursal() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        UUID otra = UUID.randomUUID();
+
+        assertThatThrownBy(() -> servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(otra, RolPersonal.CAJERO, FECHA), adminXela))
+                .isInstanceOf(ProhibidoException.class);
+    }
+
+    @Test
+    void reintegrarCreaOtraAsignacionYPublica() {
+        PersonalSucursalEntidad cajero = retirado(RolPersonal.CAJERO);
+        SucursalEntidad guate = DatosPrueba.sucursal(true);
+        when(sucursales.findById(guate.getId())).thenReturn(Optional.of(guate));
+        cuentaEnIdentity(cajero, "ACTIVO", null);
+        guardarDevuelveLaMisma();
+
+        PersonalSucursalRespuesta respuesta = servicio.reintegrar(cajero.getId(),
+                new ReintegrarPersonalSolicitud(guate.getId(), RolPersonal.ADMIN_SUCURSAL, FECHA.plusDays(3)),
+                adminSistema);
+
+        assertThat(respuesta.activo()).isTrue();
+        assertThat(respuesta.personalId()).isNotEqualTo(cajero.getId());
+        assertThat(respuesta.sucursalId()).isEqualTo(guate.getId());
+        assertThat(respuesta.usuarioId()).isEqualTo(cajero.getUsuarioId());
+        assertThat(respuesta.rol()).isEqualTo(RolPersonal.ADMIN_SUCURSAL);
+        assertThat(cajero.isActivo()).isFalse();
+        verify(eventos).personalAsignado(any(PersonalSucursalEntidad.class), eq(FECHA.plusDays(3)));
+        verify(identity, never()).crearCuentaPersonal(any(SolicitudCuentaPersonal.class));   // sin R5
     }
 }

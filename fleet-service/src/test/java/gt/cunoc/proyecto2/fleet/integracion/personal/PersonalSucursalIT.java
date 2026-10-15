@@ -23,6 +23,15 @@ class PersonalSucursalIT extends PruebaIntegracion {
         adminXela = insertarPersonal(xela, "ADMIN_SUCURSAL");
     }
 
+    /** R4c simulado: el estado de la cuenta del retirado en Identity. */
+    private void cuentaEnIdentity(UUID personalId, String estado, String bloqueadoHasta) {
+        UUID usuarioId = jdbc.queryForObject("SELECT usuario_id FROM personal_sucursal WHERE id = ?",
+                UUID.class, personalId);
+        IDENTITY.responder("GET", "/identity/interno/usuarios/" + usuarioId + "/estado", 200,
+                "{\"usuarioId\":\"%s\",\"estado\":\"%s\",\"bloqueadoHasta\":%s}"
+                        .formatted(usuarioId, estado, bloqueadoHasta == null ? "null" : "\"" + bloqueadoHasta + "\""));
+    }
+
     private static String nuevoPersonal(String rol, UUID solicitudId) {
         return """
                 {"rol":"%s","fechaAsignacion":"2026-10-20",
@@ -134,5 +143,68 @@ class PersonalSucursalIT extends PruebaIntegracion {
                         .formatted(UUID.randomUUID()));
 
         assertThat(respuesta.getStatusCode().value()).isEqualTo(403);
+    }
+
+    @Test
+    void reintegrarAUnCajeroRetiradoEnOtraSucursalYConOtroPuesto() {
+        UUID guate = insertarSucursal("GUATE", true);
+        UUID cajero = insertarPersonal(xela, "CAJERO");
+        patch("/fleet/personal/" + cajero + "/desactivar", tokenAdminSistema(),
+                "{\"fechaDesasignacion\":\"2026-10-20\",\"version\":0}");
+        cuentaEnIdentity(cajero, "ACTIVO", null);
+
+        ResponseEntity<String> respuesta = post("/fleet/personal/" + cajero + "/reintegro", tokenAdminSistema(),
+                "{\"sucursalId\":\"%s\",\"rol\":\"ADMIN_SUCURSAL\",\"fechaAsignacion\":\"2026-10-25\"}"
+                        .formatted(guate));
+
+        assertThat(respuesta.getStatusCode().value()).as(respuesta.getBody()).isEqualTo(201);
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.sucursalId")).isEqualTo(guate.toString());
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.rol")).isEqualTo("ADMIN_SUCURSAL");
+        assertThat(PruebaIntegracion.<Boolean>json(respuesta, "$.activo")).isTrue();
+        esperarEventos("PersonalSucursalDesactivado", "PersonalSucursalAsignado");
+    }
+
+    @Test
+    void noSeReintegraAUnAdminConLaCuentaBloqueadaODesactivada() {
+        UUID guate = insertarSucursal("GUATE", true);
+        UUID admin = insertarPersonal(xela, "ADMIN_SUCURSAL");
+        patch("/fleet/personal/" + admin + "/desactivar", tokenAdminSistema(),
+                "{\"fechaDesasignacion\":\"2026-10-20\",\"version\":0}");
+        String reintegro = "{\"sucursalId\":\"%s\",\"rol\":\"ADMIN_SUCURSAL\",\"fechaAsignacion\":\"2026-10-25\"}"
+                .formatted(guate);
+
+        cuentaEnIdentity(admin, "BLOQUEADO", "2099-01-01T00:00:00Z");
+        esError(post("/fleet/personal/" + admin + "/reintegro", tokenAdminSistema(), reintegro),
+                422, "PERSONAL_CUENTA_BLOQUEADA");
+
+        cuentaEnIdentity(admin, "INACTIVO", null);
+        esError(post("/fleet/personal/" + admin + "/reintegro", tokenAdminSistema(), reintegro),
+                422, "PERSONAL_CUENTA_INACTIVA");
+
+        Integer activas = jdbc.queryForObject(
+                "SELECT count(*) FROM personal_sucursal WHERE sucursal_id = ? AND activo", Integer.class, guate);
+        assertThat(activas).isZero();
+    }
+
+    @Test
+    void noSeReintegraAQuienSigueActivo() {
+        UUID cajero = insertarPersonal(xela, "CAJERO");
+
+        esError(post("/fleet/personal/" + cajero + "/reintegro", tokenAdminSucursal(xela),
+                "{\"sucursalId\":\"%s\",\"rol\":\"CAJERO\",\"fechaAsignacion\":\"2026-10-25\"}"
+                        .formatted(xela)), 422, "PERSONAL_ACTIVO");
+    }
+
+    @Test
+    void noSeReintegraSiYaTrabajaEnOtraSucursal() {
+        UUID guate = insertarSucursal("GUATE", true);
+        UUID cajero = insertarPersonal(xela, "CAJERO");
+        // Se traslada (queda activo en GUATE) y se intenta reintegrar la fila vieja de XELA
+        post("/fleet/personal/" + cajero + "/traslado", tokenAdminSistema(),
+                "{\"sucursalDestinoId\":\"%s\",\"fechaTraslado\":\"2026-10-20\",\"version\":0}".formatted(guate));
+
+        esError(post("/fleet/personal/" + cajero + "/reintegro", tokenAdminSistema(),
+                "{\"sucursalId\":\"%s\",\"rol\":\"CAJERO\",\"fechaAsignacion\":\"2026-10-25\"}"
+                        .formatted(xela)), 409, "PERSONAL_EN_OTRA_SUCURSAL");
     }
 }

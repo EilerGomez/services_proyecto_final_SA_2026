@@ -39,6 +39,18 @@ class InternosIT extends PruebaIntegracion {
     }
 
     @Test
+    void estadoDeCuenta() {
+        UUID usuarioId = registrarCliente("estado@pruebas.gt", "1000000-2", "1000000000102");
+
+        ResponseEntity<String> respuesta =
+                get("/identity/interno/usuarios/" + usuarioId + "/estado", tokenServicio());
+        assertThat(respuesta.getStatusCode().value()).isEqualTo(200);
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.estado")).isEqualTo("ACTIVO");
+        esError(get("/identity/interno/usuarios/" + UUID.randomUUID() + "/estado", tokenServicio()),
+                404, "USUARIO_NO_EXISTE");
+    }
+
+    @Test
     void contactoInexistenteDa404() {
         esError(get("/identity/interno/usuarios/" + UUID.randomUUID() + "/contacto", tokenServicio()),
                 404, "USUARIO_NO_EXISTE");

@@ -15,10 +15,12 @@ import gt.cunoc.proyecto2.fleet.DatosPrueba;
 import gt.cunoc.proyecto2.fleet.VerificarError;
 import gt.cunoc.proyecto2.fleet.configuracion.ConfiguracionClientes;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.identity.EstadoCuentaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.errores.integraciones.ErrorIntegracion;
 import gt.cunoc.proyecto2.fleet.modelos.personal.RolPersonal;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,6 +106,35 @@ class ClienteIdentityTest {
         identity.expect(requestTo(URL_R5)).andRespond(withSuccess());
 
         VerificarError.lanza(() -> cliente.crearCuentaPersonal(solicitud), ErrorIntegracion.IDENTITY_NO_DISPONIBLE);
+    }
+
+    @Test
+    void consultaElEstadoDeLaCuenta() {
+        UUID usuarioId = UUID.randomUUID();
+        identity.expect(requestTo("http://identity.local/identity/interno/usuarios/" + usuarioId + "/estado"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"usuarioId":"%s","estado":"BLOQUEADO","bloqueadoHasta":"2026-10-20T15:00:00Z"}
+                        """.formatted(usuarioId), MediaType.APPLICATION_JSON));
+
+        EstadoCuentaRespuesta estado = cliente.estadoCuenta(usuarioId);
+
+        assertThat(estado.estado()).isEqualTo("BLOQUEADO");
+        assertThat(estado.bloqueadoHasta()).isEqualTo(Instant.parse("2026-10-20T15:00:00Z"));
+        assertThat(estado.bloqueada(Instant.parse("2026-10-20T14:00:00Z"))).isTrue();
+        assertThat(estado.bloqueada(Instant.parse("2026-10-20T16:00:00Z"))).isFalse();
+        assertThat(estado.inactiva()).isFalse();
+        identity.verify();
+    }
+
+    @Test
+    void unaCuentaQueIdentityNoConoceEsServicioNoDisponible() {
+        // 404: la cuenta no existe en Identity (inconsistencia entre servicios), el usuario recibe 503
+        UUID usuarioId = UUID.randomUUID();
+        identity.expect(requestTo("http://identity.local/identity/interno/usuarios/" + usuarioId + "/estado"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+
+        VerificarError.lanza(() -> cliente.estadoCuenta(usuarioId), ErrorIntegracion.IDENTITY_NO_DISPONIBLE);
     }
 
     @Test

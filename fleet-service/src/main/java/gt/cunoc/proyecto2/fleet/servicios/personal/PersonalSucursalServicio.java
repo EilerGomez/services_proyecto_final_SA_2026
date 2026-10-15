@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.DesactivarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
+import gt.cunoc.proyecto2.fleet.dtos.personal.ReintegrarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.TrasladoPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.modelos.personal.PersonalSucursalEntidad;
@@ -40,4 +41,13 @@ public interface PersonalSucursalServicio {
 
     /** F9. 409 MODIFICACION_CONCURRENTE, 422 PERSONAL_INACTIVO, TRASLADO_MISMA_SUCURSAL, SUCURSAL_INACTIVA o SUCURSAL_SIN_ADMIN */
     TrasladoPersonalRespuesta trasladar(UUID id, TrasladarPersonalSolicitud solicitud);
+
+    /**
+     * F10. Vuelve a asignar a una persona retirada (misma cuenta, sin R5), en la misma u otra sucursal y con
+     * el mismo u otro puesto. 403 SUCURSAL_AJENA o SOLO_CAJEROS, 404 PERSONAL_NO_EXISTE o SUCURSAL_NO_EXISTE,
+     * 409 PERSONAL_EN_OTRA_SUCURSAL, 422 PERSONAL_ACTIVO o SUCURSAL_INACTIVA, 400 FECHA_REINTEGRO_INVALIDA.
+     * La cuenta en Identity (R4c) debe estar activa: 422 PERSONAL_CUENTA_INACTIVA o PERSONAL_CUENTA_BLOQUEADA,
+     * 503 IDENTITY_NO_DISPONIBLE si no se puede consultar.
+     */
+    PersonalSucursalRespuesta reintegrar(UUID id, ReintegrarPersonalSolicitud solicitud, UsuarioActual usuario);
 }

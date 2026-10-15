@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.controllers.BaseControladorTest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import java.util.List;
 import java.util.UUID;
@@ -49,5 +50,20 @@ class InternalControllerTest extends BaseControladorTest {
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.telefono").value("55553333"));
+    }
+
+    @Test
+    void estadoCuentaDevuelveEstadoYBloqueo() throws Exception {
+        // Arrange
+        sesion("token", usuario(java.util.Set.of(Roles.SERVICIO), null));
+        when(servicio.estadoCuentaDe(any())).thenReturn(new EstadoCuentaResponse(
+                UUID.randomUUID(), "BLOQUEADO", java.time.Instant.parse("2026-10-20T15:00:00Z")));
+
+        // Act + Assert
+        mvc.perform(get("/identity/interno/usuarios/" + UUID.randomUUID() + "/estado")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("BLOQUEADO"))
+                .andExpect(jsonPath("$.bloqueadoHasta").value("2026-10-20T15:00:00Z"));
     }
 }

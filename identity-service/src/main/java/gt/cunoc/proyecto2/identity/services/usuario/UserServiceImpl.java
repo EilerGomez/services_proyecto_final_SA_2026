@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
@@ -268,6 +269,13 @@ public class UserServiceImpl implements UserService {
         return new ContactoResponse(
                 usuario.getId(), nombre, usuario.getCorreo(),
                 perfil == null ? null : perfil.getTelefono());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public EstadoCuentaResponse estadoCuentaDe(UUID usuarioId) {
+        Usuario usuario = buscar(usuarioId);
+        return new EstadoCuentaResponse(usuario.getId(), usuario.getEstado(), usuario.getBloqueadoHasta());
     }
 
     private Usuario buscar(UUID usuarioId) {

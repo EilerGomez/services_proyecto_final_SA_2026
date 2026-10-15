@@ -96,6 +96,22 @@ public class PersonalSucursalEntidad {
         return asignar(UUID.randomUUID(), sucursalDestinoId, usuarioId, nombreCompleto, correo, rol, fecha);
     }
 
+    /**
+     * Nueva asignación para alguien que fue retirado (esta fila queda como historial y no cambia).
+     * Puede volver a otra sucursal y con otro puesto.
+     * @throws gt.cunoc.proyecto2.comun.errores.ReglaNegocioException si esta asignación sigue activa
+     * @throws gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException si la fecha es anterior al retiro
+     */
+    public PersonalSucursalEntidad reintegrar(UUID sucursalDestinoId, RolPersonal nuevoRol, LocalDate fecha) {
+        if (activo) {
+            throw ErrorPersonal.PERSONAL_ACTIVO.excepcion();
+        }
+        if (fechaDesasignacion != null && fecha.isBefore(fechaDesasignacion)) {
+            throw ErrorPersonal.FECHA_REINTEGRO_INVALIDA.excepcion(fechaDesasignacion);
+        }
+        return asignar(UUID.randomUUID(), sucursalDestinoId, usuarioId, nombreCompleto, correo, nuevoRol, fecha);
+    }
+
     public boolean esAdminSucursal() {
         return rol == RolPersonal.ADMIN_SUCURSAL;
     }

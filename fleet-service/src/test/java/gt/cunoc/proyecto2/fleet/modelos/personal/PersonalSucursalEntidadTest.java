@@ -65,4 +65,37 @@ class PersonalSucursalEntidadTest {
         assertThat(nueva.getFechaAsignacion()).isEqualTo(FECHA);
         assertThat(nueva.getVersion()).isNull();
     }
+
+    @Test
+    void noSeReintegraUnaAsignacionActiva() {
+        PersonalSucursalEntidad cajero = DatosPrueba.personal(xela, RolPersonal.CAJERO);
+
+        VerificarError.lanza(() -> cajero.reintegrar(xela, RolPersonal.CAJERO, FECHA), ErrorPersonal.PERSONAL_ACTIVO);
+    }
+
+    @Test
+    void elReintegroNoPuedeSerAntesDelRetiro() {
+        PersonalSucursalEntidad cajero = DatosPrueba.personal(xela, RolPersonal.CAJERO);
+        cajero.desactivar(FECHA);
+
+        VerificarError.lanza(() -> cajero.reintegrar(xela, RolPersonal.CAJERO, FECHA.minusDays(1)),
+                ErrorPersonal.FECHA_REINTEGRO_INVALIDA);
+    }
+
+    @Test
+    void elReintegroCreaOtraAsignacionConLaMismaCuenta() {
+        PersonalSucursalEntidad cajero = DatosPrueba.personal(xela, RolPersonal.CAJERO);
+        cajero.desactivar(FECHA);
+        UUID guate = UUID.randomUUID();
+
+        PersonalSucursalEntidad nueva = cajero.reintegrar(guate, RolPersonal.ADMIN_SUCURSAL, FECHA);
+
+        assertThat(nueva.getId()).isNotEqualTo(cajero.getId());
+        assertThat(nueva.getUsuarioId()).isEqualTo(cajero.getUsuarioId());
+        assertThat(nueva.getSucursalId()).isEqualTo(guate);
+        assertThat(nueva.getRol()).isEqualTo(RolPersonal.ADMIN_SUCURSAL);
+        assertThat(nueva.isActivo()).isTrue();
+        assertThat(nueva.getFechaAsignacion()).isEqualTo(FECHA);
+        assertThat(cajero.isActivo()).isFalse();
+    }
 }
