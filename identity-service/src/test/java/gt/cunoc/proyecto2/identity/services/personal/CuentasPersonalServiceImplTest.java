@@ -107,7 +107,7 @@ class CuentasPersonalServiceImplTest {
     private CuentaPersonalRequest solicitud() {
         return new CuentaPersonalRequest(SOLICITUD_ID, "CHOFER", SUCURSAL_ID, SOLICITUD_ID,
                 "chofer@correo.com", "Pedro", "Ramírez", "9988776-5", "3234567890101",
-                "55553333", "Xela", "https://storage.googleapis.com/proyecto-final-sa-fotos/choferes/a.jpg");
+                "55553333", "Xela", "https://stproyecto2fotos.blob.core.windows.net/fotos/choferes/a.jpg");
     }
 
     private Rol rol(String codigo) {

@@ -197,6 +197,20 @@ class BusServicioImplTest {
         assertThat(respuesta.capacidadPasajeros()).isEqualTo(55);
         verify(fotos).verificarUrl(DatosPrueba.FOTO_BUS);
         verify(eventos).busActualizado(eq(bus), any(LocalDate.class));
+        verify(fotos, never()).eliminarAlConfirmar(anyString());     // misma foto: no se borra nada
+    }
+
+    @Test
+    void actualizarConOtraFotoBorraLaAnterior() {
+        elBusExiste();
+        guardarDevuelveElMismo();
+        String nueva = DatosPrueba.URL_FOTOS + "dev/buses/nueva.png";
+        ActualizarBusSolicitud solicitud = new ActualizarBusSolicitud("Volvo", "B12", 2018, 50, nueva, 0);
+
+        BusRespuesta respuesta = servicio.actualizar(bus.getId(), solicitud, adminXela);
+
+        assertThat(respuesta.fotoUrl()).isEqualTo(nueva);
+        verify(fotos).eliminarAlConfirmar(DatosPrueba.FOTO_BUS);
     }
 
     // ----- F14 -----

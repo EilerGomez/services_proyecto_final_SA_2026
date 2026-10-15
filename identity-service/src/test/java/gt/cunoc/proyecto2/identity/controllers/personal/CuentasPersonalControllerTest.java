@@ -75,7 +75,7 @@ class CuentasPersonalControllerTest extends BaseControladorTest {
                 "choferId":"%s","correo":"chofer@correo.com","nombres":"Pedro",
                 "apellidos":"Ramírez","nit":"9988776-5","dpi":"3234567890101",
                 "telefono":"55553333","direccion":"Xela",
-                "fotoUrl":"https://storage.googleapis.com/proyecto-final-sa-fotos/choferes/a.jpg"}"""
+                "fotoUrl":"https://stproyecto2fotos.blob.core.windows.net/fotos/choferes/a.jpg"}"""
                 .formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
     }
 }

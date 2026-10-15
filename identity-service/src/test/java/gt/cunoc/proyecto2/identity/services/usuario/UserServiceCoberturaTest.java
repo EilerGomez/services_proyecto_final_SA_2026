@@ -110,11 +110,11 @@ class UserServiceCoberturaTest {
         when(usuarios.findById(usuario.getId())).thenReturn(Optional.of(usuario));
         when(perfiles.findById(usuario.getId())).thenReturn(Optional.of(perfil));
         when(perfiles.existsByNit("nuevo")).thenReturn(false);
-        when(fotos.esDelBucket("https://storage.googleapis.com/b/foto.jpg")).thenReturn(true);
+        when(fotos.esDelBucket("https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/foto.jpg")).thenReturn(true);
 
         var respuesta = servicio.actualizarPerfil(usuario.getId(), new UpdateProfileRequest(
                 "Nuevo", "Pérez", "nuevo", null, "Nueva dirección",
-                "https://storage.googleapis.com/b/foto.jpg"));
+                "https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/foto.jpg"));
 
         assertAll(
                 () -> assertEquals("Nuevo", respuesta.nombres()),

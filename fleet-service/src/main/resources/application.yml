@@ -58,8 +58,13 @@ app:
     identity-url: ${IDENTITY_URL:http://localhost:8081}
     trips-url: ${TRIPS_URL:http://localhost:8083}
   fotos:
-    bucket: ${FOTOS_BUCKET:proyecto-final-sa-fotos}
+    # Azure Blob Storage. URL de cada foto: <cuenta-url>/<contenedor>/<prefijo><carpeta>/<uuid>.<ext>
+    cuenta-url: ${FOTOS_CUENTA_URL:https://stproyecto2fotos.blob.core.windows.net}
+    contenedor: ${FOTOS_CONTENEDOR:fotos}
     prefijo: ${FOTOS_PREFIJO:dev/}
+    # Solo en local: token SAS del contenedor (crear + escribir, con vencimiento). Nunca en el repo ni en .env.prod.
+    # Vacío (en la VM de Azure): se usa la identidad administrada de la VM.
+    sas: ${FOTOS_SAS:}
 
 springdoc:
   swagger-ui:

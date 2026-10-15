@@ -65,11 +65,6 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
         </dependency>
-        <!-- Fotos de buses y choferes en el bucket de Google Cloud Storage (F22) -->
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-storage</artifactId>
-        </dependency>
         <!-- Getters, setters y constructores de las entidades (la versión la fija Spring Boot) -->
         <dependency>
             <groupId>org.projectlombok</groupId>

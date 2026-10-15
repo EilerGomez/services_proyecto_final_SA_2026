@@ -1,8 +1,5 @@
 package gt.cunoc.proyecto2.identity.archivos;
 
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,17 +11,19 @@ import org.springframework.web.multipart.MultipartFile;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** Ramas de AlmacenFotos sin cubrir: nulo, exceso de tamaño y fallos del almacenamiento. */
+/** Ramas de AlmacenFotos: nulo, exceso de tamaño y fallos del almacenamiento. */
 @ExtendWith(MockitoExtension.class)
 class AlmacenFotosRamasTest {
 
-    @Mock private Storage storage;
+    @Mock private ClienteBlobAzure blob;
 
     private AlmacenFotos almacen() {
-        return new AlmacenFotos(storage, "mi-bucket", "dev/");
+        return new AlmacenFotos(blob, "dev/");
     }
 
     @Test
@@ -47,11 +46,10 @@ class AlmacenFotosRamasTest {
     }
 
     @Test
-    void errorAlmacenamientoDa503() {
+    void errorAlmacenamientoDa503() throws Exception {
         var archivo = new MockMultipartFile(
                 "archivo", "foto.jpg", "image/jpeg", new byte[]{1, 2, 3});
-        when(storage.create(any(BlobInfo.class), any(byte[].class)))
-                .thenThrow(new StorageException(500, "caído"));
+        doThrow(new IOException("Azure Blob respondió 403")).when(blob).subir(anyString(), any(), anyString());
 
         var error = assertThrows(gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException.class,
                 () -> almacen().subir("perfiles", archivo));

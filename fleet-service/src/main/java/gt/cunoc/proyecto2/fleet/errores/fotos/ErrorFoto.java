@@ -5,7 +5,7 @@ import gt.cunoc.proyecto2.fleet.errores.TipoError;
 
 /**
  * Errores de fotos.
- * ARCHIVO_INVALIDO: el archivo que se sube en F22. FOTO_INVALIDA: una fotoUrl del JSON que no es del bucket.
+ * ARCHIVO_INVALIDO: el archivo que se sube en F22. FOTO_INVALIDA: una fotoUrl del JSON que no es del contenedor de fotos.
  */
 public enum ErrorFoto implements CodigoError {
 

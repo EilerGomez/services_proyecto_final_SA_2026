@@ -162,6 +162,56 @@ class UserServiceImplTest {
     }
 
     @Test
+    void actualizarPerfilConFotoNuevaBorraLaAnterior() {
+        // Arrange
+        String vieja = "https://cuenta.blob.core.windows.net/fotos/dev/perfiles/vieja.jpg";
+        String nueva = "https://cuenta.blob.core.windows.net/fotos/dev/perfiles/nueva.jpg";
+        var actual = adminSistema();
+        var perfil = new gt.cunoc.proyecto2.identity.models.Perfil();
+        perfil.setUsuario(actual);
+        perfil.setNombres("A");
+        perfil.setApellidos("B");
+        perfil.setFotoUrl(vieja);
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(actual));
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.of(perfil));
+        when(fotos.esDelBucket(nueva)).thenReturn(true);
+
+        // Act
+        var respuesta = servicio.actualizarPerfil(ADMIN_ID,
+                new gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest(
+                        null, null, null, null, null, nueva));
+
+        // Assert
+        assertAll(
+                () -> assertEquals(nueva, respuesta.fotoUrl()),
+                () -> verify(fotos).eliminarAlConfirmar(vieja));
+    }
+
+    @Test
+    void actualizarPerfilSinCambiarFotoNoBorraNada() {
+        // Arrange
+        String misma = "https://cuenta.blob.core.windows.net/fotos/dev/perfiles/misma.jpg";
+        var actual = adminSistema();
+        var perfil = new gt.cunoc.proyecto2.identity.models.Perfil();
+        perfil.setUsuario(actual);
+        perfil.setNombres("A");
+        perfil.setApellidos("B");
+        perfil.setFotoUrl(misma);
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(actual));
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.of(perfil));
+        when(fotos.esDelBucket(misma)).thenReturn(true);
+
+        // Act
+        servicio.actualizarPerfil(ADMIN_ID, new gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest(
+                null, null, null, "55550000", null, misma));
+        servicio.actualizarPerfil(ADMIN_ID, new gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest(
+                null, null, null, "55550001", null, null));
+
+        // Assert
+        verify(fotos, never()).eliminarAlConfirmar(any());
+    }
+
+    @Test
     void actualizarPerfilNitDuplicadoDa409() {
         // Arrange
         var actual = adminSistema();

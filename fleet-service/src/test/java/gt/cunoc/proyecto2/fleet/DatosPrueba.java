@@ -19,8 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 public final class DatosPrueba {
 
     public static final LocalDate FECHA = LocalDate.of(2026, 10, 20);
-    public static final String BUCKET = "proyecto-final-sa-fotos";
-    public static final String URL_FOTOS = "https://storage.googleapis.com/" + BUCKET + "/";
+    public static final String URL_FOTOS = "https://stproyecto2fotos.blob.core.windows.net/fotos/";
     public static final String FOTO_BUS = URL_FOTOS + "dev/buses/bus.jpg";
     public static final String FOTO_CHOFER = URL_FOTOS + "dev/choferes/chofer.jpg";
 

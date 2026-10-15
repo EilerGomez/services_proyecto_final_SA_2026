@@ -321,11 +321,11 @@ class OAuthGoogleTest {
     @Test
     void callbackNoReemplazaLaFotoPropia() {
         Usuario usuario = usuarioGoogle();
-        Perfil perfil = perfilCon("https://storage.googleapis.com/fotos/propia.jpg");
+        Perfil perfil = perfilCon("https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/propia.jpg");
         when(usuarios.findByProveedorAndProveedorId("GOOGLE", "sub-1")).thenReturn(Optional.of(usuario));
         when(perfiles.findById(USUARIO_ID)).thenReturn(Optional.of(perfil));
         ticketDe("sub-1", "ana@correo.com");
-        assertEquals("https://storage.googleapis.com/fotos/propia.jpg", perfil.getFotoUrl());
+        assertEquals("https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/propia.jpg", perfil.getFotoUrl());
         verify(perfiles, never()).save(any(Perfil.class));
     }
 

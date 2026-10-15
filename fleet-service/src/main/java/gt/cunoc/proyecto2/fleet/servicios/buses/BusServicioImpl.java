@@ -86,10 +86,15 @@ public class BusServicioImpl implements BusServicio {
         BusEntidad bus = obtener(id, usuario);
         VerificadorVersion.verificar(bus.getVersion(), solicitud.version());
         fotos.verificarUrl(solicitud.fotoUrl());
+        String fotoAnterior = bus.getFotoUrl();
 
         solicitud.aplicarA(bus);
         bus = repositorio.saveAndFlush(bus);
         eventos.busActualizado(bus, Fechas.hoy());
+        // Foto reemplazada: la anterior se borra del almacenamiento cuando se confirma el cambio
+        if (fotoAnterior != null && !fotoAnterior.equals(bus.getFotoUrl())) {
+            fotos.eliminarAlConfirmar(fotoAnterior);
+        }
 
         return new BusRespuesta(bus);
     }

@@ -27,7 +27,7 @@ class ArchivosControllerTest extends BaseControladorTest {
     void subirFotoDevuelveUrl() throws Exception {
         // Arrange
         sesion("token", usuario(Set.of(Roles.CLIENTE), null));
-        when(almacen.subir(eq("perfiles"), any())).thenReturn("https://storage.googleapis.com/b/foto.jpg");
+        when(almacen.subir(eq("perfiles"), any())).thenReturn("https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/foto.jpg");
         var archivo = new MockMultipartFile("archivo", "foto.jpg", "image/jpeg", new byte[]{1, 2, 3});
 
         // Act + Assert
@@ -35,6 +35,6 @@ class ArchivosControllerTest extends BaseControladorTest {
                         .header("Authorization", "Bearer token")
                         .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.fotoUrl").value("https://storage.googleapis.com/b/foto.jpg"));
+                .andExpect(jsonPath("$.fotoUrl").value("https://stproyecto2fotos.blob.core.windows.net/fotos/perfiles/foto.jpg"));
     }
 }

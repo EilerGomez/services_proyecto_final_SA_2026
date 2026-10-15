@@ -1,16 +1,14 @@
 # =====================================================================
 # docker-compose.yml · services_proyecto_final_SA_2026
-# PostgreSQL NO está aquí: corre fuera de Docker en cada máquina / VM.
+# PostgreSQL NO está aquí: en local corre fuera de Docker en cada máquina; en producción es
+# Azure Database for PostgreSQL (servidor flexible, acceso privado).
 #
 # Desarrollo local (servicios desde NetBeans):
 #   docker compose up -d                       -> solo RabbitMQ y Mailpit
 # Todo en Docker (primero se arman los JAR sin pruebas):
 #   mvn -B -ntp -Pdespliegue package
 #   docker compose --profile app up -d --build
-# VM, dos entornos:
-#   docker compose -p dev  --env-file .env.dev  --profile app up -d
-#   docker compose -p prod --env-file .env.prod --profile app up -d
-#   (ver infra/README.md)
+# Producción (VM de Azure): ver infra/azure
 # =====================================================================
 
 name: proyecto2
@@ -19,18 +17,30 @@ name: proyecto2
 x-env-comun: &env-comun
   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-dev}
   DB_HOST: ${DB_HOST:-host.docker.internal}
+  # Conexiones a PostgreSQL por servicio. Local: 10. Producción (Azure B1ms, ~50 en total): 4.
+  SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE: ${DB_POOL_MAX:-10}
   RABBIT_HOST: rabbitmq
   RABBIT_USER: ${RABBIT_USER:-proyecto2}
   RABBIT_PASSWORD: ${RABBIT_PASSWORD:-proyecto2}
   JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET en el archivo .env}
   JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -XX:+UseSerialGC"
 
+# ---------- Fotos en Azure Blob Storage (identity y fleet) ----------
+# URL de cada foto: <FOTOS_CUENTA_URL>/<FOTOS_CONTENEDOR>/<FOTOS_PREFIJO><carpeta>/<uuid>.<ext>
+# FOTOS_SAS solo en local (token SAS del contenedor). En la VM va vacío: se usa la identidad administrada.
+# FOTOS_PREFIJO usa "-" (sin ":") a propósito: vacío en .env.prod se queda vacío (no se vuelve dev/).
+x-env-fotos: &env-fotos
+  FOTOS_CUENTA_URL: ${FOTOS_CUENTA_URL:-https://stproyecto2fotos.blob.core.windows.net}
+  FOTOS_CONTENEDOR: ${FOTOS_CONTENEDOR:-fotos}
+  FOTOS_PREFIJO: ${FOTOS_PREFIJO-dev/}
+  FOTOS_SAS: ${FOTOS_SAS:-}
+
 x-servicio-java: &servicio-java
   profiles: ["app"]
   restart: unless-stopped
   mem_limit: 400m
   extra_hosts:
-    - "host.docker.internal:host-gateway"   # para llegar al PostgreSQL de la máquina
+    - "host.docker.internal:host-gateway"   # para llegar al PostgreSQL de la máquina (local)
   depends_on:
     rabbitmq:
       condition: service_healthy
@@ -71,7 +81,7 @@ services:
     image: ${REGISTRY:-ghcr.io/usuario}/api-gateway:${IMAGE_TAG:-latest}
     environment:
       <<: *env-comun
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       GATEWAY_ALLOWED_ORIGINS: ${GATEWAY_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:5173}
       IDENTITY_URL: http://identity-service:8081
       FLEET_URL: http://fleet-service:8082
@@ -92,11 +102,11 @@ services:
     build: ./identity-service
     image: ${REGISTRY:-ghcr.io/usuario}/identity-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *env-comun
+      <<: [*env-comun, *env-fotos]
       DB_NAME: bd_identidad${DB_SUFIJO:-}
       DB_USER: ${DB_IDENTIDAD_USER:-usr_identidad}
       DB_PASSWORD: ${DB_IDENTIDAD_PASSWORD:-cambiar_identidad}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4200}
       # Login con Google (opcional; sin estas dos el endpoint responde 503 y todo lo demás igual).
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
@@ -114,22 +124,18 @@ services:
       ADMIN_DPI: ${ADMIN_DPI:-0000000000000}
       ADMIN_TELEFONO: ${ADMIN_TELEFONO:-00000000}
       ADMIN_DIRECCION: ${ADMIN_DIRECCION:-Ciudad}
-      FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
-      FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
   fleet-service:
     <<: *servicio-java
     build: ./fleet-service
     image: ${REGISTRY:-ghcr.io/usuario}/fleet-service:${IMAGE_TAG:-latest}
     environment:
-      <<: *env-comun
+      <<: [*env-comun, *env-fotos]
       DB_NAME: bd_flota${DB_SUFIJO:-}
       DB_USER: ${DB_FLOTA_USER:-usr_flota}
       DB_PASSWORD: ${DB_FLOTA_PASSWORD:-cambiar_flota}
       IDENTITY_URL: http://identity-service:8081   # R5
       TRIPS_URL: http://trips-service:8083         # R3
-      FOTOS_BUCKET: ${FOTOS_BUCKET:-proyecto-final-sa-fotos}
-      FOTOS_PREFIJO: ${FOTOS_PREFIJO:-}
 
   trips-service:
     <<: *servicio-java

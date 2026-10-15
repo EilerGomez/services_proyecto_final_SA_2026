@@ -58,9 +58,9 @@ import org.testcontainers.rabbitmq.RabbitMQContainer;
 public abstract class PruebaIntegracion {
 
     protected static final LocalDate FECHA = LocalDate.of(2026, 10, 20);
-    protected static final String BUCKET = "bucket-pruebas";
-    protected static final String FOTO_BUS = "https://storage.googleapis.com/" + BUCKET + "/it/buses/bus.jpg";
-    protected static final String FOTO_CHOFER = "https://storage.googleapis.com/" + BUCKET + "/it/choferes/chofer.jpg";
+    protected static final String CUENTA_FOTOS = "https://cuentapruebas.blob.core.windows.net";
+    protected static final String FOTO_BUS = CUENTA_FOTOS + "/fotos/it/buses/bus.jpg";
+    protected static final String FOTO_CHOFER = CUENTA_FOTOS + "/fotos/it/choferes/chofer.jpg";
 
     /** Cola de la prueba enlazada a fleet.eventos con "#": recibe todo lo que Fleet publica. */
     protected static final String COLA_ESPIA = "pruebas.fleet.eventos";
@@ -90,7 +90,8 @@ public abstract class PruebaIntegracion {
         registro.add("comun.eventos.outbox.intervalo-ms", () -> "200");
         registro.add("app.servicios.identity-url", IDENTITY::url);
         registro.add("app.servicios.trips-url", TRIPS::url);
-        registro.add("app.fotos.bucket", () -> BUCKET);
+        registro.add("app.fotos.cuenta-url", () -> CUENTA_FOTOS);
+        registro.add("app.fotos.contenedor", () -> "fotos");
         registro.add("app.fotos.prefijo", () -> "it/");
     }
 

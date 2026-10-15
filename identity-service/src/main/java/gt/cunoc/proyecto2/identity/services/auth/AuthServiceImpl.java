@@ -419,7 +419,7 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * Si la cuenta no tiene foto propia (p. ej. una cuenta LOCAL que se acaba de vincular),
-     * usa la foto de Google. Una foto ya guardada (subida al bucket) nunca se reemplaza.
+     * usa la foto de Google. Una foto ya guardada (subida al almacenamiento) nunca se reemplaza.
      */
     private void completarFotoGoogle(Usuario usuario, String foto) {
         if (foto == null || foto.isBlank()) {

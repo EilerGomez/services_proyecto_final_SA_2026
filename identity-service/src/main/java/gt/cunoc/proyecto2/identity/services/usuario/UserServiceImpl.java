@@ -184,6 +184,7 @@ public class UserServiceImpl implements UserService {
         Usuario usuario = buscar(usuarioId);
         Perfil perfil = perfiles.findById(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("PERFIL_NO_EXISTE", "El perfil no existe"));
+        String fotoAnterior = perfil.getFotoUrl();
         if (solicitud.nombres() != null) {
             perfil.setNombres(solicitud.nombres());
         }
@@ -217,6 +218,10 @@ public class UserServiceImpl implements UserService {
                 usuario.getId(), perfil.getNit(), perfil.getNombres(), perfil.getApellidos(),
                 usuario.getCorreo(), perfil.getTelefono(), perfil.getFotoUrl(), usuario.getChoferId(),
                 LocalDate.now());
+        // Foto reemplazada: la anterior se borra del almacenamiento cuando se confirma el cambio
+        if (fotoAnterior != null && !fotoAnterior.equals(perfil.getFotoUrl())) {
+            fotos.eliminarAlConfirmar(fotoAnterior);
+        }
         return aPerfil(usuario, perfil);
     }
 

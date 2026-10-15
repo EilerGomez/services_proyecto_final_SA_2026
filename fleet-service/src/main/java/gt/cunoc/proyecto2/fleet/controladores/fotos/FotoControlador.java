@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/fleet/archivos")
-@Tag(name = "Fotos", description = "Subida de fotos de buses y choferes al bucket")
+@Tag(name = "Fotos", description = "Subida de fotos de buses y choferes al almacenamiento de fotos")
 public class FotoControlador {
 
     private final AlmacenFotosServicio fotos;
