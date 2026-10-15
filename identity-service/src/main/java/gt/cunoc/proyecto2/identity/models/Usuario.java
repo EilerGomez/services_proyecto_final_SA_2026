@@ -37,8 +37,20 @@ public class Usuario {
     @Column(name = "correo", length = 150, nullable = false, unique = true)
     private String correo;
 
-    @Column(name = "contrasena_hash", length = 255, nullable = false)
+    /**
+     * Hash BCrypt. Null en cuentas OAuth (GOOGLE), que no tienen contraseña.
+     * iniciarSesion y cambiarContrasena deben rechazar cuentas sin clave.
+     */
+    @Column(name = "contrasena_hash", length = 255)
     private String claveCifrada;
+
+    /** Origen de la cuenta: LOCAL (registro clásico) o GOOGLE (OAuth2). */
+    @Column(name = "proveedor", length = 20, nullable = false)
+    private String proveedor = "LOCAL";
+
+    /** Identificador externo (sub de Google). Null en cuentas LOCAL. */
+    @Column(name = "proveedor_id", length = 255)
+    private String proveedorId;
 
     @Column(name = "estado", length = 15, nullable = false)
     private String estado = "ACTIVO";

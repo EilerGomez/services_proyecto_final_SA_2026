@@ -56,6 +56,15 @@ app:
   jwt:
     duracion-minutos: 60
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
+  oauth2:
+    google:
+      # Credenciales OAuth de Google (consola cloud, tipo Web). Vacías = login con Google apagado.
+      client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
+      client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:}
+      # Debe coincidir con una "Authorized redirect URI" de la credencial (vía gateway).
+      redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:8080/identity/auth/oauth2/google/callback}
+      # Frontend al que vuelve el callback con ?ticket= o ?error=.
+      frontend-url: ${OAUTH_FRONTEND_URL:http://localhost:4200}
   fotos:
     bucket: ${FOTOS_BUCKET:proyecto-final-sa-fotos}
     prefijo: ${FOTOS_PREFIJO:}

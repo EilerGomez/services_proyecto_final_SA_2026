@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.services.auth;
 
 
 import gt.cunoc.proyecto2.identity.dtos.auth.CambioContrasenaRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.CanjeTicketRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.DobleFactorRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.InicioSesionRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.RecuperacionRequest;
@@ -11,6 +12,7 @@ import gt.cunoc.proyecto2.identity.dtos.auth.RestablecimientoRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.ResultadoInicioSesion;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.TokenRefrescoRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.UrlGoogleResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.VerificarDobleFactorRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 
@@ -41,4 +43,10 @@ public interface AuthService {
     PerfilResponse miPerfil(UUID usuarioId);
 
     void cambiarContrasena(UUID usuarioId, CambioContrasenaRequest solicitud);
+
+    UrlGoogleResponse urlGoogle();
+
+    String callbackGoogle(String codigo, String estado);
+
+    ResultadoInicioSesion canjearTicketGoogle(CanjeTicketRequest solicitud);
 }

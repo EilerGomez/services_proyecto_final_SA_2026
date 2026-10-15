@@ -22,6 +22,12 @@ public final class PublicEndpoints {
         "/identity/auth/refrescar",
         "/identity/auth/recuperar",
         "/identity/auth/restablecer",
+        "/identity/auth/oauth2/canjear",
+    };
+
+    /** Login con Google: URL de autorización, callback del proveedor y canje (canjear es POST). */
+    public static final String[] GET_OAUTH = {
+        "/identity/auth/oauth2/**",
     };
 
     /**
@@ -59,6 +65,7 @@ public final class PublicEndpoints {
         return ServerWebExchangeMatchers.matchers(
                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.OPTIONS, "/**"),
                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, POST),
+                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, GET_OAUTH),
                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, GET_CONSULTAS),
                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, GET_INFRAESTRUCTURA));
     }

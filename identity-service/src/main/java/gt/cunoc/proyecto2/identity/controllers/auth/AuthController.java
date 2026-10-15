@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.controllers.auth;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.auth.CambioContrasenaRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.CanjeTicketRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.DesafioDobleFactor;
 import gt.cunoc.proyecto2.identity.dtos.auth.DobleFactorRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.InicioSesionRequest;
@@ -12,15 +13,19 @@ import gt.cunoc.proyecto2.identity.dtos.auth.RestablecimientoRequest;
 import gt.cunoc.proyecto2.identity.dtos.auth.ResultadoInicioSesion;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.TokenRefrescoRequest;
+import gt.cunoc.proyecto2.identity.dtos.auth.UrlGoogleResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.VerificarDobleFactorRequest;
 import gt.cunoc.proyecto2.identity.services.auth.AuthService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -102,5 +107,29 @@ public class AuthController {
             @Parameter(hidden = true) UsuarioActual usuario) {
         servicio.cambiarContrasena(usuario.usuarioId(), solicitud);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/oauth2/google/url")
+    public ResponseEntity<UrlGoogleResponse> urlGoogle() {
+        return ResponseEntity.ok(servicio.urlGoogle());
+    }
+
+    @GetMapping("/oauth2/google/callback")
+    public ResponseEntity<Void> callbackGoogle(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state) {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(servicio.callbackGoogle(code, state)))
+                .build();
+    }
+
+    @PostMapping("/oauth2/canjear")
+    public ResponseEntity<ResultadoInicioSesion> canjearTicket(
+            @RequestBody @Valid CanjeTicketRequest solicitud) {
+        ResultadoInicioSesion resultado = servicio.canjearTicketGoogle(solicitud);
+        if (resultado instanceof DesafioDobleFactor desafio) {
+            return ResponseEntity.accepted().header("Cache-Control", "no-store").body(desafio);
+        }
+        return ResponseEntity.ok().header("Cache-Control", "no-store").body(resultado);
     }
 }
