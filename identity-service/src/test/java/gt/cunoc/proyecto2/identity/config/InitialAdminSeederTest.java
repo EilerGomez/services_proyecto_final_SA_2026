@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.identity.config;
 
 import gt.cunoc.proyecto2.identity.models.Rol;
+import gt.cunoc.proyecto2.identity.models.Usuario;
 import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
@@ -9,12 +10,14 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,22 +68,62 @@ class InitialAdminSeederTest {
         verify(usuarios, never()).save(any());
     }
 
+    private static Rol rol(String codigo) {
+        Rol rol = new Rol();
+        rol.setCodigo(codigo);
+        return rol;
+    }
+
     @Test
     void sinAdminCreaCuentaPerfilYCartera() {
         // Arrange
         when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
         when(usuarios.existsByCorreo("admin@correo.com")).thenReturn(false);
-        Rol admin = new Rol();
-        admin.setCodigo("ADMIN_SISTEMA");
-        when(roles.findAll()).thenReturn(List.of(admin));
+        when(roles.findAllById(List.of("ADMIN_SISTEMA", "CLIENTE")))
+                .thenReturn(List.of(rol("ADMIN_SISTEMA"), rol("CLIENTE")));
 
         // Act
         seeder().run(null);
 
         // Assert
-        verify(usuarios).save(any(gt.cunoc.proyecto2.identity.models.Usuario.class));
+        verify(usuarios).save(any(Usuario.class));
         verify(perfiles).save(any(gt.cunoc.proyecto2.identity.models.Perfil.class));
         verify(carteras).save(any(gt.cunoc.proyecto2.identity.models.Cartera.class));
+    }
+
+    @Test
+    void elAdminInicialSoloTieneAdminSistemaYCliente() {
+        // Arrange
+        when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
+        when(usuarios.existsByCorreo("admin@correo.com")).thenReturn(false);
+        when(roles.findAllById(List.of("ADMIN_SISTEMA", "CLIENTE")))
+                .thenReturn(List.of(rol("ADMIN_SISTEMA"), rol("CLIENTE")));
+        ArgumentCaptor<Usuario> guardado = ArgumentCaptor.forClass(Usuario.class);
+
+        // Act
+        seeder().run(null);
+
+        // Assert
+        verify(usuarios).save(guardado.capture());
+        assertThat(guardado.getValue().getRoles()).extracting(Rol::getCodigo)
+                .containsExactlyInAnyOrder("ADMIN_SISTEMA", "CLIENTE");
+        verify(roles, never()).findAll();
+    }
+
+    @Test
+    void siFaltaUnRolEnLaBaseNoCreaNada() {
+        // Arrange
+        when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
+        when(usuarios.existsByCorreo("admin@correo.com")).thenReturn(false);
+        when(roles.findAllById(List.of("ADMIN_SISTEMA", "CLIENTE"))).thenReturn(List.of(rol("ADMIN_SISTEMA")));
+
+        // Act
+        seeder().run(null);
+
+        // Assert
+        verify(usuarios, never()).save(any());
+        verify(perfiles, never()).save(any());
+        verify(carteras, never()).save(any());
     }
 
     @Test

@@ -21,20 +21,28 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 
 /**
  * Crea el primer ADMIN_SISTEMA desde variables de entorno (solo si no existe ninguno).
  *
  * <p>Variables: {@code ADMIN_CORREO}, {@code ADMIN_CONTRASENA} y datos del perfil.
+ *
+ * <p>Roles: solo {@link #ROLES_ADMIN_INICIAL} (ADMIN_SISTEMA y CLIENTE). Los roles de sucursal
+ * (ADMIN_SUCURSAL, CAJERO) y CHOFER no se dan aquí: se asignan desde el sistema, porque dependen
+ * de una sucursal o de una licencia en fleet.
  */
 @Component
 @Order(1)
 public class InitialAdminSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(InitialAdminSeeder.class);
+
+    /** Roles con que nace el primer administrador. */
+    static final List<String> ROLES_ADMIN_INICIAL = List.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE);
 
     private final UsuarioRepository usuarios;
 
@@ -106,12 +114,16 @@ public class InitialAdminSeeder implements ApplicationRunner {
             log.warn("El correo del admin inicial ya existe");
             return;
         }
+        Set<Rol> rolesAdmin = new HashSet<>(roles.findAllById(ROLES_ADMIN_INICIAL));
+        if (rolesAdmin.size() != ROLES_ADMIN_INICIAL.size()) {
+            log.error("No se creó el admin inicial: faltan roles {} en la tabla roles", ROLES_ADMIN_INICIAL);
+            return;
+        }
         Usuario usuario = new Usuario();
         usuario.setCorreo(correo.trim().toLowerCase());
         usuario.setClaveCifrada(claves.encode(contrasena));
         usuario.setEstado("ACTIVO");
-        Set<Rol> todos = roles.findAll().stream().collect(Collectors.toSet());
-        usuario.setRoles(todos);
+        usuario.setRoles(rolesAdmin);
         usuarios.save(usuario);
         Perfil perfil = new Perfil();
         perfil.setUsuario(usuario);
