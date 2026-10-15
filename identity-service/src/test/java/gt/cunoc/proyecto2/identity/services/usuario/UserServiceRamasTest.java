@@ -247,9 +247,15 @@ class UserServiceRamasTest {
         when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId())).thenReturn(List.of());
         when(perfiles.findById(usuario.getId())).thenReturn(Optional.empty());
 
+        usuario.setBloqueadoHasta(java.time.Instant.now().plusSeconds(600));
+        usuario.setIntentosFallidos(3);
+
         var detalle = servicio.cambiarEstado(usuario.getId(), new UserStatusRequest("BLOQUEADO"));
 
         assertEquals("BLOQUEADO", detalle.estado());
+        // Bloqueo del administrador: sin fecha, no vence solo
+        assertEquals(null, usuario.getBloqueadoHasta());
+        assertEquals(0, usuario.getIntentosFallidos());
         verify(usuarios, org.mockito.Mockito.never())
                 .countByEstadoAndRoles_Codigo(any(), any());
     }

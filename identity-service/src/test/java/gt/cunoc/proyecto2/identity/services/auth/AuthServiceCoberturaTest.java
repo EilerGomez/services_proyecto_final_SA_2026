@@ -123,21 +123,20 @@ class AuthServiceCoberturaTest {
     }
 
     @Test
-    void loginBloqueadoSinFechaDesbloquea() {
+    void loginBloqueadoPorAdministradorNoVence() {
         Usuario usuario = usuarioActivo();
         usuario.setEstado("BLOQUEADO");
         usuario.setBloqueadoHasta(null);
         when(usuarios.findByCorreo("a@correo.com")).thenReturn(Optional.of(usuario));
-        when(jwt.generar(any())).thenReturn("jwt");
-        when(perfiles.findById(usuario.getId())).thenReturn(Optional.empty());
 
-        var resultadoBloqueo = servicio.iniciarSesion(new InicioSesionRequest("a@correo.com", "Secreta123"));
-        var respuesta = (gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse) resultadoBloqueo;
+        var error = org.junit.jupiter.api.Assertions.assertThrows(
+                gt.cunoc.proyecto2.comun.errores.NoAutenticadoException.class,
+                () -> servicio.iniciarSesion(new InicioSesionRequest("a@correo.com", "Secreta123")));
 
         assertAll(
-                () -> assertEquals("ACTIVO", usuario.getEstado()),
-                () -> assertEquals("jwt", respuesta.tokenAcceso()),
-                () -> assertEquals("a@correo.com", respuesta.usuario().nombre()));
+                () -> assertEquals("CUENTA_BLOQUEADA", error.getCodigo()),
+                () -> assertEquals("BLOQUEADO", usuario.getEstado()));
+        org.mockito.Mockito.verify(jwt, org.mockito.Mockito.never()).generar(any());
     }
 
     @Test

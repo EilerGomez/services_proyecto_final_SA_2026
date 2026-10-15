@@ -253,6 +253,19 @@ class OAuthGoogleTest {
     }
 
     @Test
+    void callbackConCuentaBloqueadaPorAdministradorRedirigeConError() {
+        Usuario usuario = usuarioGoogle();
+        usuario.setEstado("BLOQUEADO");
+        usuario.setBloqueadoHasta(null);
+        when(usuarios.findByProveedorAndProveedorId("GOOGLE", "sub-1")).thenReturn(Optional.of(usuario));
+        String estado = servicio.urlGoogle().state();
+        when(google.intercambiarCodigo("code")).thenReturn("idtoken");
+        when(google.verificar("idtoken")).thenReturn(cuenta("sub-1", "ana@correo.com"));
+        assertTrue(servicio.callbackGoogle("code", estado).contains("CUENTA_BLOQUEADA"));
+        assertEquals("BLOQUEADO", usuario.getEstado());
+    }
+
+    @Test
     void callbackConCuentaInactivaRedirigeConError() {
         Usuario usuario = usuarioGoogle();
         usuario.setEstado("INACTIVO");

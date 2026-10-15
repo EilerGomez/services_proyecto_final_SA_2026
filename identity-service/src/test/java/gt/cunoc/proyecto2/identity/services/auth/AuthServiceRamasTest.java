@@ -339,6 +339,24 @@ class AuthServiceRamasTest {
     }
 
     @Test
+    void restablecerNoQuitaElBloqueoDelAdministrador() {
+        TokenRecuperacion token = new TokenRecuperacion();
+        token.setUsuarioId(UUID.randomUUID());
+        token.setExpiraEn(Instant.now().plusSeconds(600));
+        when(recuperaciones.findByTokenHash(any())).thenReturn(Optional.of(token));
+        Usuario usuario = usuarioActivo();
+        usuario.setEstado("BLOQUEADO");
+        usuario.setBloqueadoHasta(null);
+        when(usuarios.findById(token.getUsuarioId())).thenReturn(Optional.of(usuario));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId())).thenReturn(List.of());
+
+        servicio.restablecerContrasena(new RestablecimientoRequest("t", "Nueva12345"));
+
+        assertEquals("BLOQUEADO", usuario.getEstado());
+        assertTrue(token.getUsadoEn() != null);
+    }
+
+    @Test
     void restablecerDesbloqueaCuentaBloqueada() {
         TokenRecuperacion token = new TokenRecuperacion();
         token.setUsuarioId(UUID.randomUUID());
@@ -346,6 +364,7 @@ class AuthServiceRamasTest {
         when(recuperaciones.findByTokenHash(any())).thenReturn(Optional.of(token));
         Usuario usuario = usuarioActivo();
         usuario.setEstado("BLOQUEADO");
+        usuario.setBloqueadoHasta(Instant.now().plusSeconds(600));   // bloqueo por intentos fallidos
         when(usuarios.findById(token.getUsuarioId())).thenReturn(Optional.of(usuario));
         when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId())).thenReturn(List.of());
 

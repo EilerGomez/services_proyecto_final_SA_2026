@@ -46,6 +46,20 @@ class UsuariosIT extends PruebaIntegracion {
     }
 
     @Test
+    void elBloqueoDelAdministradorNoVenceHastaQueLoActiva() {
+        UUID usuarioId = registrarCliente("bloqueo@pruebas.gt", "4000000-4", "4000000000404");
+        String login = "{\"correo\":\"bloqueo@pruebas.gt\",\"contrasena\":\"%s\"}".formatted(CONTRASENA);
+
+        patch("/identity/usuarios/" + usuarioId + "/estado", tokenAdmin, "{\"estado\":\"BLOQUEADO\"}");
+        // Con la contraseña correcta sigue bloqueada (antes se reactivaba sola)
+        esError(post("/identity/auth/login", null, login), 401, "CUENTA_BLOQUEADA");
+        esError(post("/identity/auth/login", null, login), 401, "CUENTA_BLOQUEADA");
+
+        patch("/identity/usuarios/" + usuarioId + "/estado", tokenAdmin, "{\"estado\":\"ACTIVO\"}");
+        assertThat(post("/identity/auth/login", null, login).getStatusCode().value()).isEqualTo(200);
+    }
+
+    @Test
     void clienteNoPuedeListarUsuarios() {
         UUID usuarioId = registrarCliente("ana@pruebas.gt", "1000000-1", "1000000000101");
         String token = tokenCliente(usuarioId, "ana@pruebas.gt");

@@ -180,18 +180,7 @@ public class AuthServiceImpl implements AuthService {
             }
             throw new NoAutenticadoException("CREDENCIALES_INVALIDAS", "Correo o contraseña incorrectos");
         }
-        if ("BLOQUEADO".equals(usuario.getEstado())) {
-            if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(Instant.now())) {
-                throw new NoAutenticadoException("CUENTA_BLOQUEADA",
-                        "La cuenta está bloqueada hasta " + usuario.getBloqueadoHasta());
-            }
-            usuario.setEstado("ACTIVO");
-            usuario.setBloqueadoHasta(null);
-            usuario.setIntentosFallidos(0);
-        }
-        if (!"ACTIVO".equals(usuario.getEstado())) {
-            throw new NoAutenticadoException("CUENTA_INACTIVA", "La cuenta no está activa");
-        }
+        exigirCuentaUtilizable(usuario);
 
         usuario.setIntentosFallidos(0);
         usuario.setUltimoAcceso(Instant.now());
@@ -315,9 +304,10 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE", "El usuario no existe"));
         usuario.setClaveCifrada(claves.encode(solicitud.nuevaContrasena()));
         usuario.setIntentosFallidos(0);
-        usuario.setBloqueadoHasta(null);
-        if ("BLOQUEADO".equals(usuario.getEstado())) {
+        // Cambiar la contraseña quita el bloqueo por intentos fallidos, no el que puso un administrador.
+        if ("BLOQUEADO".equals(usuario.getEstado()) && usuario.getBloqueadoHasta() != null) {
             usuario.setEstado("ACTIVO");
+            usuario.setBloqueadoHasta(null);
         }
         usuarios.save(usuario);
         token.setUsadoEn(Instant.now());
@@ -443,10 +433,27 @@ public class AuthServiceImpl implements AuthService {
                 });
     }
 
-    /** Igual que iniciarSesion: bloque vigente -&gt; 401, bloqueo vencido -&gt; se reactiva. */
+    /** Igual que iniciarSesion (mismas reglas de bloqueo). */
     private void exigirActivaOAuth(Usuario usuario) {
+        exigirCuentaUtilizable(usuario);
+    }
+
+    /**
+     * Reglas de entrada según el estado de la cuenta:
+     * <ul>
+     *   <li>BLOQUEADO sin fecha: lo bloqueó un administrador; no vence, solo él lo quita (401).</li>
+     *   <li>BLOQUEADO con fecha futura: bloqueo por intentos fallidos todavía vigente (401).</li>
+     *   <li>BLOQUEADO con fecha pasada: el bloqueo por intentos venció; la cuenta se reactiva.</li>
+     *   <li>Cualquier otro estado distinto de ACTIVO: 401 CUENTA_INACTIVA.</li>
+     * </ul>
+     */
+    private void exigirCuentaUtilizable(Usuario usuario) {
         if ("BLOQUEADO".equals(usuario.getEstado())) {
-            if (usuario.getBloqueadoHasta() != null && usuario.getBloqueadoHasta().isAfter(Instant.now())) {
+            if (usuario.getBloqueadoHasta() == null) {
+                throw new NoAutenticadoException("CUENTA_BLOQUEADA",
+                        "La cuenta fue bloqueada por un administrador");
+            }
+            if (usuario.getBloqueadoHasta().isAfter(Instant.now())) {
                 throw new NoAutenticadoException("CUENTA_BLOQUEADA",
                         "La cuenta está bloqueada hasta " + usuario.getBloqueadoHasta());
             }

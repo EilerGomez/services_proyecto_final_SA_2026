@@ -53,6 +53,25 @@ class VigilanciaAccesoTest {
     }
 
     @Test
+    void losFallosNoCambianUnBloqueoDelAdministrador() {
+        // Arrange
+        Usuario usuario = new Usuario();
+        usuario.setEstado("BLOQUEADO");
+        usuario.setBloqueadoHasta(null);
+        usuario.setIntentosFallidos(4);
+        when(usuarios.findById(USUARIO_ID)).thenReturn(Optional.of(usuario));
+
+        // Act
+        vigilancia.falloContrasena(USUARIO_ID);
+
+        // Assert
+        assertAll(
+                () -> assertEquals("BLOQUEADO", usuario.getEstado()),
+                () -> assertEquals(null, usuario.getBloqueadoHasta()),
+                () -> verify(usuarios, org.mockito.Mockito.never()).save(usuario));
+    }
+
+    @Test
     void quintoFalloBloqueaConFecha() {
         // Arrange
         Usuario usuario = new Usuario();

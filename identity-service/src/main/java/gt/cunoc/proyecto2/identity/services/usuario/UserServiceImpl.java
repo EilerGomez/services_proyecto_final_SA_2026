@@ -237,6 +237,10 @@ public class UserServiceImpl implements UserService {
                     "No se puede desactivar al último administrador del sistema activo");
         }
         usuario.setEstado(solicitud.estado());
+        // Sin fecha: un BLOQUEADO puesto aquí no vence (solo se quita activando la cuenta de nuevo).
+        // Activar o desactivar también limpia un bloqueo por intentos fallidos.
+        usuario.setBloqueadoHasta(null);
+        usuario.setIntentosFallidos(0);
         usuarios.save(usuario);
         refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuarioId).forEach(token -> {
             token.setRevocadoEn(Instant.now());

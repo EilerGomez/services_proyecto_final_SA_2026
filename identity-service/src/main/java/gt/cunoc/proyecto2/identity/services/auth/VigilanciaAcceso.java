@@ -35,8 +35,8 @@ public class VigilanciaAcceso {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void falloContrasena(UUID usuarioId) {
         Usuario usuario = usuarios.findById(usuarioId).orElse(null);
-        if (usuario == null) {
-            return;
+        if (usuario == null || bloqueadaPorAdministrador(usuario)) {
+            return;   // un bloqueo del administrador no se convierte en uno temporal
         }
         int intentos = usuario.getIntentosFallidos() + 1;
         if (intentos >= MAX_INTENTOS) {
@@ -67,11 +67,16 @@ public class VigilanciaAcceso {
             return false;
         }
         Usuario usuario = usuarios.findById(usuarioId).orElse(null);
-        if (usuario != null) {
+        if (usuario != null && !bloqueadaPorAdministrador(usuario)) {
             usuario.setEstado("BLOQUEADO");
             usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
             usuarios.save(usuario);
         }
         return true;
+    }
+
+    /** BLOQUEADO sin fecha = bloqueo puesto por un administrador (no vence). */
+    private static boolean bloqueadaPorAdministrador(Usuario usuario) {
+        return "BLOQUEADO".equals(usuario.getEstado()) && usuario.getBloqueadoHasta() == null;
     }
 }
