@@ -48,7 +48,7 @@ public class VerificadorGoogle {
     public String intercambiarCodigo(String codigo) {
         Map<String, Object> respuesta;
         try {
-            respuesta = http.postFormulario(URL_TOKEN, Map.of(
+            respuesta = http.postFormulario(propiedades.getTokenUrl(), Map.of(
                     "code", codigo,
                     "client_id", propiedades.getClientId(),
                     "client_secret", propiedades.getClientSecret(),
@@ -126,7 +126,7 @@ public class VerificadorGoogle {
     private synchronized JWKSet llaves() {
         if (jwks == null || !Instant.now().isBefore(jwksVence)) {
             try {
-                jwks = JWKSet.parse(http.getTexto(URL_JWKS));
+                jwks = JWKSet.parse(http.getTexto(propiedades.getJwksUrl()));
             } catch (RuntimeException | ParseException e) {
                 throw new ServicioNoDisponibleException("GOOGLE_SIN_RESPUESTA",
                         "No se pudieron obtener las llaves de Google");

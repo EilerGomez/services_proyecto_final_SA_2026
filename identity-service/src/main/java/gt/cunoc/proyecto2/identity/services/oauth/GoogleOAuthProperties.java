@@ -39,6 +39,13 @@ public class GoogleOAuthProperties {
     /** Vigencia del ticket de canje (segundos, un solo uso). */
     private long ticketTtlSegundos = 120;
 
+    /**
+     * Endpoints de Google (solo para pruebas con un Google falso; en prod son estos).
+     * Deben coincidir con VerificadorGoogle.URL_TOKEN y URL_JWKS.
+     */
+    private String tokenUrl = "https://oauth2.googleapis.com/token";
+    private String jwksUrl = "https://www.googleapis.com/oauth2/v3/certs";
+
     public boolean configurado() {
         return informado(clientId) && informado(clientSecret) && informado(redirectUri);
     }
