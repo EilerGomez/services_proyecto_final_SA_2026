@@ -1,0 +1,34 @@
+# =====================================================================
+# docker-compose.prod.yml · PRODUCCIÓN en la VM de Azure
+# Se usa JUNTO con docker-compose.yml (solo agrega o cambia lo de producción):
+#   docker compose -p prod --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml --profile app ...
+#
+# Diferencias con local:
+#   - Caddy recibe HTTPS (80/443) con certificado automático y lo pasa al gateway.
+#   - El gateway solo escucha en 127.0.0.1:8080 (GATEWAY_PORT en .env.prod): desde internet se entra por Caddy.
+#   - Mailpit no se levanta: el correo sale por Gmail (MAIL_* en .env.prod).
+#   - PostgreSQL es Azure Database for PostgreSQL (DB_HOST en .env.prod), no está en la VM.
+# =====================================================================
+
+services:
+
+  mailpit:
+    profiles: ["solo-local"]          # nunca se levanta en producción
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    ports:
+      - "80:80"                        # Let's Encrypt (reto HTTP) y redirección a HTTPS
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?Defina DOMINIO en .env.prod}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data               # certificados: no se pierden al recrear el contenedor
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

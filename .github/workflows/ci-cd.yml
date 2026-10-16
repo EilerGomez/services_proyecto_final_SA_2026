@@ -1,16 +1,16 @@
 # =====================================================================
-# CI/CD · services_proyecto_final_SA_2026
+# CI/CD · services_proyecto_final_SA_2026 · VM de Azure
 #
-# Pull Request a develop/main -> compila y corre TODAS las pruebas (mvn verify, incluye JaCoCo de comun).
+# Pull Request a develop/main -> compila y corre TODAS las pruebas (mvn verify).
 # Push (merge) a develop      -> compila y corre todas las pruebas (no despliega).
-# Push (merge) a main         -> por cada servicio que cambió: SOLO compila (sin pruebas, perfil despliegue),
-#                                imagen :latest y despliegue en PRODUCCIÓN. Las pruebas ya pasaron en el PR.
-# Manual (Actions → Run workflow, rama main) -> despliega TODOS los servicios en producción.
+# Push (merge) a main         -> por cada servicio que cambió: pruebas, imagen :latest y despliegue en PRODUCCIÓN.
+# Manual (Actions → Run workflow, rama main) -> despliega TODOS los servicios.
 #
 # Secrets requeridos (Settings → Secrets and variables → Actions):
-#   VM_HOST     IP externa de la VM
+#   VM_HOST     transportes-proyecto2.eastus.cloudapp.azure.com (o la IP pública de la VM)
 #   VM_USER     deploy
 #   VM_SSH_KEY  llave PRIVADA ed25519 cuya pública está en /home/deploy/.ssh/authorized_keys
+# En la VM debe existir /opt/proyecto2/.env.prod (infra/azure/env.prod.plantilla).
 # =====================================================================
 name: CI/CD servicios
 
@@ -60,16 +60,16 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filtro
         with:
-          # comun y el POM padre afectan a todos los servicios
+          # comun, el POM padre y los compose afectan a todos los servicios
           filters: |
-            api-gateway:          ['api-gateway/**', 'pom.xml', 'docker-compose.yml']
-            identity-service:     ['identity-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            fleet-service:        ['fleet-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            trips-service:        ['trips-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            sales-service:        ['sales-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            maintenance-service:  ['maintenance-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            reporting-service:    ['reporting-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
-            notification-service: ['notification-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml']
+            api-gateway:          ['api-gateway/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml', 'infra/azure/Caddyfile']
+            identity-service:     ['identity-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            fleet-service:        ['fleet-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            trips-service:        ['trips-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            sales-service:        ['sales-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            maintenance-service:  ['maintenance-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            reporting-service:    ['reporting-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
+            notification-service: ['notification-service/**', 'comun/**', 'pom.xml', 'docker-compose.yml', 'docker-compose.prod.yml']
 
   # ------------------------------------------------------------------
   desplegar:
@@ -84,6 +84,8 @@ jobs:
         servicio: ${{ fromJSON(needs.cambios.outputs.servicios) }}
     env:
       SERVICIO: ${{ matrix.servicio }}
+      # Compose de producción: base + override de Azure (Caddy, sin Mailpit)
+      COMPOSE: docker compose -p prod --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml
     steps:
       - uses: actions/checkout@v4
 
@@ -93,15 +95,13 @@ jobs:
           java-version: '21'
           cache: maven
 
-      # Perfil despliegue (pom.xml padre): no compila ni corre pruebas y no revisa JaCoCo. Solo arma el JAR.
-      - name: Compilar y empaquetar sin pruebas (servicio + comun)
-        run: mvn -B -ntp -Pdespliegue -pl "$SERVICIO" -am package
+      - name: Pruebas y empaquetado (servicio + comun)
+        run: mvn -B -ntp -pl "$SERVICIO" -am verify
 
-      - name: Entorno de producción
+      - name: Registro de imágenes
         run: |
           echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
-          echo "ENTORNO=prod" >> "$GITHUB_ENV"
-          echo "TAG=latest"   >> "$GITHUB_ENV"
+          echo "TAG=latest" >> "$GITHUB_ENV"
 
       - name: Login en GitHub Container Registry
         uses: docker/login-action@v3
@@ -133,13 +133,18 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DESTINO="$VM_USER@$VM_HOST"
-          # 1. docker-compose.yml siempre actualizado desde el repo
-          scp docker-compose.yml "$DESTINO:/opt/proyecto2/docker-compose.yml"
-          # 2. login en ghcr.io con el token temporal de este job (por stdin, no queda en el historial)
+          # 1. Archivos de compose y Caddy siempre actualizados desde el repo
+          scp docker-compose.yml docker-compose.prod.yml "$DESTINO:/opt/proyecto2/"
+          scp infra/azure/Caddyfile "$DESTINO:/opt/proyecto2/Caddyfile"
+          # 2. Login en ghcr.io con el token temporal de este job (por stdin, no queda en el historial)
           printf '%s' "$GHCR_TOKEN" | ssh "$DESTINO" "docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          # 3. RabbitMQ arriba (no hace nada si ya está) y reemplazo SOLO del servicio cambiado
+          # 3. RabbitMQ y Caddy arriba (no hace nada si ya están) y reemplazo SOLO del servicio cambiado
           ssh "$DESTINO" "cd /opt/proyecto2 && \
-            docker compose -p $ENTORNO --env-file .env.$ENTORNO up -d rabbitmq mailpit && \
-            docker compose -p $ENTORNO --env-file .env.$ENTORNO --profile app pull $SERVICIO && \
-            docker compose -p $ENTORNO --env-file .env.$ENTORNO --profile app up -d --no-deps $SERVICIO && \
+            $COMPOSE up -d rabbitmq caddy && \
+            $COMPOSE --profile app pull $SERVICIO && \
+            $COMPOSE --profile app up -d --no-deps $SERVICIO && \
             docker image prune -f"
+          # 4. Si cambió el Caddyfile, Caddy lo vuelve a leer sin cortar conexiones
+          if [ "$SERVICIO" = "api-gateway" ]; then
+            ssh "$DESTINO" "cd /opt/proyecto2 && $COMPOSE exec -T caddy caddy reload --config /etc/caddy/Caddyfile" || true
+          fi

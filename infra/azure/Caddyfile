@@ -1,0 +1,8 @@
+# Caddy · HTTPS de la API en la VM de Azure.
+# DOMINIO viene de .env.prod (transportes-proyecto2.eastus.cloudapp.azure.com).
+# El certificado lo obtiene y renueva Caddy solo (puertos 80 y 443 abiertos en el NSG).
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy api-gateway:8080
+	header -Server
+}
