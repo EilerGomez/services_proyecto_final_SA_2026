@@ -30,6 +30,14 @@ class FormatosTest {
     }
 
     @Test
+    void fechaHoraConvierteElInstanteAZonaGuatemala() {
+        assertThat(Formatos.fechaHora(null)).isNull();
+        // 08:00 en Guatemala llega como 14:00Z (Jackson normaliza a UTC): se vuelve a mostrar 08:00.
+        assertThat(Formatos.fechaHora(java.time.OffsetDateTime.parse("2026-11-05T14:00:00Z")))
+                .isEqualTo("05/11/2026 08:00");
+    }
+
+    @Test
     void quetzalesToleraNulo() {
         assertThat(Formatos.quetzales(null)).isEqualTo("Q 0.00");
         assertThat(Formatos.quetzales(new BigDecimal("10.50"))).isEqualTo("Q 10.50");

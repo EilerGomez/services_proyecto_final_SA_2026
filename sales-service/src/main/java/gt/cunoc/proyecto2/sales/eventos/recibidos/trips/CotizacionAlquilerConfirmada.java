@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.sales.eventos.recibidos.trips;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /*
@@ -18,5 +19,7 @@ public record CotizacionAlquilerConfirmada(
         String clienteCorreo,
         String origen,
         String destino,
+        OffsetDateTime fechaSalida,
+        OffsetDateTime fechaRetorno,
         BigDecimal precioConfirmado) {
 }

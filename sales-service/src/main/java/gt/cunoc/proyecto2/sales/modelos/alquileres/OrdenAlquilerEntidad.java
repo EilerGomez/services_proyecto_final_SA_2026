@@ -51,6 +51,12 @@ public class OrdenAlquilerEntidad {
     @Column(nullable = false, updatable = false)
     private String destino;
 
+    @Column(name = "fecha_salida", updatable = false)
+    private OffsetDateTime fechaSalida;
+
+    @Column(name = "fecha_retorno", updatable = false)
+    private OffsetDateTime fechaRetorno;
+
     @Column(nullable = false, precision = 12, scale = 2, updatable = false)
     private BigDecimal monto;
 
@@ -75,7 +81,8 @@ public class OrdenAlquilerEntidad {
     private Integer version;
 
     public static OrdenAlquilerEntidad registrar(UUID alquilerId, UUID sucursalId, ClienteVenta cliente,
-                                                 String origen, String destino, BigDecimal monto) {
+                                                 String origen, String destino, OffsetDateTime fechaSalida,
+                                                 OffsetDateTime fechaRetorno, BigDecimal monto) {
         OrdenAlquilerEntidad orden = new OrdenAlquilerEntidad();
         orden.id = UUID.randomUUID();
         orden.alquilerId = alquilerId;
@@ -86,6 +93,8 @@ public class OrdenAlquilerEntidad {
         orden.clienteCorreo = cliente.correo();
         orden.origen = origen;
         orden.destino = destino;
+        orden.fechaSalida = fechaSalida;
+        orden.fechaRetorno = fechaRetorno;
         orden.monto = monto;
         orden.estado = EstadoOrdenAlquiler.PENDIENTE_PAGO;
         return orden;

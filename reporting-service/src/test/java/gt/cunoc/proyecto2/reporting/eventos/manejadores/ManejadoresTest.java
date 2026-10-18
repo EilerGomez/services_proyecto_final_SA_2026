@@ -215,7 +215,7 @@ class ManejadoresTest {
         var alquiler = new ManejadorAlquilerPagado(proyeccion);
         verifica(alquiler, TipoEvento.ALQUILER_PAGADO);
         var alq = new AlquilerPagado(UUID.randomUUID(), null, boleto.sucursalId(), "CF", "CF",
-                "Xela", "Guate", new BigDecimal("4300"), null, LocalDate.of(2026, 10, 20));
+                "Xela", "Guate", null, null, new BigDecimal("4300"), null, LocalDate.of(2026, 10, 20));
         var eventoAlq = sobre("AlquilerPagado", alq);
         alquiler.manejar(eventoAlq);
         verify(proyeccion).aplicarAlquilerPagado(

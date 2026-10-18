@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.reporting.reportes.ParametrosReporte;
 import gt.cunoc.proyecto2.reporting.reportes.TipoReporte;
 import gt.cunoc.proyecto2.reporting.reportes.filas.TallerBusFila;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -21,7 +22,11 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RS6 · Gastos de taller por bus, agrupados por categoría. */
+/**
+ * RS6 · Gastos de taller por bus.
+ * Cada renglón es un gasto del bus (categoría, fecha, descripción, tipo y monto), de modo que las
+ * reparaciones repetidas de una misma categoría se ven una a una; se agrupa por bus con su total.
+ */
 @Component
 public class GeneradorTallerBus implements GeneradorReporte {
 
@@ -44,7 +49,7 @@ public class GeneradorTallerBus implements GeneradorReporte {
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<TallerBusFila> filas = filas(params);
-        BigDecimal total = filas.stream().map(TallerBusFila::getTotal)
+        BigDecimal total = filas.stream().map(TallerBusFila::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         JasperReport reporte = compilador.obtener("taller_bus");
@@ -62,23 +67,22 @@ public class GeneradorTallerBus implements GeneradorReporte {
     @Override
     public Object datos(ParametrosReporte params) {
         List<TallerBusFila> filas = filas(params);
-        Map<String, List<Map<String, Object>>> porBus = new LinkedHashMap<>();
-        Map<String, String> placas = new HashMap<>();
+        Map<UUID, List<Map<String, Object>>> porBus = new LinkedHashMap<>();
+        Map<UUID, String> placas = new HashMap<>();
         for (TallerBusFila f : filas) {
-            String clave = String.valueOf(f.getBusId());
-            placas.putIfAbsent(clave, f.getPlaca());
-            porBus.computeIfAbsent(clave, k -> new ArrayList<>()).add(categoriaJson(f));
+            porBus.computeIfAbsent(f.getBusId(), k -> new ArrayList<>()).add(gastoJson(f));
+            placas.putIfAbsent(f.getBusId(), f.getPlaca());
         }
         List<Map<String, Object>> busesJson = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
         for (var grupo : porBus.entrySet()) {
-            BigDecimal subtotal = grupo.getValue().stream().map(c -> (BigDecimal) c.get("total"))
+            BigDecimal subtotal = grupo.getValue().stream().map(g -> (BigDecimal) g.get("monto"))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             total = total.add(subtotal);
             Map<String, Object> b = new LinkedHashMap<>();
-            b.put("busId", UUID.fromString(grupo.getKey()));
+            b.put("busId", grupo.getKey());
             b.put("placa", placas.get(grupo.getKey()));
-            b.put("categorias", grupo.getValue());
+            b.put("gastos", grupo.getValue());
             b.put("total", subtotal);
             busesJson.add(b);
         }
@@ -92,29 +96,41 @@ public class GeneradorTallerBus implements GeneradorReporte {
         Map<String, String> placas = new HashMap<>();
         buses.findAll().forEach(b -> placas.put(b.getId().toString(), b.getPlaca()));
         List<TallerBusFila> filas = new ArrayList<>();
-        for (Object[] grupo : gastos.tallerPorBusYCategoria(
-                params.getSucursalId(), params.getBusId(), params.getDesde(), params.getHasta())) {
-            UUID busId = (UUID) grupo[0];
-            BigDecimal manoObra = grupo[3] != null ? (BigDecimal) grupo[3] : BigDecimal.ZERO;
-            BigDecimal repuestos = grupo[4] != null ? (BigDecimal) grupo[4] : BigDecimal.ZERO;
+        for (Object[] gasto : gastos.tallerDetalleBus(
+                params.getSucursalId(), params.getBusId(), params.getCategoriaId(),
+                params.getDesde(), params.getHasta())) {
+            UUID busId = (UUID) gasto[0];
             filas.add(TallerBusFila.builder()
                     .busId(busId)
-                    .placa(placas.getOrDefault(String.valueOf(busId), "-"))
-                    .categoria(grupo[2] != null ? (String) grupo[2] : "-")
-                    .manoObra(manoObra)
-                    .repuestos(repuestos)
-                    .total(grupo[5] != null ? (BigDecimal) grupo[5] : manoObra.add(repuestos))
+                    .categoriaId((UUID) gasto[1])
+                    .placa(busId != null ? placas.getOrDefault(busId.toString(), "-") : "-")
+                    .categoria(gasto[2] != null ? (String) gasto[2] : "-")
+                    .fecha(Formatos.fecha((LocalDate) gasto[3]))
+                    .descripcion(gasto[4] != null ? (String) gasto[4] : "-")
+                    .tipo(tipoTexto((String) gasto[5]))
+                    .monto(gasto[6] != null ? (BigDecimal) gasto[6] : BigDecimal.ZERO)
                     .build());
         }
         return filas;
     }
 
-    private Map<String, Object> categoriaJson(TallerBusFila f) {
-        Map<String, Object> c = new LinkedHashMap<>();
-        c.put("categoria", f.getCategoria());
-        c.put("manoObra", f.getManoObra());
-        c.put("repuestos", f.getRepuestos());
-        c.put("total", f.getTotal());
-        return c;
+    /** Texto del tipo de gasto para pantalla y PDF. */
+    private static String tipoTexto(String tipo) {
+        return switch (tipo == null ? "" : tipo) {
+            case "MANO_OBRA" -> "Mano de obra";
+            case "REPUESTO" -> "Repuestos";
+            default -> tipo != null ? tipo : "-";
+        };
+    }
+
+    private Map<String, Object> gastoJson(TallerBusFila f) {
+        Map<String, Object> g = new LinkedHashMap<>();
+        g.put("categoriaId", f.getCategoriaId());
+        g.put("categoria", f.getCategoria());
+        g.put("fecha", f.getFecha());
+        g.put("descripcion", f.getDescripcion());
+        g.put("tipo", f.getTipo());
+        g.put("monto", f.getMonto());
+        return g;
     }
 }

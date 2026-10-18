@@ -284,7 +284,7 @@ class ProyeccionRamasTest {
         UUID sucursalId = UUID.randomUUID();
         when(ingresos.existsByEventoOrigenId(any())).thenReturn(false);
         var evento = new AlquilerPagado(null, UUID.randomUUID(), sucursalId, null, null, null,
-                null, null, new BigDecimal("500"), LocalDate.of(2026, 10, 5));
+                null, null, null, new BigDecimal("500"), null, LocalDate.of(2026, 10, 5));
 
         proyeccion.aplicarAlquilerPagado(UUID.randomUUID(), evento, null);
 
@@ -297,11 +297,11 @@ class ProyeccionRamasTest {
     @Test
     void alquilerSinMontosSeIgnora() {
         proyeccion.aplicarAlquilerPagado(UUID.randomUUID(),
-                new AlquilerPagado(null, null, null, null, null, null, null, null, null, null),
+                new AlquilerPagado(null, null, null, null, null, null, null, null, null, null, null, null),
                 LocalDate.now());
         proyeccion.aplicarAlquilerPagado(UUID.randomUUID(),
                 new AlquilerPagado(null, null, UUID.randomUUID(), null, null, null, null, null,
-                        null, null),
+                        null, null, null, null),
                 LocalDate.now());
 
         verify(ingresos, never()).save(any());

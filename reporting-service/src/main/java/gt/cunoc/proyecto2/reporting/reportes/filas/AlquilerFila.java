@@ -11,6 +11,8 @@ import lombok.Value;
 public class AlquilerFila {
 
     String fecha;
+    String fechaSalida;
+    String fechaRetorno;
     UUID ordenId;
     String clienteNit;
     String clienteNombre;

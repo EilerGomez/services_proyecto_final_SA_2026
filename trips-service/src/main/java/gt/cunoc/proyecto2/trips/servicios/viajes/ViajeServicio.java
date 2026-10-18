@@ -20,6 +20,9 @@ public interface ViajeServicio {
 
     ViajeDetalleRespuesta detalle(ViajeEntidad viaje);
 
+    /** Datos del viaje sin su salida ni llegada (para incrustarlos en la respuesta de un alquiler). */
+    ViajeRespuesta resumen(ViajeEntidad viaje);
+
     ViajeEntidad obtenerPorId(UUID id);
 
     ViajeRespuesta programar(NuevoViajeSolicitud solicitud, UsuarioActual usuario);

@@ -26,8 +26,8 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
             WHERE (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
               AND (:tipo IS NULL OR g.tipo = :tipo)
               AND (:busId IS NULL OR g.busId = :busId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
             ORDER BY g.fechaNegocio DESC
             """)
     List<GastoEntidad> buscar(@Param("sucursalId") UUID sucursalId,
@@ -39,8 +39,8 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
     @Query("""
             SELECT COALESCE(SUM(g.monto), 0) FROM ReporteGasto g
             WHERE (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
             """)
     BigDecimal sumar(@Param("sucursalId") UUID sucursalId,
                      @Param("desde") LocalDate desde,
@@ -48,8 +48,8 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
 
     @Query("""
             SELECT g.sucursalId, COALESCE(SUM(g.monto), 0) FROM ReporteGasto g
-            WHERE (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
+            WHERE g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
             GROUP BY g.sucursalId
             """)
     List<Object[]> sumarPorSucursal(@Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);
@@ -57,8 +57,8 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
     @Query("""
             SELECT g.tipo, COUNT(g), COALESCE(SUM(g.monto), 0) FROM ReporteGasto g
             WHERE (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
             GROUP BY g.tipo ORDER BY g.tipo
             """)
     List<Object[]> sumarPorTipo(@Param("sucursalId") UUID sucursalId,
@@ -69,53 +69,50 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
     @Query("""
             SELECT g.sucursalId, g.tipo, COALESCE(SUM(g.monto), 0) FROM ReporteGasto g
             WHERE (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
             GROUP BY g.sucursalId, g.tipo
             """)
     List<Object[]> sumarPorSucursalYTipo(@Param("sucursalId") UUID sucursalId,
                                         @Param("desde") LocalDate desde,
                                         @Param("hasta") LocalDate hasta);
 
-    /** RG5/RS6: mano de obra y repuestos por categoría (solo taller). */
+    /** RG5: detalle de cada gasto de taller (bus, fecha, descripción y monto) para agrupar por categoría. */
     @Query("""
-            SELECT g.categoriaId, g.categoriaNombre,
-                   COALESCE(SUM(CASE WHEN g.tipo = 'MANO_OBRA' THEN g.monto ELSE 0 END), 0),
-                   COALESCE(SUM(CASE WHEN g.tipo = 'REPUESTO' THEN g.monto ELSE 0 END), 0),
-                   COALESCE(SUM(g.monto), 0)
+            SELECT g.categoriaId, g.categoriaNombre, g.busId, g.fechaNegocio, g.descripcion, g.monto
             FROM ReporteGasto g
             WHERE g.tipo IN ('MANO_OBRA', 'REPUESTO')
               AND (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
               AND (:busId IS NULL OR g.busId = :busId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
-            GROUP BY g.categoriaId, g.categoriaNombre
-            ORDER BY SUM(g.monto) DESC
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
+            ORDER BY g.categoriaNombre, g.fechaNegocio
             """)
-    List<Object[]> tallerPorCategoria(@Param("sucursalId") UUID sucursalId,
-                                     @Param("busId") UUID busId,
-                                     @Param("desde") LocalDate desde,
-                                     @Param("hasta") LocalDate hasta);
+    List<Object[]> tallerDetalleCategoria(@Param("sucursalId") UUID sucursalId,
+                                          @Param("busId") UUID busId,
+                                          @Param("desde") LocalDate desde,
+                                          @Param("hasta") LocalDate hasta);
 
-    /** RS6: taller por bus y categoría. */
+    /**
+     * RS6: detalle de cada gasto de taller del bus (categoría, fecha, descripción, tipo y monto),
+     * con filtro opcional por categoría. Sin agrupar: se ven las reparaciones repetidas del bus.
+     */
     @Query("""
-            SELECT g.busId, g.categoriaId, g.categoriaNombre,
-                   COALESCE(SUM(CASE WHEN g.tipo = 'MANO_OBRA' THEN g.monto ELSE 0 END), 0),
-                   COALESCE(SUM(CASE WHEN g.tipo = 'REPUESTO' THEN g.monto ELSE 0 END), 0),
-                   COALESCE(SUM(g.monto), 0)
+            SELECT g.busId, g.categoriaId, g.categoriaNombre, g.fechaNegocio, g.descripcion, g.tipo, g.monto
             FROM ReporteGasto g
             WHERE g.tipo IN ('MANO_OBRA', 'REPUESTO')
               AND g.sucursalId = :sucursalId
               AND (:busId IS NULL OR g.busId = :busId)
-              AND (:desde IS NULL OR g.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR g.fechaNegocio <= :hasta)
-            GROUP BY g.busId, g.categoriaId, g.categoriaNombre
-            ORDER BY g.busId, SUM(g.monto) DESC
+              AND (:categoriaId IS NULL OR g.categoriaId = :categoriaId)
+              AND g.fechaNegocio >= COALESCE(:desde, g.fechaNegocio)
+              AND g.fechaNegocio <= COALESCE(:hasta, g.fechaNegocio)
+            ORDER BY g.busId, g.categoriaNombre, g.fechaNegocio
             """)
-    List<Object[]> tallerPorBusYCategoria(@Param("sucursalId") UUID sucursalId,
-                                          @Param("busId") UUID busId,
-                                          @Param("desde") LocalDate desde,
-                                          @Param("hasta") LocalDate hasta);
+    List<Object[]> tallerDetalleBus(@Param("sucursalId") UUID sucursalId,
+                                    @Param("busId") UUID busId,
+                                    @Param("categoriaId") UUID categoriaId,
+                                    @Param("desde") LocalDate desde,
+                                    @Param("hasta") LocalDate hasta);
 
     List<GastoEntidad> findByCategoriaIdOrderByFechaNegocioDesc(UUID categoriaId);
 }

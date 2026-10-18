@@ -28,7 +28,8 @@ class OrdenAlquilerEntidadTest {
         ClienteVenta cliente = new ClienteVenta(clienteId, "1234567-8", "Colegio San José", "colegio@correo.com");
 
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(alquilerId, DatosPrueba.XELA, cliente,
-                "Quetzaltenango", "Antigua Guatemala", new BigDecimal("2600.00"));
+                "Quetzaltenango", "Antigua Guatemala", DatosPrueba.SALIDA, DatosPrueba.RETORNO,
+                new BigDecimal("2600.00"));
 
         assertThat(orden.getId()).isNotNull();
         assertThat(orden.getAlquilerId()).isEqualTo(alquilerId);
@@ -39,6 +40,8 @@ class OrdenAlquilerEntidadTest {
         assertThat(orden.getClienteCorreo()).isEqualTo("colegio@correo.com");
         assertThat(orden.getOrigen()).isEqualTo("Quetzaltenango");
         assertThat(orden.getDestino()).isEqualTo("Antigua Guatemala");
+        assertThat(orden.getFechaSalida()).isEqualTo(DatosPrueba.SALIDA);
+        assertThat(orden.getFechaRetorno()).isEqualTo(DatosPrueba.RETORNO);
         assertThat(orden.getMonto()).isEqualByComparingTo("2600.00");
         assertThat(orden.getMetodoPago()).isNull();
         assertThat(orden.getFechaPago()).isNull();
@@ -54,7 +57,7 @@ class OrdenAlquilerEntidadTest {
     void registrarAlquilerDeMostradorAConsumidorFinal() {
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(UUID.randomUUID(), DatosPrueba.XELA,
                 new ClienteVenta(null, null, null, null), "Quetzaltenango", "Antigua Guatemala",
-                new BigDecimal("2600.00"));
+                null, null, new BigDecimal("2600.00"));
 
         assertThat(orden.getClienteUsuarioId()).isNull();
         assertThat(orden.getClienteNit()).isEqualTo("CF");

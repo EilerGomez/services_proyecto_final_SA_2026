@@ -13,6 +13,7 @@ public class ParametrosReporte {
     UUID sucursalId;
     UUID busId;
     UUID rutaId;
+    UUID categoriaId;
     String tipo;
     String estado;
     LocalDate desde;

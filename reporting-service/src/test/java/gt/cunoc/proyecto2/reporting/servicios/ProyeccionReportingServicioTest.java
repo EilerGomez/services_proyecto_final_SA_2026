@@ -358,10 +358,10 @@ class ProyeccionReportingServicioTest {
     void alquilerSinDatosSeIgnoraYDuplicadoNoDuplica() {
         UUID eventoId = UUID.randomUUID();
         when(ingresos.existsByEventoOrigenId(eventoId)).thenReturn(false, true);
-        var sinDatos = new AlquilerPagado(null, null, null, null, null, null, null, null, null, null);
+        var sinDatos = new AlquilerPagado(null, null, null, null, null, null, null, null, null, null, null, null);
         proyeccion.aplicarAlquilerPagado(eventoId, sinDatos, LocalDate.now());
         var ok = new AlquilerPagado(UUID.randomUUID(), null, UUID.randomUUID(), "CF", "CF",
-                "X", "Y", new BigDecimal("100"), null, null);
+                "X", "Y", null, null, new BigDecimal("100"), null, null);
         proyeccion.aplicarAlquilerPagado(eventoId, ok, null);
         proyeccion.aplicarAlquilerPagado(eventoId, ok, null);
 

@@ -20,15 +20,19 @@ import gt.cunoc.proyecto2.sales.dtos.alquileres.OrdenAlquilerRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.PagoOrdenSolicitud;
 import gt.cunoc.proyecto2.sales.errores.alquileres.ErrorOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.eventos.PublicadorEventosSales;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.EstadoOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.MetodoPago;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
+import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.springframework.data.domain.Sort;
@@ -38,6 +42,8 @@ class OrdenAlquilerServicioImplTest {
 
     private final OrdenAlquilerRepositorio repositorio =
             mock(OrdenAlquilerRepositorio.class);
+    private final VistaClienteRepositorio clientes =
+            mock(VistaClienteRepositorio.class);
     private final PublicadorEventosSales eventos =
             mock(PublicadorEventosSales.class);
 
@@ -48,7 +54,7 @@ class OrdenAlquilerServicioImplTest {
 
     @BeforeEach
     void preparar() {
-        servicio = new OrdenAlquilerServicioImpl(repositorio, eventos);
+        servicio = new OrdenAlquilerServicioImpl(repositorio, clientes, eventos);
         when(repositorio.saveAndFlush(any(OrdenAlquilerEntidad.class)))
                 .thenAnswer(i -> i.getArgument(0));
     }
@@ -217,5 +223,51 @@ class OrdenAlquilerServicioImplTest {
 
         verify(repositorio, never()).saveAndFlush(any());
         verifyNoInteractions(eventos);
+    }
+
+    // ----- registrarOrden (CotizacionAlquilerConfirmada) -----
+
+    private CotizacionAlquilerConfirmada cotizacion(UUID alquilerId, UUID usuarioId, String nit) {
+        return new CotizacionAlquilerConfirmada(alquilerId, XELA, usuarioId, nit, "Colegio San José",
+                "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala",
+                DatosPrueba.SALIDA, DatosPrueba.RETORNO, new BigDecimal("2600.00"));
+    }
+
+    @Test
+    void laOrdenDeUnAlquilerEnLineaTomaElNitDelPerfil() {
+        UUID alquilerId = UUID.randomUUID();
+        when(repositorio.existsByAlquilerId(alquilerId)).thenReturn(false);
+        when(clientes.findById(clienteId)).thenReturn(Optional.of(DatosPrueba.vistaCliente(clienteId)));
+
+        servicio.registrarOrden(cotizacion(alquilerId, clienteId, null));
+
+        ArgumentCaptor<OrdenAlquilerEntidad> captor = ArgumentCaptor.forClass(OrdenAlquilerEntidad.class);
+        verify(repositorio).save(captor.capture());
+        assertThat(captor.getValue().getClienteNit()).isEqualTo("1234567-8");
+        assertThat(captor.getValue().getClienteUsuarioId()).isEqualTo(clienteId);
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoOrdenAlquiler.PENDIENTE_PAGO);
+    }
+
+    @Test
+    void laOrdenDeMostradorConservaElNitEscrito() {
+        UUID alquilerId = UUID.randomUUID();
+        when(repositorio.existsByAlquilerId(alquilerId)).thenReturn(false);
+
+        servicio.registrarOrden(cotizacion(alquilerId, null, "9876543-2"));
+
+        ArgumentCaptor<OrdenAlquilerEntidad> captor = ArgumentCaptor.forClass(OrdenAlquilerEntidad.class);
+        verify(repositorio).save(captor.capture());
+        assertThat(captor.getValue().getClienteNit()).isEqualTo("9876543-2");
+        verifyNoInteractions(clientes);
+    }
+
+    @Test
+    void unaCotizacionRepetidaNoCreaOtraOrden() {
+        UUID alquilerId = UUID.randomUUID();
+        when(repositorio.existsByAlquilerId(alquilerId)).thenReturn(true);
+
+        servicio.registrarOrden(cotizacion(alquilerId, clienteId, null));
+
+        verify(repositorio, never()).save(any());
     }
 }

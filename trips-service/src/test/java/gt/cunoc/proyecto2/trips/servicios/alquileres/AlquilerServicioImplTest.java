@@ -213,6 +213,40 @@ class AlquilerServicioImplTest {
         verifyNoInteractions(viajeRepositorio);
     }
 
+    @Test
+    void listarIncluyeElViajeAsignadoConBusYChofer() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquilerPagado();
+        ViajeEntidad viaje = DatosPrueba.viajePrivado(alquiler, DatosPrueba.asignacion());
+        when(repositorio.findAll(ArgumentMatchers.<Specification<AlquilerPrivadoEntidad>>any(),
+                eq(Sort.by("fechaSalida")))).thenReturn(List.of(alquiler));
+        when(viajeRepositorio.findByAlquilerIdIn(List.of(alquiler.getId()))).thenReturn(List.of(viaje));
+        when(viajes.resumen(viaje)).thenReturn(detalleDe(viaje).viaje());
+
+        List<AlquilerRespuesta> alquileres = servicio.listar(new FiltroAlquileres(XELA, null, null, null));
+
+        assertThat(alquileres).hasSize(1);
+        AlquilerRespuesta respuesta = alquileres.get(0);
+        assertThat(respuesta.estado()).isEqualTo(EstadoAlquiler.PAGADO);
+        assertThat(respuesta.viajeId()).isEqualTo(viaje.getId());
+        assertThat(respuesta.viaje()).isNotNull();
+        assertThat(respuesta.viaje().viajeId()).isEqualTo(viaje.getId());
+    }
+
+    @Test
+    void listarSinViajeAsignadoDejaElViajeEnNulo() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
+        when(repositorio.findAll(ArgumentMatchers.<Specification<AlquilerPrivadoEntidad>>any(),
+                eq(Sort.by("fechaSalida")))).thenReturn(List.of(alquiler));
+        when(viajeRepositorio.findByAlquilerIdIn(List.of(alquiler.getId()))).thenReturn(List.of());
+
+        List<AlquilerRespuesta> alquileres = servicio.listar(new FiltroAlquileres(XELA, null, null, null));
+
+        assertThat(alquileres).hasSize(1);
+        assertThat(alquileres.get(0).viajeId()).isNull();
+        assertThat(alquileres.get(0).viaje()).isNull();
+        verifyNoInteractions(viajes);
+    }
+
     // ----- T19 -----
 
     @Test

@@ -29,6 +29,8 @@ class AlquilerPagadoTest {
         assertThat(evento.clienteCorreo()).isEqualTo("colegio@correo.com");
         assertThat(evento.origen()).isEqualTo("Quetzaltenango");
         assertThat(evento.destino()).isEqualTo("Antigua Guatemala");
+        assertThat(evento.fechaSalida()).isEqualTo(DatosPrueba.SALIDA);
+        assertThat(evento.fechaRetorno()).isEqualTo(DatosPrueba.RETORNO);
         assertThat(evento.monto()).isEqualByComparingTo("2600.00");
         assertThat(evento.montoTotal()).isEqualByComparingTo("2600.00");
         assertThat(evento.metodoPago()).isEqualTo(MetodoPago.CARTERA);

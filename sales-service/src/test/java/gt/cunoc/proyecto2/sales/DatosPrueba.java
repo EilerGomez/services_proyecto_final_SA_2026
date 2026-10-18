@@ -34,6 +34,8 @@ public final class DatosPrueba {
     public static final LocalDate FECHA_PAGO = LocalDate.of(2026, 11, 1);
     /** 5-nov 08:00 en Guatemala. */
     public static final OffsetDateTime SALIDA = OffsetDateTime.parse("2026-11-05T08:00:00-06:00");
+    /** 8-nov 18:00 en Guatemala (retorno del alquiler). */
+    public static final OffsetDateTime RETORNO = OffsetDateTime.parse("2026-11-08T18:00:00-06:00");
     public static final BigDecimal PRECIO_BOLETO = new BigDecimal("75.00");
 
     private DatosPrueba() {
@@ -159,7 +161,7 @@ public final class DatosPrueba {
         ClienteVenta cliente = new ClienteVenta(clienteUsuarioId, "1234567-8", "Colegio San José",
                 "colegio@correo.com");
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(UUID.randomUUID(), XELA, cliente,
-                "Quetzaltenango", "Antigua Guatemala", new BigDecimal("2600.00"));
+                "Quetzaltenango", "Antigua Guatemala", SALIDA, RETORNO, new BigDecimal("2600.00"));
         return conVersion(orden, 0);
     }
 

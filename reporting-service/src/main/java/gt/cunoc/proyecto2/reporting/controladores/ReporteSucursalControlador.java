@@ -148,12 +148,13 @@ public class ReporteSucursalControlador {
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
                                           @RequestParam(required = false) UUID busId,
+                                          @RequestParam(required = false) UUID categoriaId,
                                           @Parameter(description = "json o pdf")
                                           @RequestParam(defaultValue = "pdf") String format,
                                           @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
         verificarAcceso(id, usuario);
         ParametrosReporte params = ParametrosReporte.builder()
-                .sucursalId(id).desde(desde).hasta(hasta).busId(busId).build();
+                .sucursalId(id).desde(desde).hasta(hasta).busId(busId).categoriaId(categoriaId).build();
         if ("json".equalsIgnoreCase(format)) {
             return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_POR_BUS).datos(params));
         }
