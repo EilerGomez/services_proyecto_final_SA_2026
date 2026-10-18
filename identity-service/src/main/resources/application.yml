@@ -49,7 +49,7 @@ comun:
     exchange: identity.eventos            # publica en este exchange (outbox)
     cola: identity.q
     suscripciones:
-      "[sales.eventos]": [DebitoCarteraSolicitado, ReembolsoCarteraSolicitado]
+      # La cartera (débito/reembolso de la saga con Sales) ahora es wallet-service
       "[fleet.eventos]": [ChoferDesactivado, PersonalSucursalAsignado, PersonalSucursalDesactivado]
 
 app:

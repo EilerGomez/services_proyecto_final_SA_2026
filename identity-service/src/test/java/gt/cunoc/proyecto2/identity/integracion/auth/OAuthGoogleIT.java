@@ -58,9 +58,9 @@ class OAuthGoogleIT extends PruebaIntegracion {
 
         UUID usuarioId = UUID.fromString(PruebaIntegracion.<String>json(canje, "$.usuarioId"));
         assertThat(proveedorDe(usuarioId)).isEqualTo("GOOGLE");
-        assertThat(contar("carteras")).isEqualTo(1);
+        // La cartera la abre wallet-service al recibir CuentaCreada con rol CLIENTE
         Map<String, String> eventos = esperarEventos("CuentaCreada");
-        assertThat(eventos.get("CuentaCreada")).contains(GoogleFalso.CORREO);
+        assertThat(eventos.get("CuentaCreada")).contains(GoogleFalso.CORREO).contains("CLIENTE");
     }
 
     @Test

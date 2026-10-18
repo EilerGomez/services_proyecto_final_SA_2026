@@ -53,6 +53,7 @@ public abstract class PruebaIntegracion {
     protected static final String DLQ = "sales.q.dlq";
     protected static final String TRIPS_EVENTOS = "trips.eventos";
     protected static final String IDENTITY_EVENTOS = "identity.eventos";
+    protected static final String WALLET_EVENTOS = "wallet.eventos";
 
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
     private static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4-management");
@@ -266,7 +267,7 @@ public abstract class PruebaIntegracion {
         return total != null && total == 1;
     }
 
-    // ----- Payloads de Identity (respuestas de la saga) -----
+    // ----- Payloads de Wallet (respuestas de la saga) -----
 
     /** CarteraDebitada o CarteraReembolsada: referenciaTipo VENTA o ALQUILER. */
     protected static String movimientoCartera(String referenciaTipo, UUID referenciaId, UUID usuarioId,

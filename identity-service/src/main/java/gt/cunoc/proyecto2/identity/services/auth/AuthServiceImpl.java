@@ -11,14 +11,12 @@ import gt.cunoc.proyecto2.identity.dtos.auth.*;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioSesion;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
-import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.CodigoDobleFactor;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.TokenRefresco;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
@@ -38,7 +36,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -66,7 +63,6 @@ public class AuthServiceImpl implements AuthService {
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfiles;
     private final RolRepository roles;
-    private final CarteraRepository carteras;
     private final TokenRefrescoRepository refrescos;
     private final TokenRecuperacionRepository recuperaciones;
     private final CodigoDobleFactorRepository desafios;
@@ -87,7 +83,6 @@ public class AuthServiceImpl implements AuthService {
             UsuarioRepository usuarios,
             PerfilRepository perfiles,
             RolRepository roles,
-            CarteraRepository carteras,
             TokenRefrescoRepository refrescos,
             TokenRecuperacionRepository recuperaciones,
             CodigoDobleFactorRepository desafios,
@@ -106,7 +101,6 @@ public class AuthServiceImpl implements AuthService {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
-        this.carteras = carteras;
         this.refrescos = refrescos;
         this.recuperaciones = recuperaciones;
         this.desafios = desafios;
@@ -151,11 +145,6 @@ public class AuthServiceImpl implements AuthService {
         Perfil perfil = solicitud.createEntity(usuario);
         perfil.setFotoUrl(solicitud.fotoUrl());
         perfiles.save(perfil);
-
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(usuario.getId());
-        cartera.setSaldo(BigDecimal.ZERO);
-        carteras.save(cartera);
 
         String nombre = solicitud.nombres() + " " + solicitud.apellidos();
         publicador.publicarCuentaCreada(
@@ -513,11 +502,6 @@ public class AuthServiceImpl implements AuthService {
         perfil.setApellidos(partes.length > 1 ? partes[1] : "-");
         perfil.setFotoUrl(cuenta.foto());
         perfiles.save(perfil);
-
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(usuario.getId());
-        cartera.setSaldo(BigDecimal.ZERO);
-        carteras.save(cartera);
 
         publicador.publicarCuentaCreada(usuario.getId(), correo,
                 (perfil.getNombres() + " " + perfil.getApellidos()).trim(),

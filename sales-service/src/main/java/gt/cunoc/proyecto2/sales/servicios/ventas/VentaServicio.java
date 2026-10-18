@@ -26,7 +26,7 @@ public interface VentaServicio {
     VentaRespuesta venderEnMostrador(NuevaVentaMostradorSolicitud solicitud, UsuarioActual usuario);
 
     /**
-     * S2 · Venta en línea: reserva los asientos unos minutos y queda PENDIENTE_PAGO mientras Identity cobra
+     * S2 · Venta en línea: reserva los asientos unos minutos y queda PENDIENTE_PAGO mientras Wallet cobra
      * la cartera (publica DebitoCarteraSolicitado; la respuesta llega a PagoCarteraServicio).
      * <ul>
      *   <li>422 CLIENTE_SIN_PERFIL si el cliente aún no está en vista_clientes.</li>

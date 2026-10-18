@@ -42,8 +42,8 @@ comun:
     suscripciones:
       "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeIniciado, ViajeEliminado,
                           CotizacionAlquilerConfirmada]
-      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado,
-                             CarteraReembolsada]
+      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado]
+      "[wallet.eventos]": [CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]   # saga de pago con cartera
 
 app:
   jwt:

@@ -90,6 +90,7 @@ services:
       MAINTENANCE_URL: http://maintenance-service:8085
       REPORTING_URL: http://reporting-service:8086
       NOTIFICATION_URL: http://notification-service:8087
+      WALLET_URL: http://wallet-service:8088
       # Valida el JWT de identity (mismo JWT_SECRET). Solo poner false en desarrollo.
       GATEWAY_SECURITY_ENABLED: ${GATEWAY_SECURITY_ENABLED:-true}
     ports:
@@ -195,6 +196,18 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_AUTH: ${MAIL_AUTH:-false}
       MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+
+  wallet-service:                               # cartera digital (antes dentro de identity)
+    <<: *servicio-java
+    build: ./wallet-service
+    image: ${REGISTRY:-ghcr.io/usuario}/wallet-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *env-comun
+      DB_NAME: bd_cartera${DB_SUFIJO:-}
+      DB_USER: ${DB_CARTERA_USER:-usr_cartera}
+      DB_PASSWORD: ${DB_CARTERA_PASSWORD:-cambiar_cartera}
+      IDENTITY_URL: http://identity-service:8081   # R4c (estado de la cuenta antes de debitar)
+      PAGOS_PROVEEDOR: ${PAGOS_PROVEEDOR:-simulado}  # pasarela de las recargas
 
 volumes:
   rabbit_data:

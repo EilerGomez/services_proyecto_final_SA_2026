@@ -8,9 +8,10 @@ public final class ApiPaths {
     public static final String MAINTENANCE = "/maintenance";
     public static final String REPORTS = "/reports";
     public static final String NOTIFICATIONS = "/notifications";
-    /** Prefijos de los 7 microservicios (rutas del gateway en application.yml). */
+    public static final String WALLET = "/wallet";
+    /** Prefijos de los 8 microservicios (rutas del gateway en application.yml). */
     public static final String[] PREFIJOS = {
-        IDENTITY, FLEET, TRIPS, SALES, MAINTENANCE, REPORTS, NOTIFICATIONS,
+        IDENTITY, FLEET, TRIPS, SALES, MAINTENANCE, REPORTS, NOTIFICATIONS, WALLET,
     };
     public static final String HEALTH = "/actuator/health";
     /** Health y sus grupos (/actuator/health/liveness, etc.). También coincide con /actuator/health. */

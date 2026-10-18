@@ -11,9 +11,12 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
 import gt.cunoc.proyecto2.sales.eventos.ReferenciaCartera;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.identity.ClienteRegistrado;
-import gt.cunoc.proyecto2.sales.eventos.recibidos.identity.DebitoCarteraRechazado;
-import gt.cunoc.proyecto2.sales.eventos.recibidos.identity.MovimientoCartera;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.identity.PerfilActualizado;
+import gt.cunoc.proyecto2.sales.eventos.manejadores.wallet.ManejadorCarteraDebitada;
+import gt.cunoc.proyecto2.sales.eventos.manejadores.wallet.ManejadorCarteraReembolsada;
+import gt.cunoc.proyecto2.sales.eventos.manejadores.wallet.ManejadorDebitoCarteraRechazado;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.wallet.DebitoCarteraRechazado;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.wallet.MovimientoCartera;
 import gt.cunoc.proyecto2.sales.servicios.pagos.PagoCarteraServicio;
 import gt.cunoc.proyecto2.sales.servicios.proyecciones.ProyeccionServicio;
 import java.math.BigDecimal;
@@ -21,7 +24,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-/** Los 5 manejadores de eventos de Identity: nombre, payload y a qué servicio delegan. */
+/** Los 5 manejadores de eventos de Identity (cliente) y Wallet (saga): nombre, payload y a qué servicio delegan. */
 class ManejadoresIdentityTest {
 
     private final PagoCarteraServicio pagos = mock(PagoCarteraServicio.class);
@@ -29,7 +32,7 @@ class ManejadoresIdentityTest {
 
     private final UUID usuarioId = UUID.randomUUID();
 
-    /** Identity no manda aggregateVersion. */
+    /** Identity y Wallet no mandan aggregateVersion. */
     private <T> EventoRecibido<T> evento(String tipo, UUID agregadoId, T payload) {
         return new EventoRecibido<>(UUID.randomUUID(), tipo, 1, agregadoId, null, Instant.now(), FECHA_PAGO,
                 UUID.randomUUID(), payload);

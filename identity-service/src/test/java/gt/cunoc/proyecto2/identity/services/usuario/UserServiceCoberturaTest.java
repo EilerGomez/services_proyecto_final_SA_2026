@@ -9,7 +9,6 @@ import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.TokenRecuperacionRepository;
@@ -45,7 +44,6 @@ class UserServiceCoberturaTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
-    @Mock private CarteraRepository carteras;
     @Mock private TokenRecuperacionRepository activaciones;
     @Mock private TokenRefrescoRepository refrescos;
     @Mock private AlmacenFotos fotos;
@@ -58,7 +56,7 @@ class UserServiceCoberturaTest {
 
     @BeforeEach
     void preparar() {
-        servicio = new UserServiceImpl(usuarios, perfiles, roles, carteras, activaciones,
+        servicio = new UserServiceImpl(usuarios, perfiles, roles, activaciones,
                 refrescos, claves, opacos, fotos, publicador, "http://localhost:5173");
     }
 

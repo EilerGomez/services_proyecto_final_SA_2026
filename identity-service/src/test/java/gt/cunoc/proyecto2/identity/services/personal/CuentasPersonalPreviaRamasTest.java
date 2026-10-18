@@ -6,7 +6,6 @@ import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.SolicitudCuentaPersonal;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.SolicitudCuentaRepository;
@@ -38,7 +37,6 @@ class CuentasPersonalPreviaRamasTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
-    @Mock private CarteraRepository carteras;
     @Mock private SolicitudCuentaRepository solicitudes;
     @Mock private TokenRecuperacionRepository activaciones;
     @Mock private AlmacenFotos fotos;
@@ -51,7 +49,7 @@ class CuentasPersonalPreviaRamasTest {
 
     @BeforeEach
     void preparar() {
-        servicio = new CuentasPersonalServiceImpl(usuarios, perfiles, roles, carteras,
+        servicio = new CuentasPersonalServiceImpl(usuarios, perfiles, roles,
                 solicitudes, activaciones, claves, opacos, fotos, publicador,
                 "http://localhost:5173");
     }

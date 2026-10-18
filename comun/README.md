@@ -224,7 +224,8 @@ comun:
     exchange: sales.eventos               # exchange propio → activa PublicadorEventos y RelayOutbox
     cola: sales.q                         # cola propia → activa ConsumidorEventos
     suscripciones:                        # exchange de otro servicio → eventos que escucha
-      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado, CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]
+      "[identity.eventos]": [ClienteRegistrado, PerfilActualizado]
+      "[wallet.eventos]": [CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]
       "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeEliminado, ViajeIniciado, CotizacionAlquilerConfirmada]
     outbox:
       intervalo-ms: 1000                  # opcional (por defecto 1000)
@@ -289,7 +290,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 ## 6. Eventos: conceptos
 
 ```
-SERVICIO PRODUCTOR (Sales)                                    SERVICIO CONSUMIDOR (Identity)
+SERVICIO PRODUCTOR (Sales)                                    SERVICIO CONSUMIDOR (Wallet)
 ┌──────────────────────────────────────┐                    ┌──────────────────────────────────────┐
 │ @Transactional                       │                    │ ConsumidorEventos (@RabbitListener)  │
 │  1. guarda la venta (JPA)            │                    │  5. lee el sobre JSON                │
@@ -299,16 +300,16 @@ SERVICIO PRODUCTOR (Sales)                                    SERVICIO CONSUMIDO
 │                                      │                    │  7. ManejadorEvento.manejar(...)     │
 │ RelayOutbox (cada 1 s)               │     RabbitMQ       │  COMMIT                              │
 │  3. lee pendientes                   │                    │                                      │
-│  4. publica y espera confirmación ───┼─► sales.eventos ──►│ identity.q                           │
-│     marca fecha_publicacion          │                    │ error → 4 intentos → identity.q.dlq  │
+│  4. publica y espera confirmación ───┼─► sales.eventos ──►│ wallet.q                             │
+│     marca fecha_publicacion          │                    │ error → 4 intentos → wallet.q.dlq    │
 └──────────────────────────────────────┘                    └──────────────────────────────────────┘
 ```
 
 | Concepto | Qué es en este proyecto |
 | --- | --- |
-| **Exchange** | Uno por servicio productor, tipo *topic*: `identity.eventos`, `fleet.eventos`, `trips.eventos`, `sales.eventos`, `maintenance.eventos` |
+| **Exchange** | Uno por servicio productor, tipo *topic*: `identity.eventos`, `fleet.eventos`, `trips.eventos`, `sales.eventos`, `maintenance.eventos`, `wallet.eventos` |
 | **Routing key** | El nombre del evento: `BoletoVendido`, `ViajeProgramado`, ... |
-| **Cola** | Una por servicio consumidor: `identity.q`, `sales.q`, `reporting.q`, ... |
+| **Cola** | Una por servicio consumidor: `identity.q`, `sales.q`, `wallet.q`, `reporting.q`, ... |
 | **Binding** | "La cola X recibe del exchange Y los eventos Z" (se define en `comun.eventos.suscripciones`) |
 | **DLQ** | `<cola>.dlq`: donde terminan los mensajes que fallaron 4 veces o que no se pueden leer |
 | **Sobre** | El JSON común de todos los eventos (`EventoSobre`) |
@@ -578,22 +579,22 @@ No hace falta `@RabbitListener`, ni `@Transactional`, ni verificar duplicados: `
 
 ## 9. Eventos: ejemplo completo de saga
 
-Compra en línea de un boleto (Sales ↔ Identity). Muestra cómo un manejador **consume un evento y publica otro**
+Compra en línea de un boleto (Sales ↔ Wallet). Muestra cómo un manejador **consume un evento y publica otro**
 en la misma transacción.
 
 ```
-Sales                                   RabbitMQ                                Identity
+Sales                                   RabbitMQ                                Wallet
   │ reserva asientos                                                               │
   │ venta PENDIENTE_PAGO                                                           │
-  │ publicar(DebitoCarteraSolicitado) ──► sales.eventos ──► identity.q ──────────────► │ ManejadorDebitoCarteraSolicitado:
+  │ publicar(DebitoCarteraSolicitado) ──► sales.eventos ──► wallet.q ────────────────► │ ManejadorDebitoCarteraSolicitado:
   │                                                                                │   debita la cartera
-  │ ◄── sales.q ◄── identity.eventos ◄── publicar(CarteraDebitada / DebitoCarteraRechazado) ─ │
+  │ ◄── sales.q ◄── wallet.eventos ◄── publicar(CarteraDebitada / DebitoCarteraRechazado) ── │
   │ ManejadorCarteraDebitada:                                                          │
   │   asientos VENDIDO, venta CONFIRMADA                                           │
   │   publicar(BoletoVendido) ──► reporting.q, notification.q                         │
 ```
 
-Manejador en Identity:
+Manejador en Wallet (simplificado; el real además consulta a Identity si la cuenta está activa):
 
 ```java
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -989,7 +990,7 @@ logging:
     level: "%5p [%X{correlationId:-}]"
 ```
 
-Así se puede seguir una saga completa buscando el mismo id en los logs de Sales e Identity.
+Así se puede seguir una saga completa buscando el mismo id en los logs de Sales y Wallet.
 El frontend puede enviar su propio `X-Correlation-Id` para relacionar un clic con todo lo que provocó.
 
 ---

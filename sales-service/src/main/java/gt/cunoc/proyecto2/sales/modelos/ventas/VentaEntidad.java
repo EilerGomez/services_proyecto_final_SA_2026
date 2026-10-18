@@ -102,7 +102,7 @@ public class VentaEntidad {
     }
 
     /**
-     * S2. Venta en línea: cartera, PENDIENTE_PAGO hasta que Identity responda (CarteraDebitada o
+     * S2. Venta en línea: cartera, PENDIENTE_PAGO hasta que Wallet responda (CarteraDebitada o
      * DebitoCarteraRechazado). El cliente es el del token (con cuenta).
      */
     public static VentaEntidad registrarEnLinea(VistaViajeEntidad viaje, ClienteVenta cliente,
@@ -143,7 +143,7 @@ public class VentaEntidad {
     }
 
     /**
-     * PENDIENTE_PAGO → RECHAZADA: DebitoCarteraRechazado (motivo de Identity), viaje eliminado,
+     * PENDIENTE_PAGO → RECHAZADA: DebitoCarteraRechazado (motivo de Wallet), viaje eliminado,
      * o el débito llegó cuando la venta ya había perdido sus asientos.
      */
     public void rechazar(String motivo) {

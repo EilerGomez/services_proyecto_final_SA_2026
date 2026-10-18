@@ -17,7 +17,6 @@ import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.TokenRefresco;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
@@ -65,7 +64,6 @@ class AuthServiceImplTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
-    @Mock private CarteraRepository carteras;
     @Mock private TokenRefrescoRepository refrescos;
     @Mock private TokenRecuperacionRepository recuperaciones;
     @Mock private CodigoDobleFactorRepository desafios;
@@ -85,7 +83,7 @@ class AuthServiceImplTest {
     @BeforeEach
     void preparar() {
         // Constructor manual: Mockito no inyecta primitivos ni String (minutosAcceso, urlFrontend).
-        servicio = new AuthServiceImpl(usuarios, perfiles, roles, carteras, refrescos,
+        servicio = new AuthServiceImpl(usuarios, perfiles, roles, refrescos,
                 recuperaciones, desafios, claves, jwt, 60L, new IdentidadUsuarioFactory(),
                 opacos, vigilancia, publicador, servicioUsuarios, "http://localhost:5173",
                 new GoogleOAuthProperties(), new CodigosUnSoloUso(opacos), google);

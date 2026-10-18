@@ -16,5 +16,6 @@ DROP DATABASE IF EXISTS bd_ventas         WITH (FORCE);
 DROP DATABASE IF EXISTS bd_mantenimiento  WITH (FORCE);
 DROP DATABASE IF EXISTS bd_reportes       WITH (FORCE);
 DROP DATABASE IF EXISTS bd_notificaciones WITH (FORCE);
+DROP DATABASE IF EXISTS bd_cartera;       WITH (FORCE);
 
 \echo 'Bases borradas. Ahora corre 00_crear_bases.sql'

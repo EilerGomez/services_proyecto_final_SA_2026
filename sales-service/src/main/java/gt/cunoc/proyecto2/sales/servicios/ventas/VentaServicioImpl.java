@@ -122,7 +122,7 @@ public class VentaServicioImpl implements VentaServicio {
         if (asientos.reservar(viaje.getViajeId(), numeros, venta.getId(), reservadoHasta) != numeros.size()) {
             throw ErrorVenta.ASIENTO_OCUPADO.excepcion(numeros);                             // 409: rollback
         }
-        // Saga: Identity responde CarteraDebitada (→ CONFIRMADA y boletos) o DebitoCarteraRechazado
+        // Saga: Wallet responde CarteraDebitada (→ CONFIRMADA y boletos) o DebitoCarteraRechazado
         eventos.debitoVenta(venta);
         return new VentaPendienteRespuesta(venta, numeros, reservadoHasta);
     }

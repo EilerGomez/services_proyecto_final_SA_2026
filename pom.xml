@@ -30,6 +30,7 @@
         <module>maintenance-service</module>
         <module>reporting-service</module>
         <module>notification-service</module>
+        <module>wallet-service</module>
     </modules>
 
     <properties>

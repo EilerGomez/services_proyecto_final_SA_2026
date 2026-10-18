@@ -19,7 +19,8 @@ import java.util.UUID;
 
 /**
  * R4 de Notification: administradores de una sucursal y contacto de un usuario.
- * R4c de Fleet: estado de la cuenta (activa, inactiva o bloqueada) antes de reintegrar personal.
+ * R4c de Fleet y Wallet: estado de la cuenta (activa, inactiva o bloqueada) antes de reintegrar personal
+ * (Fleet) o de debitar la cartera (Wallet).
  *
  * <p>Solo red interna con token de servicio.
  */

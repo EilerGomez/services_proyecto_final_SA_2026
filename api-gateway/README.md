@@ -29,6 +29,7 @@ Health: `http://localhost:8080/actuator/health`.
 | `/maintenance/**` | `http://localhost:8085` | Se conserva |
 | `/reports/**` | `http://localhost:8086` | Se conserva |
 | `/notifications/**` | `http://localhost:8087` | Se conserva |
+| `/wallet/**` | `http://localhost:8088` | Se conserva |
 | `/v3/api-docs/identity` | identity-service | `/v3/api-docs` |
 | `/v3/api-docs/fleet` | fleet-service | `/v3/api-docs` |
 | `/v3/api-docs/trips` | trips-service | `/v3/api-docs` |
@@ -36,6 +37,7 @@ Health: `http://localhost:8080/actuator/health`.
 | `/v3/api-docs/maintenance` | maintenance-service | `/v3/api-docs` |
 | `/v3/api-docs/reporting` | reporting-service | `/v3/api-docs` |
 | `/v3/api-docs/notification` | notification-service | `/v3/api-docs` |
+| `/v3/api-docs/wallet` | wallet-service | `/wallet/v3/api-docs` |
 
 Los documentos OpenAPI se seleccionan en Swagger UI y se descargan por el gateway.
 
@@ -53,10 +55,11 @@ No hace falta definir variables para el arranque local sin autenticación.
 | `MAINTENANCE_URL` | `http://localhost:8085` | URI de maintenance |
 | `REPORTING_URL` | `http://localhost:8086` | URI de reporting |
 | `NOTIFICATION_URL` | `http://localhost:8087` | URI de notification |
+| `WALLET_URL` | `http://localhost:8088` | URI de wallet (cartera digital) |
 | `FRONTEND_URL` | `http://localhost:5173` | Origen CORS (también `GATEWAY_ALLOWED_ORIGINS`) |
 | `GATEWAY_ALLOWED_ORIGINS` | valor de `FRONTEND_URL` | Orígenes CORS separados por coma |
 | `GATEWAY_SECURITY_ENABLED` | `false` | Activa validación JWT HS256 |
-| `JWT_SECRET` | secreto de desarrollo (32+ chars) | Mismo secreto HS256 de los 7 servicios y `comun` |
+| `JWT_SECRET` | secreto de desarrollo (32+ chars) | Mismo secreto HS256 de los 8 servicios y `comun` |
 | `GATEWAY_CONNECT_TIMEOUT` | `3000` | Timeout de conexión en ms |
 | `GATEWAY_RESPONSE_TIMEOUT` | `30s` | Timeout de respuesta, formato Duration |
 | `LOG_LEVEL` | `INFO` | Nivel general de logs |
@@ -66,8 +69,8 @@ No hace falta definir variables para el arranque local sin autenticación.
 
 El perfil `docker` cambia los destinos a `identity-service:8081`,
 `fleet-service:8082`, `trips-service:8083`, `sales-service:8084`,
-`maintenance-service:8085`, `reporting-service:8086` y
-`notification-service:8087`.
+`maintenance-service:8085`, `reporting-service:8086`,
+`notification-service:8087` y `wallet-service:8088`.
 
 ### JWT
 

@@ -3,12 +3,9 @@ package gt.cunoc.proyecto2.identity.messaging;
 import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.identity.evento.payload.ClienteRegistradoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
-import gt.cunoc.proyecto2.identity.evento.payload.DebitoRechazadoPayload;
-import gt.cunoc.proyecto2.identity.evento.payload.MovimientoCarteraPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.TarifaDepreciacionPayload;
-import gt.cunoc.proyecto2.identity.messaging.publisher.CarteraEventPublisher;
 import gt.cunoc.proyecto2.identity.messaging.publisher.TarifaEventPublisher;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import java.math.BigDecimal;
@@ -24,22 +21,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.mockito.Mockito.*;
 
-/** Fija los contratos de los ocho eventos publicados antes de la extraccion. */
+/** Fija los contratos de los eventos de Identity (los de cartera ahora los publica wallet-service). */
 class PublishersTest {
 
     private static final UUID USUARIO = UUID.randomUUID();
-    private static final UUID REFERENCIA = UUID.randomUUID();
-    private static final UUID MOVIMIENTO = UUID.randomUUID();
     private static final UUID CHOFER = UUID.randomUUID();
     private static final BigDecimal MONTO = new BigDecimal("25.50");
-    private static final BigDecimal SALDO = new BigDecimal("80.00");
     private static final LocalDate FECHA = LocalDate.of(2026, 9, 20);
     private static final LocalDate FECHA_MOVIMIENTO = LocalDate.of(2026, 9, 19);
     private static final Instant EXPIRACION = Instant.parse("2026-09-21T12:00:00Z");
 
     private final PublicadorEventos outbox = mock(PublicadorEventos.class);
     private final UsuarioEventPublisher usuarios = new UsuarioEventPublisher(outbox);
-    private final CarteraEventPublisher cartera = new CarteraEventPublisher(outbox);
     private final TarifaEventPublisher tarifas = new TarifaEventPublisher(outbox);
 
     @ParameterizedTest(name = "{1}")
@@ -69,19 +62,7 @@ class PublishersTest {
                                 USUARIO, "nit", "nombres", "apellidos", "correo", "telefono", "foto", CHOFER, FECHA)),
                 contrato("TarifaDepreciacion", "TarifaDepreciacionCambiada",
                         new TarifaDepreciacionPayload(USUARIO, MONTO, FECHA_MOVIMIENTO),
-                        t -> t.tarifas.publicarTarifaDepreciacionCambiada(USUARIO, MONTO, FECHA_MOVIMIENTO, FECHA)),
-                contrato("Cartera", "CarteraDebitada",
-                        new MovimientoCarteraPayload(MOVIMIENTO, "VENTA", REFERENCIA, USUARIO, MONTO, SALDO, FECHA_MOVIMIENTO),
-                        t -> t.cartera.publicarCarteraDebitada(
-                                MOVIMIENTO, "VENTA", REFERENCIA, USUARIO, MONTO, SALDO, FECHA_MOVIMIENTO, FECHA)),
-                contrato("Cartera", "CarteraReembolsada",
-                        new MovimientoCarteraPayload(MOVIMIENTO, "VENTA", REFERENCIA, USUARIO, MONTO, SALDO, FECHA_MOVIMIENTO),
-                        t -> t.cartera.publicarCarteraReembolsada(
-                                MOVIMIENTO, "VENTA", REFERENCIA, USUARIO, MONTO, SALDO, FECHA_MOVIMIENTO, FECHA)),
-                contrato("Cartera", "DebitoCarteraRechazado",
-                        new DebitoRechazadoPayload("VENTA", REFERENCIA, USUARIO, MONTO, "SALDO_INSUFICIENTE"),
-                        t -> t.cartera.publicarDebitoCarteraRechazado(
-                                "VENTA", REFERENCIA, USUARIO, MONTO, "SALDO_INSUFICIENTE", FECHA)));
+                        t -> t.tarifas.publicarTarifaDepreciacionCambiada(USUARIO, MONTO, FECHA_MOVIMIENTO, FECHA)));
     }
 
     private static Arguments contrato(String agregado, String evento, Object payload, Consumer<PublishersTest> publicar) {

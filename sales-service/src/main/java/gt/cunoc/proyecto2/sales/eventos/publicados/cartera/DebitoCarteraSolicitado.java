@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /*
- * Payload de DebitoCarteraSolicitado (inicio de la saga). Consume: Identity, que responde
+ * Payload de DebitoCarteraSolicitado (inicio de la saga). Consume: Wallet, que responde
  * CarteraDebitada o DebitoCarteraRechazado. fechaMovimiento = fecha de pago elegida por el usuario.
  */
 public record DebitoCarteraSolicitado(

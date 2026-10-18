@@ -16,12 +16,10 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
-import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.TokenRecuperacionRepository;
@@ -35,7 +33,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,7 +52,6 @@ public class UserServiceImpl implements UserService {
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfiles;
     private final RolRepository roles;
-    private final CarteraRepository carteras;
     private final TokenRecuperacionRepository activaciones;
     private final TokenRefrescoRepository refrescos;
     private final PasswordEncoder claves;
@@ -68,7 +64,6 @@ public class UserServiceImpl implements UserService {
             UsuarioRepository usuarios,
             PerfilRepository perfiles,
             RolRepository roles,
-            CarteraRepository carteras,
             TokenRecuperacionRepository activaciones,
             TokenRefrescoRepository refrescos,
             PasswordEncoder claves,
@@ -79,7 +74,6 @@ public class UserServiceImpl implements UserService {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
-        this.carteras = carteras;
         this.activaciones = activaciones;
         this.refrescos = refrescos;
         this.claves = claves;
@@ -153,11 +147,6 @@ public class UserServiceImpl implements UserService {
         perfil.setTelefono(solicitud.telefono());
         perfil.setDireccion(solicitud.direccion());
         perfiles.save(perfil);
-
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(usuario.getId());
-        cartera.setSaldo(BigDecimal.ZERO);
-        carteras.save(cartera);
 
         String crudo = opacos.generar();
         TokenRecuperacion activacion = new TokenRecuperacion();

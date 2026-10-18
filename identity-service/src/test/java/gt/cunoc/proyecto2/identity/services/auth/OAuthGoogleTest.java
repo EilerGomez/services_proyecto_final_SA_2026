@@ -19,11 +19,9 @@ import gt.cunoc.proyecto2.identity.dtos.auth.ResultadoInicioSesion;
 import gt.cunoc.proyecto2.identity.dtos.auth.SesionResponse;
 import gt.cunoc.proyecto2.identity.dtos.auth.UrlGoogleResponse;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
-import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
@@ -75,7 +73,6 @@ class OAuthGoogleTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
-    @Mock private CarteraRepository carteras;
     @Mock private TokenRefrescoRepository refrescos;
     @Mock private TokenRecuperacionRepository recuperaciones;
     @Mock private CodigoDobleFactorRepository desafios;
@@ -99,7 +96,7 @@ class OAuthGoogleTest {
         oauth.setClientSecret("secreto-test");
         oauth.setRedirectUri("http://localhost:8080/identity/auth/oauth2/google/callback");
         oauth.setFrontendUrl("http://localhost:4200");
-        servicio = new AuthServiceImpl(usuarios, perfiles, roles, carteras, refrescos,
+        servicio = new AuthServiceImpl(usuarios, perfiles, roles, refrescos,
                 recuperaciones, desafios, claves, jwt, 60L, new IdentidadUsuarioFactory(),
                 opacos, vigilancia, publicador, servicioUsuarios, "http://localhost:5173",
                 oauth, new CodigosUnSoloUso(opacos), google);
@@ -356,11 +353,10 @@ class OAuthGoogleTest {
     }
 
     @Test
-    void callbackCreaClienteConCarteraYPublicaCuenta() {
+    void callbackCreaClienteYPublicaCuenta() {
         stubCrear("nueva@correo.com");
         String ticket = ticketDe("sub-nuevo", "nueva@correo.com");
         assertTrue(ticket.length() > 10);
-        verify(carteras).save(any(Cartera.class));
         verify(publicador).publicarCuentaCreada(any(), any(), any(), any(), any(), any());
         verify(publicador, never()).publicarClienteRegistrado(any(), any(), any(), any(), any());
         ArgumentCaptor<Perfil> perfil = ArgumentCaptor.forClass(Perfil.class);

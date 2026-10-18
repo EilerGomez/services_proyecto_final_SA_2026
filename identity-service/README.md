@@ -11,7 +11,6 @@ messaging/
   publisher/                Construccion de payloads y publicacion mediante outbox
   consumer/                 Adaptacion de mensajes a llamadas de negocio
 services/
-  cartera/                  Debito, reembolso y operaciones de cartera
   personal/                 Cuentas y sincronizacion de sucursales, roles y sesiones
   auth/, usuario/, tarifa/  Operaciones de negocio existentes
 ```
@@ -27,11 +26,14 @@ Los consumers implementan `ManejadorEvento` y son descubiertos por el unico
 `identity.q`: el listener existente selecciona el manejador por tipo y coordina
 la idempotencia, correlacion, reintentos y errores.
 
-Las operaciones extraidas a `DebitoCarteraService`, `ReembolsoCarteraService` y
-`SincronizacionPersonalService` usan `@Transactional` con propagacion predeterminada
-`REQUIRED`, por lo que participan en la transaccion de `ProcesadorIdempotente`.
-Los rechazos de debito siguen siendo resultados normales que generan un evento.
-Se conserva la fecha de negocio del sobre al procesar pagos y reembolsos.
+La cartera digital (saldo, recargas y la saga de debito/reembolso con Sales) ya no
+esta en identity: es el microservicio `wallet-service` (base `bd_cartera`, exchange
+`wallet.eventos`). Identity solo publica `CuentaCreada`, con la que wallet abre la
+cartera de los clientes, y responde R4c (`/identity/interno/usuarios/{id}/estado`)
+para que wallet verifique la cuenta antes de debitar.
+
+`SincronizacionPersonalService` usa `@Transactional` con propagacion predeterminada
+`REQUIRED`, por lo que participa en la transaccion de `ProcesadorIdempotente`.
 
 La topologia sigue definida por `ConfiguracionEventos` de `comun` y los valores
 de `application.yml`; no existe una segunda configuracion RabbitMQ en identity.
@@ -43,7 +45,7 @@ mvn -pl identity-service -am verify
 ```
 
 `IdentityMessagingTest` verifica el recorrido del listener compartido hasta el
-outbox, el registro Spring de los cinco consumers, las decisiones de negocio,
-los duplicados y los limites transaccionales. Usa repositorios y conexion JDBC
+outbox y el registro Spring de los tres consumers de personal (ChoferDesactivado,
+PersonalSucursalAsignado, PersonalSucursalDesactivado). Usa repositorios y conexion JDBC
 simulados; no reemplaza una prueba con PostgreSQL y RabbitMQ reales.
-`PublishersTest` verifica los contratos de los ocho eventos de salida.
+`PublishersTest` verifica los contratos de los eventos de salida de identity.

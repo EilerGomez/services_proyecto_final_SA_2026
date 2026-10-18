@@ -35,7 +35,7 @@ public class PublicadorEventosSales {
         this.publicador = publicador;
     }
 
-    // ----- Saga con Identity -----
+    // ----- Saga con Wallet -----
 
     /** S2: cobra la venta en línea con la cartera del cliente. */
     public void debitoVenta(VentaEntidad venta) {

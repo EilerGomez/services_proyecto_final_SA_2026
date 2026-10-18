@@ -31,7 +31,7 @@ public class OpenApiConfig {
 
                 .version("1.0")
 
-                .description("Sesión, JWT, roles, perfiles, sucursales, tarifa de depreciación y cartera digital."))
+                .description("Sesión, JWT, roles, perfiles, sucursales y tarifa de depreciación. La cartera digital está en Wallet Service."))
                 // "/" = mismo origen: "Try it out" llama al gateway (o al propio servicio), no al host interno de Docker
                 .servers(List.of(new Server().url("/").description("Mismo origen (gateway o servicio)")))
                 .components(new Components().addSecuritySchemes(ESQUEMA_JWT, new SecurityScheme()

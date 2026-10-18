@@ -17,7 +17,7 @@ import org.springframework.http.ResponseEntity;
 
 /**
  * Saga del pago de una orden de alquiler con cartera: S12 publica DebitoCarteraSolicitado, la prueba responde
- * como Identity y se revisa la orden y los eventos (AlquilerPagado, ReembolsoCarteraSolicitado).
+ * como Wallet y se revisa la orden y los eventos (AlquilerPagado, ReembolsoCarteraSolicitado).
  */
 class SagaAlquilerIT extends PruebaIntegracion {
 
@@ -46,17 +46,17 @@ class SagaAlquilerIT extends PruebaIntegracion {
     }
 
     private UUID carteraDebitada() {
-        return publicarEvento(IDENTITY_EVENTOS, "CarteraDebitada", cliente, null,
+        return publicarEvento(WALLET_EVENTOS, "CarteraDebitada", cliente, null,
                 movimientoCartera("ALQUILER", orden, cliente, "2600.00"));
     }
 
     private UUID responderRechazo(String motivo) {
-        return publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null,
+        return publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null,
                 debitoRechazado("ALQUILER", orden, cliente, "2600.00", motivo));
     }
 
     private UUID carteraReembolsada() {
-        return publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        return publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("ALQUILER", orden, cliente, "2600.00"));
     }
 
@@ -93,7 +93,7 @@ class SagaAlquilerIT extends PruebaIntegracion {
         assertThat(JsonPath.<String>read(debito, "$.payload.usuarioId")).isEqualTo(cliente.toString());
         assertThat(decimal(debito, "$.payload.monto")).isEqualByComparingTo("2600.00");
 
-        // mientras Identity no responde, otro S12 es 409
+        // mientras Wallet no responde, otro S12 es 409
         esError(pagarConCartera(), 409, "PAGO_EN_PROCESO");
 
         carteraDebitada();
@@ -165,9 +165,9 @@ class SagaAlquilerIT extends PruebaIntegracion {
     void respuestasSinCobroEnCursoNoCambianLaOrden() {
         // la orden está PENDIENTE_PAGO pero nadie pidió el cobro con cartera
         UUID rechazo = responderRechazo("SALDO_INSUFICIENTE");
-        UUID inexistente = publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null,
+        UUID inexistente = publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null,
                 debitoRechazado("ALQUILER", UUID.randomUUID(), cliente, "2600.00", "SALDO_INSUFICIENTE"));
-        UUID debitoInexistente = publicarEvento(IDENTITY_EVENTOS, "CarteraDebitada", cliente, null,
+        UUID debitoInexistente = publicarEvento(WALLET_EVENTOS, "CarteraDebitada", cliente, null,
                 movimientoCartera("ALQUILER", UUID.randomUUID(), cliente, "2600.00"));
 
         await().atMost(ESPERA)
@@ -184,7 +184,7 @@ class SagaAlquilerIT extends PruebaIntegracion {
     void pagoEnEfectivoMientrasSeCobrabaYLuegoDebitoTardioSeDevuelve() {
         esStatus(pagarConCartera(), 202);
 
-        // el cliente paga en mostrador antes de que Identity responda
+        // el cliente paga en mostrador antes de que Wallet responda
         ResponseEntity<String> efectivo = pagarEnEfectivo();
         esStatus(efectivo, 200);
         assertThat(PruebaIntegracion.<String>json(efectivo, "$.estado")).isEqualTo("PAGADA");
@@ -207,7 +207,7 @@ class SagaAlquilerIT extends PruebaIntegracion {
         assertThat(JsonPath.<String>read(reembolso, "$.payload.fechaMovimiento"))
                 .isEqualTo(fechaNoAnteriorAlPago().toString());
 
-        // Identity devuelve el dinero: la orden sigue PAGADA en efectivo
+        // Wallet devuelve el dinero: la orden sigue PAGADA en efectivo
         UUID reembolsada = carteraReembolsada();
         await().atMost(ESPERA).until(() -> procesado(reembolsada));
         assertThat(estadoOrden(orden)).isEqualTo("PAGADA");

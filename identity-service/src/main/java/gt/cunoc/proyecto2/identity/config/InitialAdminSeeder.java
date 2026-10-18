@@ -2,11 +2,9 @@ package gt.cunoc.proyecto2.identity.config;
 
 
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
-import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
@@ -20,7 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,8 +47,6 @@ public class InitialAdminSeeder implements ApplicationRunner {
 
     private final RolRepository roles;
 
-    private final CarteraRepository carteras;
-
     private final PasswordEncoder claves;
 
     private final String correo;
@@ -74,7 +69,6 @@ public class InitialAdminSeeder implements ApplicationRunner {
             UsuarioRepository usuarios,
             PerfilRepository perfiles,
             RolRepository roles,
-            CarteraRepository carteras,
             PasswordEncoder claves,
             @Value("${ADMIN_CORREO:}") String correo,
             @Value("${ADMIN_CONTRASENA:}") String contrasena,
@@ -87,7 +81,6 @@ public class InitialAdminSeeder implements ApplicationRunner {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
-        this.carteras = carteras;
         this.claves = claves;
         this.correo = correo;
         this.contrasena = contrasena;
@@ -134,10 +127,6 @@ public class InitialAdminSeeder implements ApplicationRunner {
         perfil.setTelefono(telefono);
         perfil.setDireccion(direccion);
         perfiles.save(perfil);
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(usuario.getId());
-        cartera.setSaldo(BigDecimal.ZERO);
-        carteras.save(cartera);
         log.info("ADMIN_SISTEMA inicial creado: {}", usuario.getCorreo());
     }
 }

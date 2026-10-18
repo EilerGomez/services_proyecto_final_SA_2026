@@ -9,13 +9,11 @@ import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalResponse;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
-import gt.cunoc.proyecto2.identity.models.Cartera;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.SolicitudCuentaPersonal;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.SolicitudCuentaRepository;
@@ -27,7 +25,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -51,8 +48,6 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
 
     private final RolRepository roles;
 
-    private final CarteraRepository carteras;
-
     private final SolicitudCuentaRepository solicitudes;
 
     private final TokenRecuperacionRepository activaciones;
@@ -71,7 +66,6 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
             UsuarioRepository usuarios,
             PerfilRepository perfiles,
             RolRepository roles,
-            CarteraRepository carteras,
             SolicitudCuentaRepository solicitudes,
             TokenRecuperacionRepository activaciones,
             PasswordEncoder claves,
@@ -82,7 +76,6 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         this.usuarios = usuarios;
         this.perfiles = perfiles;
         this.roles = roles;
-        this.carteras = carteras;
         this.solicitudes = solicitudes;
         this.activaciones = activaciones;
         this.claves = claves;
@@ -149,10 +142,6 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         perfil.setDireccion(solicitud.direccion());
         perfil.setFotoUrl(solicitud.fotoUrl());
         perfiles.save(perfil);
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(usuario.getId());
-        cartera.setSaldo(BigDecimal.ZERO);
-        carteras.save(cartera);
         SolicitudCuentaPersonal registro = new SolicitudCuentaPersonal();
         registro.setSolicitudId(solicitud.solicitudId());
         registro.setUsuarioId(usuario.getId());

@@ -116,7 +116,7 @@ public abstract class PruebaIntegracion {
                 .build();
 
         jdbc.execute("""
-                TRUNCATE TABLE codigos_doble_factor, movimientos_cartera, carteras, tokens_recuperacion,
+                TRUNCATE TABLE codigos_doble_factor, tokens_recuperacion,
                                 tokens_refresco, perfiles, usuario_roles, usuarios, solicitudes_cuenta_personal,
                                 tarifas_depreciacion, eventos_salida, eventos_procesados CASCADE""");
 

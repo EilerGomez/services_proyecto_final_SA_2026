@@ -67,7 +67,7 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
         }
         switch (venta.getEstado()) {
             case PENDIENTE_PAGO -> confirmarVenta(venta);
-            // Venció la reserva o se eliminó el viaje antes de que Identity cobrara: se devuelve
+            // Venció la reserva o se eliminó el viaje antes de que Wallet cobrara: se devuelve
             case RECHAZADA -> eventos.reembolsoVenta(venta, MotivoSaga.DEBITO_TARDIO,
                     venta.fechaNoAnteriorAlPago(Fechas.hoy()));
             // CONFIRMADA: respuesta repetida. CANCELADA / REEMBOLSADA: el reembolso ya se pidió al cancelar
@@ -112,7 +112,7 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
         } else if (orden.pagadaConCartera()) {
             log.info("CarteraDebitada repetida para la orden {}: no se hace nada", ordenId);
         } else {
-            // Se pagó en efectivo mientras Identity cobraba (u otro estado que ya no espera el cobro)
+            // Se pagó en efectivo mientras Wallet cobraba (u otro estado que ya no espera el cobro)
             eventos.reembolsoOrden(orden, MotivoSaga.DEBITO_TARDIO, orden.fechaNoAnteriorAlPago(Fechas.hoy()));
             log.info("Débito tardío de la orden {} ({}): se pide el reembolso", ordenId, orden.getEstado());
         }

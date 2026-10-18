@@ -71,7 +71,7 @@ class RutasPublicasBearerTokenConverterTest {
 
     @Test
     void rutaPrivadaLeeElToken() {
-        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/identity/cartera",
+        MockServerWebExchange exchange = exchange(HttpMethod.GET, "/wallet/cartera",
                 "Bearer " + TOKEN_VENCIDO_O_INVALIDO);
 
         StepVerifier.create(converter.convert(exchange))
@@ -82,13 +82,13 @@ class RutasPublicasBearerTokenConverterTest {
 
     @Test
     void rutaPrivadaSinTokenQuedaAnonima() {
-        StepVerifier.create(converter.convert(exchange(HttpMethod.GET, "/identity/cartera", null)))
+        StepVerifier.create(converter.convert(exchange(HttpMethod.GET, "/wallet/cartera", null)))
                 .verifyComplete();
     }
 
     @Test
     void rutaPrivadaConHeaderMalFormadoFalla() {
-        StepVerifier.create(converter.convert(exchange(HttpMethod.GET, "/identity/cartera", "Bearer ###")))
+        StepVerifier.create(converter.convert(exchange(HttpMethod.GET, "/wallet/cartera", "Bearer ###")))
                 .expectError(OAuth2AuthenticationException.class)
                 .verify();
     }

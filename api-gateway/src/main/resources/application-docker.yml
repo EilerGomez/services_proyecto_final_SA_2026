@@ -7,3 +7,4 @@ gateway:
     maintenance-url: ${MAINTENANCE_URL:http://maintenance-service:8085}
     reporting-url: ${REPORTING_URL:http://reporting-service:8086}
     notification-url: ${NOTIFICATION_URL:http://notification-service:8087}
+    wallet-url: ${WALLET_URL:http://wallet-service:8088}

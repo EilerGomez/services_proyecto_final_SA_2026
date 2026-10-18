@@ -50,6 +50,9 @@ class PublicEndpointsTest {
         "GET, /identity/swagger-ui/index.html",
         "GET, /identity/v3/api-docs",
         "GET, /notifications/v3/api-docs/swagger-config",
+        "GET, /v3/api-docs/wallet",
+        "GET, /wallet/swagger-ui.html",
+        "GET, /wallet/v3/api-docs",
         // Preflight CORS
         "OPTIONS, /sales/ventas",
     })
@@ -75,7 +78,9 @@ class PublicEndpointsTest {
         "PUT, /identity/auth/contrasena",
         "PUT, /identity/auth/doble-factor",
         "GET, /identity/perfil",
-        "GET, /identity/cartera",
+        "GET, /wallet/cartera",
+        "POST, /wallet/cartera/recargas",
+        "GET, /wallet/cartera/movimientos",
         "GET, /fleet/sucursales/7f3a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90/personal",
         "GET, /fleet/buses",
         "GET, /trips/alquileres",

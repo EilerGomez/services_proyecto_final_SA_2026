@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /*
- * Payload de ReembolsoCarteraSolicitado (compensación). Consume: Identity, que devuelve el monto
+ * Payload de ReembolsoCarteraSolicitado (compensación). Consume: Wallet, que devuelve el monto
  * y responde CarteraReembolsada. Se pide por venta cancelada, viaje eliminado o débito tardío.
  */
 public record ReembolsoCarteraSolicitado(

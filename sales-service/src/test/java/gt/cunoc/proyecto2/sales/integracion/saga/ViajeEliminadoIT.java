@@ -65,7 +65,7 @@ class ViajeEliminadoIT extends PruebaIntegracion {
     }
 
     private UUID carteraDebitada(UUID ventaId, String monto) {
-        return publicarEvento(IDENTITY_EVENTOS, "CarteraDebitada", cliente, null,
+        return publicarEvento(WALLET_EVENTOS, "CarteraDebitada", cliente, null,
                 movimientoCartera("VENTA", ventaId, cliente, monto));
     }
 
@@ -184,8 +184,8 @@ class ViajeEliminadoIT extends PruebaIntegracion {
         assertThat(decimal(reembolso, "$.payload.monto")).isEqualByComparingTo("75.00");
         assertThat(JsonPath.<String>read(reembolso, "$.payload.fechaMovimiento")).isEqualTo(fechaCancelacion);
 
-        // Identity devuelve el dinero de la venta en línea
-        publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        // Wallet devuelve el dinero de la venta en línea
+        publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", lineaConfirmada, cliente, "75.00"));
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(lineaConfirmada)).isEqualTo("REEMBOLSADA"));
         assertThat(estadoVenta(mostrador)).isEqualTo("CANCELADA");
@@ -205,7 +205,7 @@ class ViajeEliminadoIT extends PruebaIntegracion {
         assertThat(enOutbox("VentaCancelada")).hasSize(1);                   // solo la de mostrador
         assertThat(enOutbox("ReembolsoCarteraSolicitado")).isEmpty();        // efectivo y aún sin cobro
 
-        // Identity cobra la pendiente cuando el viaje ya no existe: débito tardío
+        // Wallet cobra la pendiente cuando el viaje ya no existe: débito tardío
         carteraDebitada(pendiente, "75.00");
 
         await().atMost(ESPERA).untilAsserted(() -> assertThat(enOutbox("ReembolsoCarteraSolicitado")).hasSize(1));
@@ -215,7 +215,7 @@ class ViajeEliminadoIT extends PruebaIntegracion {
         assertThat(estadoVenta(pendiente)).isEqualTo("RECHAZADA");
         assertThat(contarDonde("boletos", "venta_id = ?", pendiente)).isZero();
 
-        publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", pendiente, cliente, "75.00"));
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(pendiente)).isEqualTo("REEMBOLSADA"));
     }

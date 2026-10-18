@@ -59,7 +59,7 @@ class SecurityConfigTest {
                 .bindNow();
         String url = "http://127.0.0.1:" + servicio.port();
         for (String nombre : List.of("identity", "fleet", "trips", "sales", "maintenance", "reporting",
-                "notification")) {
+                "notification", "wallet")) {
             registro.add("gateway.services." + nombre + "-url", () -> url);
         }
     }
@@ -153,7 +153,7 @@ class SecurityConfigTest {
 
     @Test
     void rutaPrivadaSinTokenEs401() {
-        cliente.get().uri("/identity/cartera").exchange()
+        cliente.get().uri("/wallet/cartera").exchange()
                 .expectStatus().isUnauthorized()
                 .expectHeader().valueEquals(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
                 .expectBody()
@@ -180,7 +180,7 @@ class SecurityConfigTest {
     void rutaPrivadaConTokenVencidoEs401() {
         String vencido = JwtPrueba.vencido(JwtPrueba.SECRETO, UUID.randomUUID(), "CLIENTE");
 
-        cliente.get().uri("/identity/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + vencido).exchange()
+        cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + vencido).exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody().jsonPath("$.codigo").isEqualTo("TOKEN_INVALIDO");
     }
@@ -190,7 +190,7 @@ class SecurityConfigTest {
         String ajeno = JwtPrueba.vigente("otro-secreto-distinto-con-mas-de-32-caracteres!!", UUID.randomUUID(),
                 null, "CLIENTE");
 
-        cliente.get().uri("/identity/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + ajeno).exchange()
+        cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + ajeno).exchange()
                 .expectStatus().isUnauthorized();
     }
 
@@ -199,9 +199,9 @@ class SecurityConfigTest {
         UUID usuario = UUID.randomUUID();
         String token = JwtPrueba.vigente(JwtPrueba.SECRETO, usuario, null, "CLIENTE");
 
-        cliente.get().uri("/identity/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + token).exchange()
+        cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + token).exchange()
                 .expectStatus().isOk()
-                .expectHeader().valueEquals("X-Recibido-Ruta", "/identity/cartera")
+                .expectHeader().valueEquals("X-Recibido-Ruta", "/wallet/cartera")
                 .expectHeader().valueEquals("X-Recibido-Authorization", "Bearer " + token)
                 .expectHeader().valueEquals("X-Recibido-User-Id", usuario.toString())
                 .expectHeader().valueEquals("X-Recibido-User-Roles", "CLIENTE");

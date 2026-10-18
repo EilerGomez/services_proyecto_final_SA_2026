@@ -11,7 +11,7 @@ public class OpenApiConfig {
     OpenAPI gatewayOpenApi() {
         return new OpenAPI().info(new Info().title("API Gateway")
                 .version("1.0").description("Gateway de identity, fleet, trips, sales, "
-                        + "maintenance, reporting y notification. "
+                        + "maintenance, reporting, notification y wallet. "
                         + "Selecciona el microservicio en Swagger UI para ver sus operaciones."));
     }
 }

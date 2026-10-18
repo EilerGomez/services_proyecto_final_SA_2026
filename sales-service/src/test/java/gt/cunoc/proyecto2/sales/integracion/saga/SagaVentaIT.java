@@ -20,7 +20,7 @@ import org.springframework.http.ResponseEntity;
 
 /**
  * Saga de la venta en línea de punta a punta: S2 publica DebitoCarteraSolicitado, la prueba responde como
- * Identity (CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada en identity.eventos) y se revisan
+ * Wallet (CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada en wallet.eventos) y se revisan
  * la venta, los boletos, los asientos y los eventos que publica Sales.
  */
 class SagaVentaIT extends PruebaIntegracion {
@@ -59,7 +59,7 @@ class SagaVentaIT extends PruebaIntegracion {
     }
 
     private UUID carteraDebitada(UUID ventaId, String monto) {
-        return publicarEvento(IDENTITY_EVENTOS, "CarteraDebitada", cliente, null,
+        return publicarEvento(WALLET_EVENTOS, "CarteraDebitada", cliente, null,
                 movimientoCartera("VENTA", ventaId, cliente, monto));
     }
 
@@ -117,7 +117,7 @@ class SagaVentaIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<List<Integer>>json(respuesta, "$.asientos")).containsExactly(3, 4);
         assertThat(estadosAsientos(viaje, 3, 4)).containsExactly("RESERVADO", "RESERVADO");
 
-        // Identity recibe la solicitud de débito
+        // Wallet recibe la solicitud de débito
         String debito = esperarEventos("DebitoCarteraSolicitado").get("DebitoCarteraSolicitado");
         assertThat(JsonPath.<String>read(debito, "$.aggregateId")).isEqualTo(ventaId.toString());
         assertThat(JsonPath.<String>read(debito, "$.businessDate")).isEqualTo(FECHA_PAGO.toString());
@@ -167,13 +167,13 @@ class SagaVentaIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<Integer>json(detalle, "$.boletos.length()")).isEqualTo(2);
     }
 
-    // ----- Rechazo de Identity -----
+    // ----- Rechazo de Wallet -----
 
     @Test
     void debitoRechazadoRechazaLaVentaYLiberaLosAsientos() {
         UUID ventaId = comprarEnLinea(5, 6);
 
-        publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null,
+        publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null,
                 debitoRechazado("VENTA", ventaId, cliente, "150.00", "SALDO_INSUFICIENTE"));
 
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(ventaId)).isEqualTo("RECHAZADA"));
@@ -194,7 +194,7 @@ class SagaVentaIT extends PruebaIntegracion {
     void unRechazoSinMotivoQuedaComoRechazado() {
         UUID ventaId = comprarEnLinea(7);
 
-        publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null, """
+        publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null, """
                 {"referenciaTipo":"VENTA","referenciaId":"%s","usuarioId":"%s","monto":75.00,"motivo":null}
                 """.formatted(ventaId, cliente));
 
@@ -208,7 +208,7 @@ class SagaVentaIT extends PruebaIntegracion {
     void debitoTardioDeUnaVentaQuePerdioSusAsientosSeRechazaYSeDevuelve() {
         UUID ventaId = comprarEnLinea(7);
         esperarEventos("DebitoCarteraSolicitado");
-        // la reserva venció y otra tarea liberó los asientos antes de que Identity cobrara
+        // la reserva venció y otra tarea liberó los asientos antes de que Wallet cobrara
         jdbc.update("""
                 UPDATE asientos_viaje SET estado = 'DISPONIBLE', venta_id = NULL, reservado_hasta = NULL
                  WHERE venta_id = ?""", ventaId);
@@ -222,8 +222,8 @@ class SagaVentaIT extends PruebaIntegracion {
         assertThat(enOutbox("BoletoVendido")).isEmpty();
         verificarReembolsoDebitoTardio(ventaId, "75.00");
 
-        // Identity devuelve el dinero
-        publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        // Wallet devuelve el dinero
+        publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", ventaId, cliente, "75.00"));
 
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(ventaId)).isEqualTo("REEMBOLSADA"));
@@ -244,7 +244,7 @@ class SagaVentaIT extends PruebaIntegracion {
         assertThat(boletos(ventaId)).isZero();
         verificarReembolsoDebitoTardio(ventaId, "150.00");
 
-        publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", ventaId, cliente, "150.00"));
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(ventaId)).isEqualTo("REEMBOLSADA"));
     }
@@ -272,11 +272,11 @@ class SagaVentaIT extends PruebaIntegracion {
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(ventaId)).isEqualTo("CONFIRMADA"));
         Integer version = (Integer) venta(ventaId).get("version");
 
-        // Identity repite el débito (otro eventId), y llegan un rechazo y un reembolso que no corresponden
+        // Wallet repite el débito (otro eventId), y llegan un rechazo y un reembolso que no corresponden
         UUID repetido = carteraDebitada(ventaId, "150.00");
-        UUID rechazo = publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null,
+        UUID rechazo = publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null,
                 debitoRechazado("VENTA", ventaId, cliente, "150.00", "SALDO_INSUFICIENTE"));
-        UUID reembolso = publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        UUID reembolso = publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", ventaId, cliente, "150.00"));
 
         await().atMost(ESPERA).until(() -> procesado(repetido) && procesado(rechazo) && procesado(reembolso));
@@ -293,9 +293,9 @@ class SagaVentaIT extends PruebaIntegracion {
         UUID inexistente = UUID.randomUUID();
 
         UUID debito = carteraDebitada(inexistente, "75.00");
-        UUID rechazo = publicarEvento(IDENTITY_EVENTOS, "DebitoCarteraRechazado", cliente, null,
+        UUID rechazo = publicarEvento(WALLET_EVENTOS, "DebitoCarteraRechazado", cliente, null,
                 debitoRechazado("VENTA", inexistente, cliente, "75.00", "USUARIO_INACTIVO"));
-        UUID reembolso = publicarEvento(IDENTITY_EVENTOS, "CarteraReembolsada", cliente, null,
+        UUID reembolso = publicarEvento(WALLET_EVENTOS, "CarteraReembolsada", cliente, null,
                 movimientoCartera("VENTA", inexistente, cliente, "75.00"));
 
         await().atMost(ESPERA).until(() -> procesado(debito) && procesado(rechazo) && procesado(reembolso));
@@ -321,11 +321,11 @@ class SagaVentaIT extends PruebaIntegracion {
         assertThat(venta(vencida).get("motivo_rechazo")).isEqualTo("TIEMPO_AGOTADO");
         assertThat(estadosAsientos(viaje, 13, 14)).containsExactly("DISPONIBLE", "DISPONIBLE");
         assertThat(asientosDeVenta(vencida)).isZero();
-        // la otra sigue esperando a Identity
+        // la otra sigue esperando a Wallet
         assertThat(estadoVenta(vigente)).isEqualTo("PENDIENTE_PAGO");
         assertThat(estadosAsientos(viaje, 15)).containsExactly("RESERVADO");
 
-        // si Identity cobra después, se devuelve el dinero
+        // si Wallet cobra después, se devuelve el dinero
         carteraDebitada(vencida, "150.00");
         await().atMost(ESPERA).untilAsserted(() -> assertThat(enOutbox("ReembolsoCarteraSolicitado")).hasSize(1));
         assertThat(estadoVenta(vencida)).isEqualTo("RECHAZADA");

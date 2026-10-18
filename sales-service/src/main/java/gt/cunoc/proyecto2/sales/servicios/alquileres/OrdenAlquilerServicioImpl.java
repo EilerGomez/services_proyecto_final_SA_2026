@@ -74,7 +74,7 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
         }
         orden.solicitarPagoConCartera(solicitud.fechaPago());                    
         orden = repositorio.saveAndFlush(orden);
-        // Saga: Identity responde CarteraDebitada (→ PAGADA y AlquilerPagado) o DebitoCarteraRechazado
+        // Saga: Wallet responde CarteraDebitada (→ PAGADA y AlquilerPagado) o DebitoCarteraRechazado
         eventos.debitoOrden(orden);
         return new OrdenAlquilerRespuesta(orden);
     }

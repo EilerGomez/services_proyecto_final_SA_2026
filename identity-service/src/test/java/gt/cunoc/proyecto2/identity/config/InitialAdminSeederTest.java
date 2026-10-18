@@ -2,7 +2,6 @@ package gt.cunoc.proyecto2.identity.config;
 
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
-import gt.cunoc.proyecto2.identity.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
@@ -29,13 +28,12 @@ class InitialAdminSeederTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
-    @Mock private CarteraRepository carteras;
 
     @Spy private PasswordEncoder claves = new BCryptPasswordEncoder();
 
     private InitialAdminSeeder seeder() {
         // Constructor manual: las variables ADMIN_* son String y Mockito no las inyecta.
-        return new InitialAdminSeeder(usuarios, perfiles, roles, carteras, claves,
+        return new InitialAdminSeeder(usuarios, perfiles, roles, claves,
                 "admin@correo.com", "Admin12345", "Administrador", "Sistema",
                 "CF", "0000000000000", "00000000", "Ciudad");
     }
@@ -51,14 +49,13 @@ class InitialAdminSeederTest {
         // Assert
         verify(usuarios, never()).save(any());
         verify(perfiles, never()).save(any());
-        verify(carteras, never()).save(any());
     }
 
     @Test
     void sinCorreoConfiguradoSoloAvisa() {
         // Arrange
         when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
-        InitialAdminSeeder sinCorreo = new InitialAdminSeeder(usuarios, perfiles, roles, carteras,
+        InitialAdminSeeder sinCorreo = new InitialAdminSeeder(usuarios, perfiles, roles,
                 claves, "", "", "Administrador", "Sistema", "CF", "0000000000000", "00000000", "Ciudad");
 
         // Act
@@ -75,7 +72,7 @@ class InitialAdminSeederTest {
     }
 
     @Test
-    void sinAdminCreaCuentaPerfilYCartera() {
+    void sinAdminCreaCuentaYPerfil() {
         // Arrange
         when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
         when(usuarios.existsByCorreo("admin@correo.com")).thenReturn(false);
@@ -88,7 +85,6 @@ class InitialAdminSeederTest {
         // Assert
         verify(usuarios).save(any(Usuario.class));
         verify(perfiles).save(any(gt.cunoc.proyecto2.identity.models.Perfil.class));
-        verify(carteras).save(any(gt.cunoc.proyecto2.identity.models.Cartera.class));
     }
 
     @Test
@@ -123,7 +119,6 @@ class InitialAdminSeederTest {
         // Assert
         verify(usuarios, never()).save(any());
         verify(perfiles, never()).save(any());
-        verify(carteras, never()).save(any());
     }
 
     @Test
