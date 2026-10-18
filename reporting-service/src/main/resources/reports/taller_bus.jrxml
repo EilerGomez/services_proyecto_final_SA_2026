@@ -10,11 +10,31 @@
     <parameter name="FROM_DATE" class="java.lang.String"/>
     <parameter name="TO_DATE" class="java.lang.String"/>
     <parameter name="TOTAL" class="java.lang.String"/>
+    <field name="busId" class="java.util.UUID"/>
     <field name="placa" class="java.lang.String"/>
     <field name="categoria" class="java.lang.String"/>
-    <field name="manoObra" class="java.math.BigDecimal"/>
-    <field name="repuestos" class="java.math.BigDecimal"/>
-    <field name="total" class="java.math.BigDecimal"/>
+    <field name="fecha" class="java.lang.String"/>
+    <field name="descripcion" class="java.lang.String"/>
+    <field name="tipo" class="java.lang.String"/>
+    <field name="monto" class="java.math.BigDecimal"/>
+    <variable name="subtotalBus" class="java.math.BigDecimal" resetType="Group" resetGroup="bus" calculation="Sum">
+        <variableExpression><![CDATA[$F{monto}]]></variableExpression>
+    </variable>
+    <group name="bus" isReprintHeaderOnEachPage="true">
+        <groupExpression><![CDATA[$F{busId}]]></groupExpression>
+        <groupHeader>
+            <band height="20">
+                <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#D9E7EA" mode="Opaque"/></rectangle>
+                <textField><reportElement x="5" y="2" width="545" height="16"/><textElement><font size="9" isBold="true"/></textElement><textFieldExpression><![CDATA["Bus " + $F{placa}]]></textFieldExpression></textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="18">
+                <staticText><reportElement x="271" y="1" width="183" height="16"/><textElement textAlignment="Right"><font size="8" isBold="true"/></textElement><text><![CDATA[Subtotal del bus]]></text></staticText>
+                <textField pattern="Q #,##0.00"><reportElement x="457" y="1" width="93" height="16"/><textElement textAlignment="Right"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$V{subtotalBus}]]></textFieldExpression></textField>
+            </band>
+        </groupFooter>
+    </group>
     <title>
         <band height="80">
             <rectangle><reportElement x="0" y="0" width="555" height="55" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
@@ -29,21 +49,21 @@
     <columnHeader>
         <band height="22">
             <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
-            <staticText><reportElement x="5" y="3" width="80" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Bus]]></text></staticText>
-            <staticText><reportElement x="88" y="3" width="180" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Categoría]]></text></staticText>
-            <staticText><reportElement x="271" y="3" width="90" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Mano de obra]]></text></staticText>
-            <staticText><reportElement x="364" y="3" width="90" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Repuestos]]></text></staticText>
-            <staticText><reportElement x="457" y="3" width="93" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Total]]></text></staticText>
+            <staticText><reportElement x="5" y="3" width="110" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Categoría]]></text></staticText>
+            <staticText><reportElement x="118" y="3" width="72" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Fecha]]></text></staticText>
+            <staticText><reportElement x="193" y="3" width="176" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Descripción]]></text></staticText>
+            <staticText><reportElement x="372" y="3" width="82" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Tipo]]></text></staticText>
+            <staticText><reportElement x="457" y="3" width="93" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Monto]]></text></staticText>
         </band>
     </columnHeader>
     <detail>
-        <band height="20">
-            <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
-            <textField><reportElement x="5" y="2" width="80" height="16"/><textElement><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{placa}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="88" y="2" width="180" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="271" y="2" width="90" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{manoObra}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="364" y="2" width="90" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{repuestos}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="457" y="2" width="93" height="16"/><textElement textAlignment="Right"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{total}]]></textFieldExpression></textField>
+        <band height="18">
+            <rectangle><reportElement x="0" y="0" width="555" height="18" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
+            <textField isStretchWithOverflow="true"><reportElement x="5" y="1" width="110" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression></textField>
+            <textField><reportElement x="118" y="1" width="72" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="193" y="1" width="176" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{descripcion}]]></textFieldExpression></textField>
+            <textField><reportElement x="372" y="1" width="82" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="457" y="1" width="93" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression></textField>
         </band>
     </detail>
     <pageFooter><band height="20">

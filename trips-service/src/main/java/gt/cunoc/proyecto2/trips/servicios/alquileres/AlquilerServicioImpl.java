@@ -25,10 +25,10 @@ import gt.cunoc.proyecto2.trips.utilidades.Fechas;
 import gt.cunoc.proyecto2.trips.utilidades.VerificadorVersion;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
@@ -187,16 +187,22 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         return respuestas(List.of(alquiler)).get(0);
     }
 
-    /** Agrega a cada alquiler el id de su viaje PRIVADO (una sola consulta para todo el listado). */
+    /** Agrega a cada alquiler su viaje PRIVADO asignado (id y datos) en una sola consulta por listado. */
     private List<AlquilerRespuesta> respuestas(List<AlquilerPrivadoEntidad> alquileres) {
         if (alquileres.isEmpty()) {
             return List.of();
         }
         List<UUID> ids = alquileres.stream().map(AlquilerPrivadoEntidad::getId).toList();
-        Map<UUID, UUID> viajePorAlquiler = viajeRepositorio.findByAlquilerIdIn(ids).stream()
-                .collect(Collectors.toMap(ViajeEntidad::getAlquilerId, ViajeEntidad::getId));
+        Map<UUID, ViajeEntidad> viajePorAlquiler = new HashMap<>();
+        for (ViajeEntidad viaje : viajeRepositorio.findByAlquilerIdIn(ids)) {
+            viajePorAlquiler.put(viaje.getAlquilerId(), viaje);
+        }
         return alquileres.stream()
-                .map(alquiler -> new AlquilerRespuesta(alquiler, viajePorAlquiler.get(alquiler.getId())))
+                .map(alquiler -> {
+                    ViajeEntidad viaje = viajePorAlquiler.get(alquiler.getId());
+                    return new AlquilerRespuesta(alquiler, viaje == null ? null : viaje.getId(),
+                            viaje == null ? null : viajes.resumen(viaje));
+                })
                 .toList();
     }
 }

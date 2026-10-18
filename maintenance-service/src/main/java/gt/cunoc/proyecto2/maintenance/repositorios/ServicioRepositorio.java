@@ -14,8 +14,8 @@ public interface ServicioRepositorio extends JpaRepository<ServicioTallerEntidad
             SELECT DISTINCT s FROM ServicioTaller s LEFT JOIN s.lineas l
             WHERE (:sucursalId IS NULL OR s.sucursalId = :sucursalId)
               AND (:busId IS NULL OR s.busId = :busId)
-              AND (:desde IS NULL OR s.fechaServicio >= :desde)
-              AND (:hasta IS NULL OR s.fechaServicio <= :hasta)
+              AND s.fechaServicio >= COALESCE(:desde, s.fechaServicio)
+              AND s.fechaServicio <= COALESCE(:hasta, s.fechaServicio)
               AND (:categoriaId IS NULL OR l.categoriaId = :categoriaId)
             ORDER BY s.fechaServicio DESC, s.id
             """)

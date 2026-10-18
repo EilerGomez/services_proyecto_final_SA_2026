@@ -9,9 +9,11 @@ import gt.cunoc.proyecto2.sales.errores.alquileres.ErrorOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.eventos.PublicadorEventosSales;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
+import gt.cunoc.proyecto2.sales.modelos.clientes.VistaClienteEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.ClienteVenta;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.EspecificacionesOrden;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
+import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -27,10 +29,13 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
     private static final Sort RECIENTES_PRIMERO = Sort.by(Sort.Order.desc("fechaCreacion"));
 
     private final OrdenAlquilerRepositorio repositorio;
+    private final VistaClienteRepositorio clientes;
     private final PublicadorEventosSales eventos;
 
-    public OrdenAlquilerServicioImpl(OrdenAlquilerRepositorio repositorio, PublicadorEventosSales eventos) {
+    public OrdenAlquilerServicioImpl(OrdenAlquilerRepositorio repositorio, VistaClienteRepositorio clientes,
+                                     PublicadorEventosSales eventos) {
         this.repositorio = repositorio;
+        this.clientes = clientes;
         this.eventos = eventos;
     }
 
@@ -92,10 +97,24 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
             log.info("El alquiler {} ya tiene orden de pago: se ignora", cotizacion.alquilerId());
             return;
         }
-        ClienteVenta cliente = new ClienteVenta(cotizacion.clienteUsuarioId(), cotizacion.clienteNit(),
+        ClienteVenta cliente = new ClienteVenta(cotizacion.clienteUsuarioId(), nitDelCliente(cotizacion),
                 cotizacion.clienteNombre(), cotizacion.clienteCorreo());
         repositorio.save(OrdenAlquilerEntidad.registrar(cotizacion.alquilerId(), cotizacion.sucursalId(), cliente,
-                cotizacion.origen(), cotizacion.destino(), cotizacion.precioConfirmado()));
+                cotizacion.origen(), cotizacion.destino(), cotizacion.fechaSalida(), cotizacion.fechaRetorno(),
+                cotizacion.precioConfirmado()));
+    }
+
+    /**
+     * El alquiler EN_LINEA no trae NIT (lo pidió el propio cliente): se completa con el de su perfil para que
+     * la orden quede enlazada a su historial de compras. Sin perfil (o PRESENCIAL sin NIT) cae a "CF".
+     */
+    private String nitDelCliente(CotizacionAlquilerConfirmada cotizacion) {
+        if (cotizacion.clienteNit() != null && !cotizacion.clienteNit().isBlank()) {
+            return cotizacion.clienteNit();
+        }
+        UUID usuarioId = cotizacion.clienteUsuarioId();
+        return usuarioId == null ? null
+                : clientes.findById(usuarioId).map(VistaClienteEntidad::getNit).orElse(null);
     }
 
     private OrdenAlquilerEntidad obtenerPorId(UUID id) {

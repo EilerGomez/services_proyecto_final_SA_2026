@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,6 +61,13 @@ public class IngresoEntidad {
 
     @Column(name = "cantidad_boletos", nullable = false)
     private int cantidadBoletos;
+
+    /** RS4: fechas de salida y retorno del alquiler (solo ingresos de tipo ALQUILER). */
+    @Column(name = "fecha_salida")
+    private OffsetDateTime fechaSalida;
+
+    @Column(name = "fecha_retorno")
+    private OffsetDateTime fechaRetorno;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal monto;

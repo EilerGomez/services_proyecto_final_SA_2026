@@ -421,6 +421,8 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         ingreso.setClienteNombre(evento.clienteNombre());
         ingreso.setOrigen(evento.origen());
         ingreso.setDestino(evento.destino());
+        ingreso.setFechaSalida(evento.fechaSalida());
+        ingreso.setFechaRetorno(evento.fechaRetorno());
         ingreso.setCantidadBoletos(0);
         ingreso.setMonto(monto);
         ingreso.setFechaNegocio(fechaNegocio != null ? fechaNegocio

@@ -5,15 +5,17 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS6: taller por bus y categoría. */
+/** RS6: un gasto de taller de un bus (cada pago aparece por separado). */
 @Value
 @Builder
 public class TallerBusFila {
 
     UUID busId;
+    UUID categoriaId;
     String placa;
     String categoria;
-    BigDecimal manoObra;
-    BigDecimal repuestos;
-    BigDecimal total;
+    String fecha;
+    String descripcion;
+    String tipo;
+    BigDecimal monto;
 }

@@ -66,6 +66,8 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
             fila.put("clienteNombre", f.getClienteNombre());
             fila.put("origen", f.getOrigen());
             fila.put("destino", f.getDestino());
+            fila.put("fechaSalida", f.getFechaSalida());
+            fila.put("fechaRetorno", f.getFechaRetorno());
             fila.put("monto", f.getMonto());
             return fila;
         }).toList();
@@ -82,6 +84,8 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
                 .sorted(Comparator.comparing(IngresoEntidad::getFechaNegocio))
                 .map(i -> AlquilerFila.builder()
                         .fecha(Formatos.fecha(i.getFechaNegocio()))
+                        .fechaSalida(Formatos.fechaHora(i.getFechaSalida()))
+                        .fechaRetorno(Formatos.fechaHora(i.getFechaRetorno()))
                         .ordenId(i.getReferenciaId())
                         .clienteNit(i.getClienteNit())
                         .clienteNombre(i.getClienteNombre())

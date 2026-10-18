@@ -19,8 +19,8 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
             SELECT i FROM ReporteIngreso i
             WHERE (:sucursalId IS NULL OR i.sucursalId = :sucursalId)
               AND (:tipo IS NULL OR i.tipo = :tipo)
-              AND (:desde IS NULL OR i.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR i.fechaNegocio <= :hasta)
+              AND i.fechaNegocio >= COALESCE(:desde, i.fechaNegocio)
+              AND i.fechaNegocio <= COALESCE(:hasta, i.fechaNegocio)
             ORDER BY i.fechaNegocio DESC
             """)
     List<IngresoEntidad> buscar(@Param("sucursalId") UUID sucursalId,
@@ -31,8 +31,8 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
     @Query("""
             SELECT COALESCE(SUM(i.monto), 0) FROM ReporteIngreso i
             WHERE (:sucursalId IS NULL OR i.sucursalId = :sucursalId)
-              AND (:desde IS NULL OR i.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR i.fechaNegocio <= :hasta)
+              AND i.fechaNegocio >= COALESCE(:desde, i.fechaNegocio)
+              AND i.fechaNegocio <= COALESCE(:hasta, i.fechaNegocio)
             """)
     BigDecimal sumar(@Param("sucursalId") UUID sucursalId,
                      @Param("desde") LocalDate desde,
@@ -40,8 +40,8 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
 
     @Query("""
             SELECT i.sucursalId, COALESCE(SUM(i.monto), 0) FROM ReporteIngreso i
-            WHERE (:desde IS NULL OR i.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR i.fechaNegocio <= :hasta)
+            WHERE i.fechaNegocio >= COALESCE(:desde, i.fechaNegocio)
+              AND i.fechaNegocio <= COALESCE(:hasta, i.fechaNegocio)
             GROUP BY i.sucursalId
             """)
     List<Object[]> sumarPorSucursal(@Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);
@@ -59,8 +59,8 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
             SELECT i.rutaId, COALESCE(SUM(i.cantidadBoletos), 0), COALESCE(SUM(i.monto), 0)
             FROM ReporteIngreso i
             WHERE i.tipo = 'BOLETO' AND i.rutaId IS NOT NULL
-              AND (:desde IS NULL OR i.fechaNegocio >= :desde)
-              AND (:hasta IS NULL OR i.fechaNegocio <= :hasta)
+              AND i.fechaNegocio >= COALESCE(:desde, i.fechaNegocio)
+              AND i.fechaNegocio <= COALESCE(:hasta, i.fechaNegocio)
             GROUP BY i.rutaId
             ORDER BY SUM(i.cantidadBoletos) DESC
             """)

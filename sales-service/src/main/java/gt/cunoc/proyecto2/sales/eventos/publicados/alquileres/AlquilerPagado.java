@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.MetodoPago;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /*
@@ -21,6 +22,8 @@ public record AlquilerPagado(
         String clienteCorreo,
         String origen,
         String destino,
+        OffsetDateTime fechaSalida,
+        OffsetDateTime fechaRetorno,
         BigDecimal monto,
         BigDecimal montoTotal,
         MetodoPago metodoPago,
@@ -29,7 +32,8 @@ public record AlquilerPagado(
     public static AlquilerPagado desde(OrdenAlquilerEntidad orden) {
         return new AlquilerPagado(orden.getId(), orden.getAlquilerId(), orden.getSucursalId(),
                 orden.getClienteUsuarioId(), orden.getClienteNit(), orden.getClienteNombre(),
-                orden.getClienteCorreo(), orden.getOrigen(), orden.getDestino(), orden.getMonto(), orden.getMonto(),
+                orden.getClienteCorreo(), orden.getOrigen(), orden.getDestino(), orden.getFechaSalida(),
+                orden.getFechaRetorno(), orden.getMonto(), orden.getMonto(),
                 orden.getMetodoPago(), orden.getFechaPago());
     }
 }

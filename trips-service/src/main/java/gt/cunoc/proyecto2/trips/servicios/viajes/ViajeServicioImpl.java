@@ -103,6 +103,12 @@ public class ViajeServicioImpl implements ViajeServicio {
 
     @Override
     @Transactional(readOnly = true)
+    public ViajeRespuesta resumen(ViajeEntidad viaje) {
+        return respuesta(viaje);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ViajeEntidad obtenerPorId(UUID id) {
         return repositorio.findById(id)
                 .orElseThrow(() -> ErrorViaje.VIAJE_NO_EXISTE.excepcion());
