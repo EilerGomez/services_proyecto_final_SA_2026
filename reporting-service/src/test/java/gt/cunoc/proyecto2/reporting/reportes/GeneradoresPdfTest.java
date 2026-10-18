@@ -71,8 +71,8 @@ class GeneradoresPdfTest {
         when(ingresos.demandaPorRuta(any(), any(), any())).thenReturn(List.of());
         when(gastos.sumarPorSucursal(any(), any())).thenReturn(List.of());
         when(gastos.sumarPorSucursalYTipo(any(), any(), any())).thenReturn(List.of());
-        when(gastos.tallerPorCategoria(any(), any(), any(), any())).thenReturn(List.of());
-        when(gastos.tallerPorBusYCategoria(any(), any(), any(), any())).thenReturn(List.of());
+        when(gastos.tallerDetalleCategoria(any(), any(), any(), any())).thenReturn(List.of());
+        when(gastos.tallerDetalleBus(any(), any(), any(), any(), any())).thenReturn(List.of());
         when(viajes.buscar(any(), any(), any(), any())).thenReturn(List.of());
         when(tarifas.findFirstByVigenteDesdeLessThanEqualOrderByVigenteDesdeDesc(any()))
                 .thenReturn(Optional.empty());
@@ -111,7 +111,43 @@ class GeneradoresPdfTest {
 
     @Test
     void tallerCategoria() throws Exception {
-        esPdf(new GeneradorTallerCategoria(gastos, compilador).generar(params()));
+        esPdf(new GeneradorTallerCategoria(gastos, buses, compilador).generar(params()));
+    }
+
+    @Test
+    void tallerCategoriaConDatosAgrupaPorCategoria() throws Exception {
+        UUID busId = UUID.randomUUID();
+        when(gastos.tallerDetalleCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{UUID.randomUUID(), "Llantas", busId, java.time.LocalDate.of(2026, 3, 10),
+                        "Cambio de llantas", new java.math.BigDecimal("400.00")},
+                new Object[]{UUID.randomUUID(), "Frenos", busId, java.time.LocalDate.of(2026, 3, 11),
+                        "Pastillas de freno", new java.math.BigDecimal("200.00")}));
+        gt.cunoc.proyecto2.reporting.modelos.BusEntidad bus =
+                new gt.cunoc.proyecto2.reporting.modelos.BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        when(buses.findAll()).thenReturn(List.of(bus));
+
+        esPdf(new GeneradorTallerCategoria(gastos, buses, compilador).generar(params()));
+    }
+
+    @Test
+    void ingresosAlquilerConFechas() throws Exception {
+        var alquiler = new gt.cunoc.proyecto2.reporting.modelos.IngresoEntidad();
+        alquiler.setSucursalId(UUID.randomUUID());
+        alquiler.setTipo("ALQUILER");
+        alquiler.setReferenciaId(UUID.randomUUID());
+        alquiler.setClienteNit("1234567-8");
+        alquiler.setClienteNombre("Colegio San José");
+        alquiler.setOrigen("Quetzaltenango");
+        alquiler.setDestino("Antigua Guatemala");
+        alquiler.setFechaNegocio(java.time.LocalDate.of(2026, 11, 1));
+        alquiler.setFechaSalida(java.time.OffsetDateTime.parse("2026-11-05T14:00:00Z"));
+        alquiler.setFechaRetorno(java.time.OffsetDateTime.parse("2026-11-09T00:00:00Z"));
+        alquiler.setMonto(new java.math.BigDecimal("2600.00"));
+        when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(alquiler));
+
+        esPdf(new GeneradorIngresosAlquiler(ingresos, compilador).generar(params()));
     }
 
     @Test
@@ -146,6 +182,23 @@ class GeneradoresPdfTest {
 
     @Test
     void tallerBus() throws Exception {
+        esPdf(new GeneradorTallerBus(gastos, buses, compilador).generar(params()));
+    }
+
+    @Test
+    void tallerBusConDatosListaCadaGasto() throws Exception {
+        UUID busId = UUID.randomUUID();
+        when(gastos.tallerDetalleBus(any(), any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{busId, UUID.randomUUID(), "Llantas", java.time.LocalDate.of(2026, 3, 10),
+                        "Cambio de llantas", "REPUESTO", new java.math.BigDecimal("6800.00")},
+                new Object[]{busId, UUID.randomUUID(), "Llantas", java.time.LocalDate.of(2026, 3, 10),
+                        "Mano de obra", "MANO_OBRA", new java.math.BigDecimal("400.00")}));
+        gt.cunoc.proyecto2.reporting.modelos.BusEntidad bus =
+                new gt.cunoc.proyecto2.reporting.modelos.BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        when(buses.findAll()).thenReturn(List.of(bus));
+
         esPdf(new GeneradorTallerBus(gastos, buses, compilador).generar(params()));
     }
 }

@@ -168,16 +168,28 @@ class GeneradoresDatosTest {
     }
 
     @Test
-    void tallerCategoriaSumaManoObraYRepuestos() {
-        when(gastos.tallerPorCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
-                new Object[]{UUID.randomUUID(), "Llantas", new BigDecimal("400.00"),
-                        new BigDecimal("6800.00"), new BigDecimal("7200.00")}));
+    void tallerCategoriaDetallaCadaGastoConTotal() {
+        UUID busId = UUID.randomUUID();
+        when(gastos.tallerDetalleCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{UUID.randomUUID(), "Llantas", busId, LocalDate.of(2026, 3, 10),
+                        "Cambio de llantas", new BigDecimal("400.00")},
+                new Object[]{UUID.randomUUID(), "Llantas", busId, LocalDate.of(2026, 3, 12),
+                        "Alineación", new BigDecimal("3200.00")}));
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        when(buses.findAll()).thenReturn(List.of(bus));
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorTallerCategoria(
-                gastos, compilador).datos(ParametrosReporte.builder().build());
+                gastos, buses, compilador).datos(ParametrosReporte.builder().build());
 
-        assertThat(((List<?>) datos.get("filas"))).hasSize(1);
-        assertThat(datos.get("total")).isEqualTo(new BigDecimal("7200.00"));
+        List<Map<String, Object>> filas = (List<Map<String, Object>>) datos.get("filas");
+        assertThat(filas).hasSize(2);
+        assertThat(filas.get(0).get("categoria")).isEqualTo("Llantas");
+        assertThat(filas.get(0).get("placa")).isEqualTo("C123ABC");
+        assertThat(filas.get(0).get("fecha")).isEqualTo("2026-03-10");
+        assertThat(filas.get(1).get("descripcion")).isEqualTo("Alineación");
+        assertThat(datos.get("total")).isEqualTo(new BigDecimal("3600.00"));
     }
 
     @Test
@@ -299,13 +311,17 @@ class GeneradoresDatosTest {
     void ingresosAlquilerMapeanOrigenDestino() {
         UUID sucursalId = UUID.randomUUID();
         IngresoEntidad alq = ingreso(sucursalId, "ALQUILER", "4300.00", 0);
+        alq.setFechaSalida(OffsetDateTime.parse("2026-11-05T14:00:00Z"));
+        alq.setFechaRetorno(OffsetDateTime.parse("2026-11-09T00:00:00Z"));
         when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(alq));
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorIngresosAlquiler(
                 ingresos, compilador).datos(ParametrosReporte.builder().sucursalId(sucursalId).build());
 
-        assertThat(((List<Map<String, Object>>) datos.get("filas")).get(0).get("origen"))
-                .isEqualTo("Xela");
+        Map<String, Object> fila = ((List<Map<String, Object>>) datos.get("filas")).get(0);
+        assertThat(fila.get("origen")).isEqualTo("Xela");
+        assertThat(fila.get("fechaSalida")).isEqualTo("05/11/2026 08:00");
+        assertThat(fila.get("fechaRetorno")).isEqualTo("08/11/2026 18:00");
         assertThat(datos.get("total")).isEqualTo(new BigDecimal("4300.00"));
     }
 
@@ -345,11 +361,14 @@ class GeneradoresDatosTest {
     }
 
     @Test
-    void tallerBusAgrupaPorBusYCategoria() {
+    void tallerBusDetallaCadaGastoDelBus() {
         UUID busId = UUID.randomUUID();
-        when(gastos.tallerPorBusYCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
-                new Object[]{busId, UUID.randomUUID(), "Llantas", new BigDecimal("400.00"),
-                        new BigDecimal("6800.00"), new BigDecimal("7200.00")}));
+        UUID categoriaId = UUID.randomUUID();
+        when(gastos.tallerDetalleBus(any(), any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{busId, categoriaId, "Llantas", LocalDate.of(2026, 10, 20), "Cambio",
+                        "REPUESTO", new BigDecimal("6800.00")},
+                new Object[]{busId, categoriaId, "Llantas", LocalDate.of(2026, 10, 20), "Mano de obra",
+                        "MANO_OBRA", new BigDecimal("400.00")}));
         BusEntidad bus = new BusEntidad();
         bus.setId(busId);
         bus.setPlaca("C123ABC");
@@ -359,7 +378,14 @@ class GeneradoresDatosTest {
                 gastos, buses, compilador).datos(
                 ParametrosReporte.builder().sucursalId(UUID.randomUUID()).build());
 
-        assertThat(((List<?>) datos.get("buses"))).hasSize(1);
+        List<Map<String, Object>> busesJson = (List<Map<String, Object>>) datos.get("buses");
+        assertThat(busesJson).hasSize(1);
+        assertThat(busesJson.get(0).get("placa")).isEqualTo("C123ABC");
+        // Dos pagos de la misma categoría: se ven uno a uno, no sumados en una sola fila.
+        List<Map<String, Object>> gastosJson = (List<Map<String, Object>>) busesJson.get(0).get("gastos");
+        assertThat(gastosJson).hasSize(2);
+        assertThat(gastosJson.get(1).get("tipo")).isEqualTo("Mano de obra");
+        assertThat(busesJson.get(0).get("total")).isEqualTo(new BigDecimal("7200.00"));
         assertThat(datos.get("total")).isEqualTo(new BigDecimal("7200.00"));
     }
 }

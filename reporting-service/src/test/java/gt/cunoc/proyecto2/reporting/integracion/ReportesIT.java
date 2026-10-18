@@ -277,14 +277,12 @@ class ReportesIT {
                         + "\"clienteNit\":\"1234567-8\",\"clienteNombre\":\"Ana López\","
                         + "\"cantidadBoletos\":2,\"montoTotal\":150.00,"
                         + "\"origenNombre\":\"Norte\",\"destinoNombre\":\"Sur\"}");
-        publicar("sales.eventos", "VentaCancelada", ventaId,
-                "{\"ventaId\":\"" + ventaId + "\",\"viajeId\":\"" + viajeId + "\","
-                        + "\"sucursalId\":\"" + sucursalId + "\",\"clienteNit\":\"1234567-8\","
-                        + "\"clienteNombre\":\"Ana López\",\"cantidadBoletos\":2,\"montoAnulado\":150.00}");
         publicar("sales.eventos", "AlquilerPagado", ordenId,
                 "{\"ordenId\":\"" + ordenId + "\",\"sucursalId\":\"" + sucursalId + "\","
                         + "\"clienteNit\":\"1234567-8\",\"clienteNombre\":\"Ana López\","
                         + "\"origen\":\"Norte, parque central\",\"destino\":\"Antigua Guatemala\","
+                        + "\"fechaSalida\":\"2026-11-05T08:00:00-06:00\","
+                        + "\"fechaRetorno\":\"2026-11-08T18:00:00-06:00\","
                         + "\"monto\":4300.00}");
         publicar("maintenance.eventos", "GastoTallerRegistrado", servicioId,
                 "{\"servicioId\":\"" + servicioId + "\",\"busId\":\"" + busId + "\","
@@ -298,6 +296,16 @@ class ReportesIT {
         publicar("maintenance.eventos", "CategoriaGastoActualizada", categoriaId,
                 "{\"categoriaId\":\"" + categoriaId + "\",\"nombre\":\"Llantas Plus\",\"activa\":true}");
 
+        // VentaCancelada busca el BoletoVendido por ventaId; si todavía no llegó agota los
+        // reintentos y el mensaje cae a la DLQ, por lo que se publica solo cuando el ingreso
+        // del boleto ya está proyectado (y con él el del alquiler).
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(contar("ingresos")).isGreaterThanOrEqualTo(2));
+        publicar("sales.eventos", "VentaCancelada", ventaId,
+                "{\"ventaId\":\"" + ventaId + "\",\"viajeId\":\"" + viajeId + "\","
+                        + "\"sucursalId\":\"" + sucursalId + "\",\"clienteNit\":\"1234567-8\","
+                        + "\"clienteNombre\":\"Ana López\",\"cantidadBoletos\":2,\"montoAnulado\":150.00}");
+
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             assertThat(contar("ingresos")).isEqualTo(3);
             assertThat(contar("gastos")).isEqualTo(5);
@@ -310,19 +318,31 @@ class ReportesIT {
         String sistema = tokenAdminSistema();
         String propia = tokenAdminSucursal(sucursalPropia);
 
-        // RG1: 150 - 150 + 4300
+        // RG1: 150 - 150 + 4300 (también con filtro de fechas: PostgreSQL debe inferir el tipo del parámetro)
         assertThat(getJson("/reports/ingresos", sistema).getBody()).contains("4300.0");
+        assertThat(getJson("/reports/ingresos?desde=2026-01-01&hasta=2026-12-31", sistema).getBody())
+                .contains("4300.0");
         // RG2: combustible 400 + depreciación 259.38 + salario 350 + taller 400 + repuestos 6800
         String gastos = getJson("/reports/gastos", sistema).getBody();
         assertThat(gastos).contains("\"taller\":400.00");
         assertThat(gastos).contains("\"repuestos\":6800.00");
+        assertThat(getJson("/reports/gastos?desde=2026-01-01&hasta=2026-12-31", sistema).getBody())
+                .contains("\"repuestos\":6800.00");
         // RG3: hay filas con ganancia
         assertThat(getJson("/reports/ganancias", sistema).getBody()).contains("Norte Actualizada");
+        assertThat(getJson("/reports/ganancias?desde=2026-01-01&hasta=2026-12-31", sistema)
+                .getStatusCode().value()).isEqualTo(200);
         // RG4: la ruta suma boletos 2 - 2 = 0 pero conserva ingresos 0
         assertThat(getJson("/reports/rutas-demandadas", sistema).getStatusCode().value()).isEqualTo(200);
-        // RG5: categoría renombrada por CategoriaGastoActualizada
+        assertThat(getJson("/reports/rutas-demandadas?desde=2026-01-01&hasta=2026-12-31", sistema)
+                .getStatusCode().value()).isEqualTo(200);
+        // RG5: categoría renombrada por CategoriaGastoActualizada (y con filtro de fechas)
         assertThat(getJson("/reports/taller-por-categoria", sistema).getBody())
                 .contains("Llantas Plus");
+        assertThat(getJson("/reports/taller-por-categoria?desde=2026-10-01&hasta=2026-10-31", sistema)
+                .getStatusCode().value()).isEqualTo(200);
+        assertThat(getJson("/reports/taller-por-categoria?desde=2026-10-12&hasta=2026-10-14", sistema)
+                .getBody()).contains("\"filas\":[]");
         // RG6: sucursales + rutas (ruta2 eliminada)
         assertThat(getJson("/reports/mapa-rutas", sistema).getBody()).contains("Norte Actualizada");
         // RS1: buses con chofer actual resuelto
@@ -334,13 +354,27 @@ class ReportesIT {
         // RS3/RS4
         assertThat(getJson("/reports/sucursales/" + sucursalId + "/ingresos-boletos", propia).getBody())
                 .contains("150.0");
+        assertThat(getJson("/reports/sucursales/" + sucursalId
+                + "/ingresos-boletos?desde=2026-01-01&hasta=2026-12-31", propia).getBody())
+                .contains("150.0");
         assertThat(getJson("/reports/sucursales/" + sucursalId + "/ingresos-alquiler", propia).getBody())
-                .contains("4300.0");
+                .contains("4300.0")
+                .contains("05/11/2026 08:00")
+                .contains("08/11/2026 18:00");
+        assertThat(getJson("/reports/sucursales/" + sucursalId
+                + "/ingresos-alquiler?desde=2026-01-01&hasta=2026-12-31", propia).getBody())
+                .contains("05/11/2026 08:00");
         // RS5: depreciación del viaje completado + tarifa vigente
         assertThat(getJson("/reports/sucursales/" + sucursalId + "/depreciacion", propia).getBody())
                 .contains("259.38");
-        // RS6: taller del bus por categoría
-        assertThat(getJson("/reports/sucursales/" + sucursalId + "/taller-por-bus", propia).getBody())
+        assertThat(getJson("/reports/sucursales/" + sucursalId
+                + "/depreciacion?desde=2026-01-01&hasta=2026-12-31", propia).getBody())
+                .contains("259.38");
+        // RS6: taller del bus: cada gasto por separado (repuesto + mano de obra), con filtro de fechas
+        String tallerBus = getJson("/reports/sucursales/" + sucursalId + "/taller-por-bus", propia).getBody();
+        assertThat(tallerBus).contains("6800.0").contains("400.0").contains("Mano de obra");
+        assertThat(getJson("/reports/sucursales/" + sucursalId
+                + "/taller-por-bus?desde=2026-10-01&hasta=2026-10-31", propia).getBody())
                 .contains("6800.0");
 
         // Destructivos sobre entidades secundarias (ruta2/viaje2/bus2), con la proyección ya verificada

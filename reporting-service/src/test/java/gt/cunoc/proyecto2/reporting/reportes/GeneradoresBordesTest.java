@@ -232,21 +232,24 @@ class GeneradoresBordesTest {
 
     @Test
     void tallerCategoriaConNulos() {
-        when(gastos.tallerPorCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
-                new Object[]{null, null, null, null, null}));
+        when(gastos.tallerDetalleCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{null, null, null, null, null, null}));
+        when(buses.findAll()).thenReturn(List.of());
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorTallerCategoria(
-                gastos, compilador).datos(ParametrosReporte.builder().build());
+                gastos, buses, compilador).datos(ParametrosReporte.builder().build());
 
-        assertThat(((List<Map<String, Object>>) datos.get("filas")).get(0).get("categoria"))
-                .isEqualTo("-");
+        List<Map<String, Object>> filas = (List<Map<String, Object>>) datos.get("filas");
+        assertThat(filas.get(0).get("categoria")).isEqualTo("-");
+        assertThat(filas.get(0).get("placa")).isEqualTo("-");
+        assertThat(filas.get(0).get("fecha")).isEqualTo("-");
         assertThat(datos.get("total")).isEqualTo(BigDecimal.ZERO);
     }
 
     @Test
     void tallerBusConBusDesconocidoYNulos() {
-        when(gastos.tallerPorBusYCategoria(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
-                new Object[]{UUID.randomUUID(), UUID.randomUUID(), null, null, null, null}));
+        when(gastos.tallerDetalleBus(any(), any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{UUID.randomUUID(), UUID.randomUUID(), null, null, null, null, null}));
         when(buses.findAll()).thenReturn(List.of());
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorTallerBus(

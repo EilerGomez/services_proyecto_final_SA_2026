@@ -102,7 +102,7 @@ class ControladoresTest {
                 .isEqualTo(HttpStatus.OK);
         assertThat(sucursal.depreciacion(id, null, null, null, "json", usuario).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
-        assertThat(sucursal.tallerPorBus(id, null, null, null, "json", usuario).getStatusCode())
+        assertThat(sucursal.tallerPorBus(id, null, null, null, null, "json", usuario).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
         assertThat(sucursal.buses(id, null, "pdf", usuario).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(sucursal.choferes(id, null, "pdf", usuario).getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -112,7 +112,7 @@ class ControladoresTest {
                 .isEqualTo(HttpStatus.OK);
         assertThat(sucursal.depreciacion(id, null, null, null, "pdf", usuario).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
-        assertThat(sucursal.tallerPorBus(id, null, null, null, "pdf", usuario).getStatusCode())
+        assertThat(sucursal.tallerPorBus(id, null, null, null, null, "pdf", usuario).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
         // el admin del sistema también entra
         assertThat(sucursal.buses(id, null, "json", adminSistema()).getStatusCode())
