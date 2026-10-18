@@ -95,6 +95,8 @@ CREATE TABLE ingresos (
   cliente_nombre    VARCHAR(200),
   origen            VARCHAR(255),
   destino           VARCHAR(255),
+  fecha_salida      TIMESTAMPTZ,                      -- RS4: salida del alquiler
+  fecha_retorno     TIMESTAMPTZ,                      -- RS4: retorno del alquiler
   cantidad_boletos  INT           NOT NULL DEFAULT 0,
   monto             NUMERIC(12,2) NOT NULL,
   fecha_negocio     DATE          NOT NULL            -- fecha elegida por el usuario
