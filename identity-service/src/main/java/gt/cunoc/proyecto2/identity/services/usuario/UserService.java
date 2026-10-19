@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.SesionRevocadaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
@@ -17,6 +18,7 @@ import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,6 +50,9 @@ public interface UserService {
      * de la respuesta dice si la cuenta puede tomar ESE puesto.
      */
     UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado, PuestoAsignable puesto);
+
+    /** Revocaciones de sesión posteriores a {@code desde} (las que aún pueden afectar a un JWT vigente). */
+    List<SesionRevocadaResponse> sesionesRevocadasDesde(Instant desde);
 
     /** Cuentas activas que pueden tomar el puesto, ordenadas por correo (solo datos mínimos). */
     List<UsuarioAsignableResponse> asignables(PuestoAsignable puesto);

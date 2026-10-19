@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RolAsignadoPayload;
+import gt.cunoc.proyecto2.identity.evento.payload.SesionRevocadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.TarifaDepreciacionPayload;
 import gt.cunoc.proyecto2.identity.messaging.publisher.TarifaEventPublisher;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
@@ -70,6 +71,9 @@ class PublishersTest {
                         new PerfilActualizadoPayload(USUARIO, "nit", "nombres", "apellidos", "correo", "telefono", "foto", CHOFER),
                         t -> t.usuarios.publicarPerfilActualizado(
                                 USUARIO, "nit", "nombres", "apellidos", "correo", "telefono", "foto", CHOFER, FECHA)),
+                contrato("Usuario", "SesionRevocada",
+                        new SesionRevocadaPayload(USUARIO, EXPIRACION),
+                        t -> t.usuarios.publicarSesionRevocada(USUARIO, EXPIRACION, FECHA)),
                 contrato("TarifaDepreciacion", "TarifaDepreciacionCambiada",
                         new TarifaDepreciacionPayload(USUARIO, MONTO, FECHA_MOVIMIENTO),
                         t -> t.tarifas.publicarTarifaDepreciacionCambiada(USUARIO, MONTO, FECHA_MOVIMIENTO, FECHA)));

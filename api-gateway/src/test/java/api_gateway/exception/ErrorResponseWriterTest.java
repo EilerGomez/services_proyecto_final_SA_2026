@@ -128,4 +128,19 @@ class ErrorResponseWriterTest {
     private static MockServerWebExchange exchange(String ruta) {
         return MockServerWebExchange.from(MockServerHttpRequest.method(HttpMethod.GET, URI.create(ruta)));
     }
+
+    @Test
+    void escribeUnCodigoYMensajePropios() {
+        MockServerWebExchange exchange = exchange("/wallet/cartera");
+
+        StepVerifier.create(writer.write(exchange, HttpStatus.UNAUTHORIZED, "SESION_REVOCADA", "Tu acceso cambió"))
+                .verifyComplete();
+
+        StepVerifier.create(exchange.getResponse().getBodyAsString())
+                .assertNext(cuerpo -> {
+                    assertThat(cuerpo).contains("\"codigo\":\"SESION_REVOCADA\"");
+                    assertThat(cuerpo).contains("\"mensaje\":\"Tu acceso cambió\"");
+                })
+                .verifyComplete();
+    }
 }

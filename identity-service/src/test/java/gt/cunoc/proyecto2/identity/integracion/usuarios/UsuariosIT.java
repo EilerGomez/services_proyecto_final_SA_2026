@@ -59,6 +59,20 @@ class UsuariosIT extends PruebaIntegracion {
     }
 
     @Test
+    void desactivarUnaCuentaRevocaSusSesionesAlInstante() {
+        UUID usuarioId = registrarCliente("revocar@pruebas.gt", "5000000-5", "5000000000505");
+
+        patch("/identity/usuarios/" + usuarioId + "/estado", tokenAdmin, "{\"estado\":\"INACTIVO\"}");
+
+        // El API Gateway recibe el evento y, si estaba apagado, lo carga del endpoint interno al arrancar
+        assertThat(esperarEventos("SesionRevocada").get("SesionRevocada")).contains(usuarioId.toString());
+        ResponseEntity<String> revocadas = get("/identity/interno/sesiones-revocadas", tokenServicio());
+        assertThat(revocadas.getStatusCode().value()).isEqualTo(200);
+        assertThat(PruebaIntegracion.<java.util.List<String>>json(revocadas, "$[*].usuarioId"))
+                .contains(usuarioId.toString());
+    }
+
+    @Test
     void elBloqueoDelAdministradorNoVenceHastaQueLoActiva() {
         UUID usuarioId = registrarCliente("bloqueo@pruebas.gt", "4000000-4", "4000000000404");
         String login = "{\"correo\":\"bloqueo@pruebas.gt\",\"contrasena\":\"%s\"}".formatted(CONTRASENA);

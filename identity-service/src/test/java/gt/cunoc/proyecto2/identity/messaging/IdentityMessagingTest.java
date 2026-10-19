@@ -183,6 +183,9 @@ class IdentityMessagingTest {
         assertThat(usuario.getRoles()).extracting(Rol::getCodigo).containsExactly(Roles.CLIENTE);
         assertThat(token.getRevocadoEn()).isNotNull();
         verify(refrescos).save(token);
+        // Sus JWT dejan de valer al instante: SesionRevocada sale por el outbox
+        assertThat(usuario.getTokensValidosDesde()).isNotNull();
+        verify(jdbc).update(contains("INSERT INTO eventos_salida"), any(Object[].class));
     }
 
     @ParameterizedTest
@@ -204,6 +207,8 @@ class IdentityMessagingTest {
         assertThat(usuario.getRoles()).extracting(Rol::getCodigo).containsExactly(Roles.CLIENTE);
         assertThat(token.getRevocadoEn()).isNotNull();
         verify(usuarios).save(usuario);
+        assertThat(usuario.getTokensValidosDesde()).isNotNull();
+        verify(jdbc).update(contains("INSERT INTO eventos_salida"), any(Object[].class));   // SesionRevocada
     }
 
     @Test

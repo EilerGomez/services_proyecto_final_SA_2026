@@ -44,6 +44,9 @@ class SecurityConfigTest {
     @Value("${local.server.port}")
     private int puerto;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private api_gateway.revocaciones.RegistroRevocaciones revocaciones;
+
     private WebTestClient cliente;
 
     @DynamicPropertySource
@@ -183,6 +186,27 @@ class SecurityConfigTest {
         cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + vencido).exchange()
                 .expectStatus().isUnauthorized()
                 .expectBody().jsonPath("$.codigo").isEqualTo("TOKEN_INVALIDO");
+    }
+
+    @Test
+    void rutaPrivadaConTokenDeAntesDelRetiroEs401SesionRevocada() {
+        UUID usuario = UUID.randomUUID();
+        String viejo = JwtPrueba.vigente(JwtPrueba.SECRETO, usuario, null, "ADMIN_SUCURSAL", "CLIENTE");
+        revocaciones.registrar(usuario.toString(), java.time.Instant.now().plusSeconds(5));   // lo retiraron
+
+        cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + viejo).exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody().jsonPath("$.codigo").isEqualTo("SESION_REVOCADA");
+    }
+
+    @Test
+    void elTokenNuevoDespuesDelRetiroSiPasa() {
+        UUID usuario = UUID.randomUUID();
+        revocaciones.registrar(usuario.toString(), java.time.Instant.now().minusSeconds(30));
+        String nuevo = JwtPrueba.vigente(JwtPrueba.SECRETO, usuario, null, "CLIENTE");   // inició sesión otra vez
+
+        cliente.get().uri("/wallet/cartera").header(HttpHeaders.AUTHORIZATION, "Bearer " + nuevo).exchange()
+                .expectStatus().isOk();
     }
 
     @Test

@@ -82,6 +82,19 @@ deshabilitan CSRF, login, HTTP Basic, logout, persistencia del contexto y caché
 de solicitudes en sesión. Las rutas `/*/interno/**` (R1–R5) se rechazan con 404
 (`BloqueoInternoFilter`): solo existen de servicio a servicio.
 
+### Revocación inmediata de sesiones
+
+Cuando se retira a personal o a un piloto, o se desactiva o bloquea una cuenta, identity guarda
+`tokens_validos_desde` en el usuario y publica `SesionRevocada` (exchange `identity.eventos`).
+El gateway lo escucha con una cola anónima propia y desde ese momento rechaza los JWT de esa persona
+emitidos (`iat`) antes de esa fecha con `401 SESION_REVOCADA`. El front cierra la sesión y pide iniciar
+de nuevo; el token nuevo trae solo los roles que le quedan.
+
+- Al arrancar carga las revocaciones de la última hora de `GET /identity/interno/sesiones-revocadas`
+  (token de servicio), por si ocurrieron mientras estaba apagado.
+- Usa las mismas variables `RABBIT_HOST`, `RABBIT_USER` y `RABBIT_PASSWORD` que los servicios.
+- `GATEWAY_REVOCACIONES_ENABLED=false` lo apaga (las pruebas lo apagan porque no hay RabbitMQ).
+
 ### CORS y orden de filtros
 
 `CorsConfig.corsConfigurationSource` es la única fuente de política CORS;

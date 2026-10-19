@@ -54,11 +54,7 @@ public class SincronizacionPersonalService {
         }
 
         usuario.getRoles().removeIf(rol -> Roles.CHOFER.equals(rol.getCodigo()));
-        usuarios.save(usuario);
-        refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId()).forEach(token -> {
-            token.setRevocadoEn(Instant.now());
-            refrescos.save(token);
-        });
+        revocarSesiones(usuario);
     }
 
     /**
@@ -128,6 +124,22 @@ public class SincronizacionPersonalService {
                 Roles.CHOFER, sucursalId, null, LocalDate.now());
     }
 
+    /**
+     * Retiro: guarda el cambio, invalida los refresh tokens y revoca al instante los JWT que ya tiene
+     * (SesionRevocada → el API Gateway los rechaza). Al volver a iniciar sesión recibe un token con los
+     * roles que le quedan.
+     */
+    private void revocarSesiones(Usuario usuario) {
+        Instant ahora = Instant.now();
+        Instant desde = usuario.revocarTokens(ahora);
+        usuarios.save(usuario);
+        refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId()).forEach(token -> {
+            token.setRevocadoEn(ahora);
+            refrescos.save(token);
+        });
+        publicador.publicarSesionRevocada(usuario.getId(), desde, LocalDate.now());
+    }
+
     private String nombreDe(Usuario usuario) {
         Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
         return perfil == null ? usuario.getCorreo() : perfil.getNombres() + " " + perfil.getApellidos();
@@ -142,10 +154,6 @@ public class SincronizacionPersonalService {
         }
         usuario.setSucursalId(null);
         usuario.getRoles().removeIf(rol -> rolCodigo.equals(rol.getCodigo()));
-        usuarios.save(usuario);
-        refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId()).forEach(token -> {
-            token.setRevocadoEn(Instant.now());
-            refrescos.save(token);
-        });
+        revocarSesiones(usuario);
     }
 }

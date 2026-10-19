@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RolAsignadoPayload;
+import gt.cunoc.proyecto2.identity.evento.payload.SesionRevocadaPayload;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -59,6 +60,15 @@ public class UsuarioEventPublisher {
 
         publicador.publicar("Usuario", usuarioId, "RolAsignado",
                 new RolAsignadoPayload(usuarioId, correo, nombre, rol, sucursalId, sucursalNombre), fechaNegocio);
+    }
+
+    /**
+     * SesionRevocada: los JWT de la cuenta emitidos antes de {@code tokensValidosDesde} dejan de valer.
+     * Sale en la misma transacción que el retiro o la desactivación (outbox).
+     */
+    public void publicarSesionRevocada(UUID usuarioId, Instant tokensValidosDesde, LocalDate fechaNegocio) {
+        publicador.publicar("Usuario", usuarioId, "SesionRevocada",
+                new SesionRevocadaPayload(usuarioId, tokensValidosDesde), fechaNegocio);
     }
 
     public void publicarClienteRegistrado(

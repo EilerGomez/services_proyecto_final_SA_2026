@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: api-gateway
+  # Solo para escuchar SesionRevocada (exchange identity.eventos). Mismas variables que los servicios.
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:proyecto2}
+    password: ${RABBIT_PASSWORD:proyecto2}
   cloud:
     gateway:
       server:
@@ -116,6 +122,13 @@ gateway:
   timeouts:
     connect-timeout: ${GATEWAY_CONNECT_TIMEOUT:3000}
     response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:30s}
+  # Revocación inmediata: identity publica SesionRevocada al retirar personal o piloto y al desactivar o
+  # bloquear una cuenta; desde ese momento el gateway rechaza los JWT emitidos antes (401 SESION_REVOCADA).
+  revocaciones:
+    enabled: ${GATEWAY_REVOCACIONES_ENABLED:true}
+    exchange: identity.eventos
+    # Lo que dura un JWT (app.jwt.duracion-minutos de identity) y un margen: después ya no hace falta recordarla.
+    retencion: ${GATEWAY_REVOCACIONES_RETENCION:65m}
 
 app:
   jwt:
@@ -143,6 +156,10 @@ springdoc:
         url: /v3/api-docs/wallet
 
 management:
+  health:
+    # RabbitMQ solo se usa para las revocaciones: si cae, el gateway sigue atendiendo (no se marca DOWN)
+    rabbit:
+      enabled: false
   endpoints:
     web:
       exposure:

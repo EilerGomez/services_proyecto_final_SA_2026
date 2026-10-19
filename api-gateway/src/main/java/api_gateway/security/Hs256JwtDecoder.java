@@ -2,12 +2,17 @@ package api_gateway.security;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import api_gateway.revocaciones.RegistroRevocaciones;
+import api_gateway.revocaciones.TokenNoRevocadoValidator;
+import java.util.ArrayList;
 import java.util.List;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
@@ -23,17 +28,21 @@ import org.springframework.util.StringUtils;
  *   <li>Solo acepta {@code alg=HS256}; {@code typ} debe ser "JWT" o faltar (ServicioJwt pone "JWT").</li>
  *   <li>{@code exp} obligatorio y sin tolerancia de reloj, como ServicioJwt.validar
  *       (vencido si ahora &gt;= exp); {@code sub} obligatorio.</li>
+ *   <li>No revocado: si a la persona la retiraron o desactivaron, sus JWT emitidos antes ya no valen
+ *       ({@link TokenNoRevocadoValidator}).</li>
  * </ul>
  */
 @Configuration(proxyBeanMethods = false)
 public class Hs256JwtDecoder {
 
     @Bean
-    ReactiveJwtDecoder jwtDecoder(@Value("${app.jwt.secret}") String secreto) {
-        return crear(secreto);
+    ReactiveJwtDecoder jwtDecoder(@Value("${app.jwt.secret}") String secreto, RegistroRevocaciones revocaciones) {
+        return crear(secreto, new TokenNoRevocadoValidator(revocaciones));
     }
 
-    static ReactiveJwtDecoder crear(String secreto) {
+    /** Con validadores extra (además de firma, vigencia y sub). */
+    @SafeVarargs
+    static ReactiveJwtDecoder crear(String secreto, OAuth2TokenValidator<Jwt>... extra) {
         if (secreto == null || secreto.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalStateException("app.jwt.secret debe tener al menos 32 caracteres");
         }
@@ -45,8 +54,10 @@ public class Hs256JwtDecoder {
         vigencia.setAllowEmptyExpiryClaim(false);
         JwtClaimValidator<Object> sujeto = new JwtClaimValidator<>(JwtClaimNames.SUB,
                 valor -> valor != null && StringUtils.hasText(valor.toString()));
+        List<OAuth2TokenValidator<Jwt>> validadores = new ArrayList<>(List.of(vigencia, sujeto));
+        validadores.addAll(List.of(extra));
         // Agrega además los de siempre (typ JWT y cnf/x5t) que faltan en la lista.
-        decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(List.of(vigencia, sujeto)));
+        decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(validadores));
         return decoder;
     }
 }

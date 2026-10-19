@@ -20,14 +20,19 @@ public class ErrorResponseWriter {
     private final ObjectMapper objectMapper;
 
     public Mono<Void> write(ServerWebExchange exchange, HttpStatusCode status) {
+        return write(exchange, status, code(status.value()), mensaje(status.value()));
+    }
+
+    /** Con un código y mensaje propios (p. ej. 401 SESION_REVOCADA). */
+    public Mono<Void> write(ServerWebExchange exchange, HttpStatusCode status, String codigo, String mensaje) {
         return Mono.defer(() -> {
             var response = exchange.getResponse();
             if (response.isCommitted()) {
                 return Mono.empty();
             }
             String correlationId = CorrelationIdFilter.resolve(exchange);
-            ErrorResponse body = new ErrorResponse(status.value(), code(status.value()),
-                    mensaje(status.value()), exchange.getRequest().getPath().value(),
+            ErrorResponse body = new ErrorResponse(status.value(), codigo,
+                    mensaje, exchange.getRequest().getPath().value(),
                     Instant.now(), correlationId, List.of());
             byte[] bytes = objectMapper.writeValueAsBytes(body);
             response.setStatusCode(status);

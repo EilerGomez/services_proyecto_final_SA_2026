@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.SesionRevocadaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
@@ -196,6 +197,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<SesionRevocadaResponse> sesionesRevocadasDesde(Instant desde) {
+        return usuarios.findByTokensValidosDesdeAfter(desde).stream()
+                .map(usuario -> new SesionRevocadaResponse(usuario.getId(), usuario.getTokensValidosDesde()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UsuarioAsignableResponse> asignables(PuestoAsignable puesto) {
         Instant ahora = Instant.now();
         List<Usuario> candidatos = usuarios.findByEstadoOrderByCorreoAsc("ACTIVO").stream()
@@ -330,7 +339,12 @@ public class UserServiceImpl implements UserService {
         // Activar o desactivar también limpia un bloqueo por intentos fallidos.
         usuario.setBloqueadoHasta(null);
         usuario.setIntentosFallidos(0);
+        // Desactivada o bloqueada: sus JWT dejan de valer al instante (el API Gateway los rechaza)
+        Instant revocadaDesde = "ACTIVO".equals(solicitud.estado()) ? null : usuario.revocarTokens(Instant.now());
         usuarios.save(usuario);
+        if (revocadaDesde != null) {
+            publicador.publicarSesionRevocada(usuarioId, revocadaDesde, LocalDate.now());
+        }
         refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuarioId).forEach(token -> {
             token.setRevocadoEn(Instant.now());
             refrescos.save(token);

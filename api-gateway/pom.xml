@@ -35,6 +35,12 @@
             <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
         </dependency>
 
+        <!-- Revocación inmediata de sesiones: escucha SesionRevocada de identity en RabbitMQ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- Utilidades -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.identity.controllers.BaseControladorTest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.SesionRevocadaResponse;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +37,27 @@ class InternalControllerTest extends BaseControladorTest {
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].correo").value("luis@empresa.com"));
+    }
+
+    @Test
+    void sesionesRevocadasDeLaUltimaHora() throws Exception {
+        // Arrange
+        sesion("token", usuario(java.util.Set.of(Roles.SERVICIO), null));
+        UUID usuarioId = UUID.randomUUID();
+        java.time.Instant desde = java.time.Instant.parse("2026-10-20T15:00:00Z");
+        org.mockito.ArgumentCaptor<java.time.Instant> limite = org.mockito.ArgumentCaptor.forClass(java.time.Instant.class);
+        when(servicio.sesionesRevocadasDesde(limite.capture()))
+                .thenReturn(List.of(new SesionRevocadaResponse(usuarioId, desde)));
+        java.time.Instant antes = java.time.Instant.now();
+
+        // Act + Assert
+        mvc.perform(get("/identity/interno/sesiones-revocadas").header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].usuarioId").value(usuarioId.toString()))
+                .andExpect(jsonPath("$[0].tokensValidosDesde").exists());
+        // Solo las que aún pueden afectar a un token vigente (dura 60 minutos)
+        org.assertj.core.api.Assertions.assertThat(limite.getValue())
+                .isBetween(antes.minusSeconds(3601), java.time.Instant.now().minusSeconds(3599));
     }
 
     @Test

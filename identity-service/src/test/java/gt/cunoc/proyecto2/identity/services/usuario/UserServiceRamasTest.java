@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -247,7 +248,23 @@ class UserServiceRamasTest {
         assertAll(
                 () -> assertEquals("INACTIVO", detalle.estado()),
                 () -> assertTrue(token.getRevocadoEn() != null),
-                () -> verify(refrescos).save(token));
+                () -> verify(refrescos).save(token),
+                // Sus JWT dejan de valer al instante: el API Gateway recibe SesionRevocada
+                () -> assertTrue(usuario.getTokensValidosDesde() != null),
+                () -> verify(publicador).publicarSesionRevocada(
+                        eq(usuario.getId()), eq(usuario.getTokensValidosDesde()), any()));
+    }
+
+    @Test
+    void activarUnaCuentaNoRevocaSusTokens() {
+        Usuario usuario = usuarioBasico();
+        usuario.setEstado("BLOQUEADO");
+        when(usuarios.findById(usuario.getId())).thenReturn(Optional.of(usuario));
+
+        servicio.cambiarEstado(usuario.getId(), new UserStatusRequest("ACTIVO"));
+
+        assertEquals(null, usuario.getTokensValidosDesde());
+        verify(publicador, org.mockito.Mockito.never()).publicarSesionRevocada(any(), any(), any());
     }
 
     @Test

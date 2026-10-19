@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -73,10 +74,25 @@ public class Usuario {
     @Column(name = "ultimo_acceso")
     private Instant ultimoAcceso;
 
+    /** Los JWT emitidos antes de este momento ya no valen (sesiones revocadas). Null = nunca se revocó. */
+    @Column(name = "tokens_validos_desde")
+    private Instant tokensValidosDesde;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_roles",
             joinColumns = @JoinColumn(name = "usuario_id"),
             inverseJoinColumns = @JoinColumn(name = "rol_codigo"))
     private Set<Rol> roles = new HashSet<>();
+
+    /**
+     * Revoca de inmediato todos los JWT que ya se emitieron: desde el siguiente segundo completo
+     * (el iat del token va en segundos), así ningún token emitido antes de este instante queda válido.
+     * Devuelve la nueva fecha.
+     */
+    public Instant revocarTokens(Instant ahora) {
+        Instant segundo = ahora.truncatedTo(ChronoUnit.SECONDS);
+        tokensValidosDesde = segundo.equals(ahora) ? segundo : segundo.plusSeconds(1);
+        return tokensValidosDesde;
+    }
 }
