@@ -182,15 +182,19 @@ class UserServiceCoberturaTest {
     }
 
     @Test
-    void cambiarEstadoChoferSeRechaza() {
+    void cambiarEstadoChoferProcede() {
+        // El administrador del sistema ya puede desactivar cuentas de chofer (antes daba GESTIONAR_EN_FLEET)
         Usuario usuario = usuarioBasico();
         usuario.setChoferId(UUID.randomUUID());
         when(usuarios.findById(usuario.getId())).thenReturn(Optional.of(usuario));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(usuario.getId())).thenReturn(List.of());
+        when(perfiles.findById(usuario.getId())).thenReturn(Optional.empty());
 
-        ReglaNegocioException error = assertThrows(ReglaNegocioException.class,
-                () -> servicio.cambiarEstado(usuario.getId(), new UserStatusRequest("INACTIVO")));
+        var detalle = servicio.cambiarEstado(usuario.getId(), new UserStatusRequest("INACTIVO"));
 
-        assertEquals("GESTIONAR_EN_FLEET", error.getCodigo());
+        assertAll(
+                () -> assertEquals("INACTIVO", detalle.estado()),
+                () -> verify(usuarios).save(usuario));
     }
 
     @Test

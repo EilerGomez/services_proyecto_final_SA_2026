@@ -78,18 +78,80 @@ class UserServiceImplTest {
     }
 
     @Test
-    void cambiarEstadoDePersonalDeSucursalSeRechaza() {
-        // Arrange
+    void cambiarEstadoDePersonalDeSucursalProcede() {
+        // El administrador del sistema ya puede desactivar cuentas de personal (antes daba GESTIONAR_EN_FLEET)
         Usuario cajero = adminSistema();
+        cajero.getRoles().clear();
         cajero.setSucursalId(UUID.randomUUID());
         when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(cajero));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(ADMIN_ID)).thenReturn(List.of());
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.empty());
 
         // Act
-        ReglaNegocioException error = assertThrows(ReglaNegocioException.class,
-                () -> servicio.cambiarEstado(ADMIN_ID, new UserStatusRequest("INACTIVO")));
+        var detalle = servicio.cambiarEstado(ADMIN_ID, new UserStatusRequest("INACTIVO"));
 
         // Assert
-        assertEquals("GESTIONAR_EN_FLEET", error.getCodigo());
+        assertAll(
+                () -> assertEquals("INACTIVO", detalle.estado()),
+                () -> verify(usuarios).save(cajero));
+    }
+
+    @Test
+    void cambiarEstadoBloqueadoConDuracionPoneFechaDeVencimiento() {
+        // Arrange
+        Usuario cliente = adminSistema();
+        cliente.getRoles().clear();
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(cliente));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(ADMIN_ID)).thenReturn(List.of());
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.empty());
+
+        // Act
+        servicio.cambiarEstado(ADMIN_ID, new UserStatusRequest("BLOQUEADO", 15));
+
+        // Assert
+        assertAll(
+                () -> assertEquals("BLOQUEADO", cliente.getEstado()),
+                () -> org.junit.jupiter.api.Assertions.assertNotNull(cliente.getBloqueadoHasta()));
+    }
+
+    @Test
+    void cambiarEstadoBloqueadoSinDuracionNoVence() {
+        // Arrange
+        Usuario cliente = adminSistema();
+        cliente.getRoles().clear();
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(cliente));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(ADMIN_ID)).thenReturn(List.of());
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.empty());
+
+        // Act
+        servicio.cambiarEstado(ADMIN_ID, new UserStatusRequest("BLOQUEADO"));
+
+        // Assert
+        assertAll(
+                () -> assertEquals("BLOQUEADO", cliente.getEstado()),
+                () -> assertEquals(null, cliente.getBloqueadoHasta()));
+    }
+
+    @Test
+    void desbloquearDejaLaCuentaActivaSinFechaNiIntentos() {
+        // Arrange
+        Usuario bloqueado = adminSistema();
+        bloqueado.getRoles().clear();
+        bloqueado.setEstado("BLOQUEADO");
+        bloqueado.setBloqueadoHasta(java.time.Instant.now().plusSeconds(600));
+        bloqueado.setIntentosFallidos(5);
+        when(usuarios.findById(ADMIN_ID)).thenReturn(Optional.of(bloqueado));
+        when(refrescos.findByUsuarioIdAndRevocadoEnIsNull(ADMIN_ID)).thenReturn(List.of());
+        when(perfiles.findById(ADMIN_ID)).thenReturn(Optional.empty());
+
+        // Act
+        var detalle = servicio.desbloquear(ADMIN_ID);
+
+        // Assert
+        assertAll(
+                () -> assertEquals("ACTIVO", detalle.estado()),
+                () -> assertEquals(null, bloqueado.getBloqueadoHasta()),
+                () -> assertEquals(0, bloqueado.getIntentosFallidos()));
     }
 
     @Test

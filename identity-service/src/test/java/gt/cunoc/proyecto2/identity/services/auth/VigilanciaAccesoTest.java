@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.identity.services.auth;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.models.CodigoDobleFactor;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
@@ -99,6 +100,51 @@ class VigilanciaAccesoTest {
 
         // Assert
         verify(usuarios, never()).save(any());
+    }
+
+    @Test
+    void noBloqueaAlUltimoAdminSistemaActivo() {
+        // Arrange: es el único ADMIN_SISTEMA activo; bloquearlo dejaría al sistema sin administrador
+        Usuario admin = new Usuario();
+        admin.setIntentosFallidos(4);
+        admin.setEstado("ACTIVO");
+        admin.getRoles().add(rolSistema());
+        when(usuarios.findById(USUARIO_ID)).thenReturn(Optional.of(admin));
+        when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", Roles.ADMIN_SISTEMA)).thenReturn(1L);
+
+        // Act
+        vigilancia.falloContrasena(USUARIO_ID);
+
+        // Assert
+        assertAll(
+                () -> assertEquals("ACTIVO", admin.getEstado()),
+                () -> assertEquals(null, admin.getBloqueadoHasta()),
+                () -> verify(usuarios).save(admin));
+    }
+
+    @Test
+    void bloqueaAlAdminSistemaSiHayOtroActivo() {
+        // Arrange
+        Usuario admin = new Usuario();
+        admin.setIntentosFallidos(4);
+        admin.setEstado("ACTIVO");
+        admin.getRoles().add(rolSistema());
+        when(usuarios.findById(USUARIO_ID)).thenReturn(Optional.of(admin));
+        when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", Roles.ADMIN_SISTEMA)).thenReturn(2L);
+
+        // Act
+        vigilancia.falloContrasena(USUARIO_ID);
+
+        // Assert
+        assertAll(
+                () -> assertEquals("BLOQUEADO", admin.getEstado()),
+                () -> assertNotNull(admin.getBloqueadoHasta()));
+    }
+
+    private static gt.cunoc.proyecto2.identity.models.Rol rolSistema() {
+        gt.cunoc.proyecto2.identity.models.Rol rol = new gt.cunoc.proyecto2.identity.models.Rol();
+        rol.setCodigo(Roles.ADMIN_SISTEMA);
+        return rol;
     }
 
     @Test
