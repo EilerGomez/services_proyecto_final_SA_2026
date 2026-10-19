@@ -61,6 +61,30 @@ class OAuthGoogleIT extends PruebaIntegracion {
         // La cartera la abre wallet-service al recibir CuentaCreada con rol CLIENTE
         Map<String, String> eventos = esperarEventos("CuentaCreada");
         assertThat(eventos.get("CuentaCreada")).contains(GoogleFalso.CORREO).contains("CLIENTE");
+        // Sin DPI, teléfono ni dirección: el front debe pedirlos antes de entrar al portal
+        assertThat(PruebaIntegracion.<Boolean>json(canje, "$.usuario.perfilCompleto")).isFalse();
+    }
+
+    @Test
+    void completarPerfilDeGoogleLoDaDeAltaComoCliente() {
+        ResponseEntity<String> canje = post("/identity/auth/oauth2/canjear", null,
+                "{\"ticket\":\"%s\"}".formatted(ticketDe("ok")));
+        String token = PruebaIntegracion.<String>json(canje, "$.tokenAcceso");
+        String datos = """
+                {"nit":"","dpi":"3000000000303","telefono":"55554444","direccion":"Zona 3, Xela"}""";
+
+        ResponseEntity<String> completo = put("/identity/perfil/completar", token, datos);
+
+        assertThat(completo.getStatusCode().value()).as(completo.getBody()).isEqualTo(200);
+        assertThat(PruebaIntegracion.<String>json(completo, "$.dpi")).isEqualTo("3000000000303");
+        assertThat(PruebaIntegracion.<Object>json(completo, "$.nit")).isNull();
+        assertThat(esperarEventos("ClienteRegistrado").get("ClienteRegistrado")).contains(GoogleFalso.CORREO);
+        esError(put("/identity/perfil/completar", token, datos), 409, "PERFIL_YA_COMPLETO");
+
+        // El siguiente inicio de sesión ya sale con el perfil completo
+        ResponseEntity<String> otraVez = post("/identity/auth/oauth2/canjear", null,
+                "{\"ticket\":\"%s\"}".formatted(ticketDe("ok")));
+        assertThat(PruebaIntegracion.<Boolean>json(otraVez, "$.usuario.perfilCompleto")).isTrue();
     }
 
     @Test

@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.config;
 
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
+import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
@@ -18,6 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,12 +31,13 @@ class InitialAdminSeederTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
+    @Mock private UsuarioEventPublisher publicador;
 
     @Spy private PasswordEncoder claves = new BCryptPasswordEncoder();
 
     private InitialAdminSeeder seeder() {
         // Constructor manual: las variables ADMIN_* son String y Mockito no las inyecta.
-        return new InitialAdminSeeder(usuarios, perfiles, roles, claves,
+        return new InitialAdminSeeder(usuarios, perfiles, roles, claves, publicador,
                 "admin@correo.com", "Admin12345", "Administrador", "Sistema",
                 "CF", "0000000000000", "00000000", "Ciudad");
     }
@@ -56,7 +60,7 @@ class InitialAdminSeederTest {
         // Arrange
         when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
         InitialAdminSeeder sinCorreo = new InitialAdminSeeder(usuarios, perfiles, roles,
-                claves, "", "", "Administrador", "Sistema", "CF", "0000000000000", "00000000", "Ciudad");
+                claves, publicador, "", "", "Administrador", "Sistema", "CF", "0000000000000", "00000000", "Ciudad");
 
         // Act
         sinCorreo.run(null);
@@ -85,6 +89,11 @@ class InitialAdminSeederTest {
         // Assert
         verify(usuarios).save(any(Usuario.class));
         verify(perfiles).save(any(gt.cunoc.proyecto2.identity.models.Perfil.class));
+        // Sin ClienteRegistrado, Sales no lo tiene como cliente y no puede comprar
+        verify(publicador).publicarClienteRegistrado(any(), eq("CF"), eq("Administrador Sistema"),
+                eq("admin@correo.com"), any());
+        verify(publicador).publicarCuentaCreada(any(), eq("admin@correo.com"), eq("Administrador Sistema"),
+                eq(List.of("ADMIN_SISTEMA", "CLIENTE")), isNull(), any());
     }
 
     @Test

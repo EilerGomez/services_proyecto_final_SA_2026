@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.identity.controllers.perfil;
 
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
+import gt.cunoc.proyecto2.identity.dtos.usuario.CompletarPerfilRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Perfil propio (I8–I9).
+ * Perfil propio (I8–I9) y completar el perfil de una cuenta creada con Google.
  */
 @RestController
 @RequestMapping("/identity/perfil")
@@ -36,5 +37,13 @@ public class PerfilController {
             @RequestBody @Valid UpdateProfileRequest solicitud,
             @Parameter(hidden = true) UsuarioActual usuario) {
         return ResponseEntity.ok(servicio.actualizarPerfil(usuario.usuarioId(), solicitud));
+    }
+
+    /** Cuenta creada con Google: completa DPI, teléfono, dirección y NIT (opcional) antes de usar el portal. */
+    @PutMapping("/completar")
+    public ResponseEntity<PerfilResponse> completar(
+            @RequestBody @Valid CompletarPerfilRequest solicitud,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.completarPerfil(usuario.usuarioId(), solicitud));
     }
 }

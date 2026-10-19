@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.CompletarPerfilRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
@@ -250,6 +251,38 @@ public class UserServiceImpl implements UserService {
         if (fotoAnterior != null && !fotoAnterior.equals(perfil.getFotoUrl())) {
             fotos.eliminarAlConfirmar(fotoAnterior);
         }
+        return aPerfil(usuario, perfil);
+    }
+
+    @Override
+    @Transactional
+    public PerfilResponse completarPerfil(UUID usuarioId, CompletarPerfilRequest solicitud) {
+        Usuario usuario = buscar(usuarioId);
+        Perfil perfil = perfiles.findById(usuarioId)
+                .orElseThrow(() -> new NoEncontradoException("PERFIL_NO_EXISTE", "El perfil no existe"));
+        if (perfil.estaCompleto()) {
+            throw new ConflictoException("PERFIL_YA_COMPLETO", "Tu perfil ya está completo");
+        }
+        String dpi = solicitud.dpi().trim();
+        if (perfiles.existsByDpi(dpi)) {
+            throw new ConflictoException("DPI_EN_USO", "El DPI ya está registrado");
+        }
+        // Sin NIT (vacío o CF) queda null: la columna es única y Sales lo trata como "CF"
+        String nit = solicitud.nit() == null ? "" : solicitud.nit().trim().toUpperCase();
+        if (nit.isEmpty() || "CF".equals(nit)) {
+            nit = null;
+        } else if (!nit.equals(perfil.getNit()) && perfiles.existsByNit(nit)) {
+            throw new ConflictoException("NIT_EN_USO", "El NIT ya está registrado");
+        }
+        perfil.setDpi(dpi);
+        perfil.setNit(nit);
+        perfil.setTelefono(solicitud.telefono().trim());
+        perfil.setDireccion(solicitud.direccion().trim());
+        perfiles.save(perfil);
+
+        // Las cuentas de Google no se publican como ClienteRegistrado al crearse: ahora ya puede comprar.
+        String nombre = perfil.getNombres() + " " + perfil.getApellidos();
+        publicador.publicarClienteRegistrado(usuario.getId(), nit, nombre, usuario.getCorreo(), LocalDate.now());
         return aPerfil(usuario, perfil);
     }
 

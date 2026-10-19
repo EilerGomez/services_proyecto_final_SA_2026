@@ -55,6 +55,33 @@ class PerfilControllerTest extends BaseControladorTest {
                 .andExpect(jsonPath("$.telefono").value("55559999"));
     }
 
+    @Test
+    void completarDevuelvePerfil() throws Exception {
+        var actual = usuario(Set.of(Roles.CLIENTE), null);
+        sesion("token", actual);
+        when(servicio.completarPerfil(eq(actual.usuarioId()), any())).thenReturn(perfil(actual.usuarioId()));
+
+        mvc.perform(put("/identity/perfil/completar")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nit":"","dpi":"1234567890101","telefono":"55559999","direccion":"Xela"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dpi").value("1234567890101"));
+    }
+
+    @Test
+    void completarSinDpiValidoDa400() throws Exception {
+        sesion("token", usuario(Set.of(Roles.CLIENTE), null));
+
+        mvc.perform(put("/identity/perfil/completar")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"dpi":"123","telefono":"55559999","direccion":"Xela"}"""))
+                .andExpect(status().isBadRequest());
+    }
+
     private PerfilResponse perfil(UUID usuarioId) {
         return new PerfilResponse(usuarioId, "ana@correo.com", "Ana", "López", "1234567-8",
                 "1234567890101", "55559999", "Xela", null, Set.of(Roles.CLIENTE), null, null);

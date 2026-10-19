@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.identity.config;
 
+import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
@@ -23,6 +24,7 @@ class InitialAdminSeederRamasTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private PerfilRepository perfiles;
     @Mock private RolRepository roles;
+    @Mock private UsuarioEventPublisher publicador;
 
     @Spy private PasswordEncoder claves = new BCryptPasswordEncoder();
 
@@ -31,7 +33,7 @@ class InitialAdminSeederRamasTest {
         // Arrange
         when(usuarios.countByEstadoAndRoles_Codigo("ACTIVO", "ADMIN_SISTEMA")).thenReturn(0L);
         InitialAdminSeeder sinClave = new InitialAdminSeeder(usuarios, perfiles, roles,
-                claves, "admin@correo.com", "", "Administrador", "Sistema",
+                claves, publicador, "admin@correo.com", "", "Administrador", "Sistema",
                 "CF", "0000000000000", "00000000", "Ciudad");
 
         // Act

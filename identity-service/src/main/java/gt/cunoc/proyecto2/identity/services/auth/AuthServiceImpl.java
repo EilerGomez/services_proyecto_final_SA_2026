@@ -506,8 +506,8 @@ public class AuthServiceImpl implements AuthService {
         publicador.publicarCuentaCreada(usuario.getId(), correo,
                 (perfil.getNombres() + " " + perfil.getApellidos()).trim(),
                 List.of(Roles.CLIENTE), null, LocalDate.now());
-        // Sin NIT no se publica ClienteRegistrado (sales exige nit): al completar el
-        // perfil, PerfilActualizado lo da de alta en ventas con el upsert existente.
+        // Sin DPI, teléfono ni dirección no se publica ClienteRegistrado: la sesión sale con
+        // perfilCompleto=false, el front pide esos datos y PUT /identity/perfil/completar lo publica.
         return usuario;
     }
 
@@ -551,7 +551,8 @@ public class AuthServiceImpl implements AuthService {
         UsuarioSesion sesion = new UsuarioSesion(
                 usuario.getId(), usuario.getCorreo(), nombre, roles,
                 actual.sucursalId(), actual.choferId(),
-                perfil == null ? null : perfil.getFotoUrl());
+                perfil == null ? null : perfil.getFotoUrl(),
+                perfil != null && perfil.estaCompleto());
         Instant expira = Instant.now().plus(Duration.ofMinutes(minutosAcceso));
         String expiraEn = DateTimeFormatter.ISO_INSTANT.format(expira.atOffset(ZoneOffset.UTC));
         return new SesionResponse(acceso, "Bearer", expiraEn, crudo, usuario.getId(), sesion);

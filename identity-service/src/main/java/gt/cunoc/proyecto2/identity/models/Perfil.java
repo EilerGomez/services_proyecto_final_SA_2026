@@ -50,4 +50,12 @@ public class Perfil {
 
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
+
+    /**
+     * Datos mínimos para operar como cliente (DPI, teléfono y dirección; el NIT es opcional: sin NIT
+     * se factura como CF). Las cuentas creadas con Google nacen sin ellos y deben completarlos.
+     */
+    public boolean estaCompleto() {
+        return dpi != null && telefono != null && direccion != null;
+    }
 }

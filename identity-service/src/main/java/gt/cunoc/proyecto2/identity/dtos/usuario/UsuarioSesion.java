@@ -14,7 +14,10 @@ public record UsuarioSesion(
         Set<String> roles,
         UUID sucursalId,
         UUID choferId,
-        String fotoUrl
+        String fotoUrl,
+
+        /** false: cuenta creada con Google que todavía no completó DPI, teléfono y dirección. */
+        boolean perfilCompleto
 
 ) {
 }

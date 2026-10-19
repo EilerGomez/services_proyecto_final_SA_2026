@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.services.usuario;
 
 
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.CompletarPerfilRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
@@ -46,6 +47,12 @@ public interface UserService {
     UsuarioDetalleResponse hacerAdministradorSistema(UUID usuarioId);
 
     PerfilResponse actualizarPerfil(UUID usuarioId, UpdateProfileRequest solicitud);
+
+    /**
+     * Completa el perfil de una cuenta creada con Google (DPI, teléfono, dirección y NIT opcional) y la da
+     * de alta como cliente en Sales (ClienteRegistrado). 409 PERFIL_YA_COMPLETO, DPI_EN_USO o NIT_EN_USO.
+     */
+    PerfilResponse completarPerfil(UUID usuarioId, CompletarPerfilRequest solicitud);
 
     UsuarioDetalleResponse cambiarEstado(UUID usuarioId, UserStatusRequest solicitud);
 
