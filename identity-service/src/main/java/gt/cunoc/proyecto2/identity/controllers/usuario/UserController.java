@@ -116,7 +116,11 @@ public class UserController {
         return ResponseEntity.ok(respuesta);
     }
 
-    /** El administrador no puede cambiar el estado de su propia cuenta (desactivarse o bloquearse). */
+    /**
+     * Cambia el estado de la cuenta (ACTIVO, INACTIVO o BLOQUEADO), sin importar si es cliente,
+     * personal de sucursal o chofer. BLOQUEADO acepta {@code duracionMinutos}: sin ella, el bloqueo
+     * no vence. El administrador no puede cambiar el estado de su propia cuenta.
+     */
     @PatchMapping("/{id}/estado")
     @RequiereRol(Roles.ADMIN_SISTEMA)
     public ResponseEntity<UsuarioDetalleResponse> cambiarEstado(
@@ -128,5 +132,12 @@ public class UserController {
                     "No puede cambiar el estado de su propia cuenta; pídaselo a otro administrador del sistema");
         }
         return ResponseEntity.ok(servicio.cambiarEstado(id, solicitud));
+    }
+
+    /** Quita cualquier bloqueo (intentos fallidos o del administrador) y deja la cuenta activa. */
+    @PostMapping("/{id}/desbloquear")
+    @RequiereRol(Roles.ADMIN_SISTEMA)
+    public ResponseEntity<UsuarioDetalleResponse> desbloquear(@PathVariable UUID id) {
+        return ResponseEntity.ok(servicio.desbloquear(id));
     }
 }

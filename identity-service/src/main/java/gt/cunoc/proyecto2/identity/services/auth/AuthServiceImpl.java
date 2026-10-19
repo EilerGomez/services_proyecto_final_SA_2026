@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.ConflictoException;
 import gt.cunoc.proyecto2.comun.errores.NoAutenticadoException;
 import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
+import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.comun.seguridad.service.ServicioJwt;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
@@ -59,6 +60,10 @@ public class AuthServiceImpl implements AuthService {
     private static final Duration REFRESCO_DURACION = Duration.ofDays(7);
     private static final Duration RECUPERACION_DURACION = Duration.ofMinutes(30);
     private static final Duration DOBLE_FACTOR_DURACION = Duration.ofMinutes(10);
+    /** Fechas que ve el usuario (mensajes de bloqueo) en la zona del negocio, no en UTC. */
+    private static final DateTimeFormatter FORMATO_BLOQUEO = DateTimeFormatter
+            .ofPattern("dd/MM/yyyy HH:mm")
+            .withZone(PublicadorEventos.ZONA_NEGOCIO);
     private static final SecureRandom SEGURIDAD = new SecureRandom();
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfiles;
@@ -444,7 +449,8 @@ public class AuthServiceImpl implements AuthService {
             }
             if (usuario.getBloqueadoHasta().isAfter(Instant.now())) {
                 throw new NoAutenticadoException("CUENTA_BLOQUEADA",
-                        "La cuenta está bloqueada hasta " + usuario.getBloqueadoHasta());
+                        "La cuenta está bloqueada hasta " + FORMATO_BLOQUEO.format(usuario.getBloqueadoHasta())
+                                + " (hora de Guatemala)");
             }
             usuario.setEstado("ACTIVO");
             usuario.setBloqueadoHasta(null);
