@@ -25,6 +25,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     List<Usuario> findByEstadoOrderByCorreoAsc(String estado);
 
+    /** Cuentas BLOQUEADAS cuyo bloqueo temporal ya venció (bloqueado_hasta &lt; ahora). */
+    List<Usuario> findByEstadoAndBloqueadoHastaBefore(String estado, Instant ahora);
+
     List<Usuario> findByTokensValidosDesdeAfter(Instant desde);
 
     long countByEstadoAndRoles_Codigo(String estado, String rolCodigo);

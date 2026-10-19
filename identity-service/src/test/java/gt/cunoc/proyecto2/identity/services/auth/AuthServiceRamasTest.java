@@ -34,6 +34,8 @@ import gt.cunoc.proyecto2.identity.services.oauth.VerificadorGoogle;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +50,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -147,12 +150,32 @@ class AuthServiceRamasTest {
     void loginBloqueadoVigenteDa401() {
         Usuario usuario = usuarioActivo();
         usuario.setEstado("BLOQUEADO");
-        usuario.setBloqueadoHasta(Instant.now().plusSeconds(3600));
+        Instant hasta = Instant.now().plusSeconds(3600);
+        usuario.setBloqueadoHasta(hasta);
         when(usuarios.findByCorreo("a@correo.com")).thenReturn(Optional.of(usuario));
 
         NoAutenticadoException error = assertThrows(NoAutenticadoException.class,
                 () -> servicio.iniciarSesion(new InicioSesionRequest("a@correo.com", "Secreta123")));
         assertEquals("CUENTA_BLOQUEADA", error.getCodigo());
+    }
+
+    /** La fecha del mensaje va en hora de Guatemala (UTC-6), no en el ISO UTC de la base. */
+    @Test
+    void mensajeDeBloqueoUsaHoraDeGuatemala() {
+        Usuario usuario = usuarioActivo();
+        usuario.setEstado("BLOQUEADO");
+        Instant hasta = Instant.now().plusSeconds(3600);
+        usuario.setBloqueadoHasta(hasta);
+        when(usuarios.findByCorreo("a@correo.com")).thenReturn(Optional.of(usuario));
+
+        NoAutenticadoException error = assertThrows(NoAutenticadoException.class,
+                () -> servicio.iniciarSesion(new InicioSesionRequest("a@correo.com", "Secreta123")));
+
+        String local = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+                .withZone(ZoneId.of("America/Guatemala")).format(hasta);
+        assertTrue(error.getMessage().contains(local));
+        assertTrue(error.getMessage().endsWith("(hora de Guatemala)"));
+        assertFalse(error.getMessage().contains(hasta.toString()));
     }
 
     @Test

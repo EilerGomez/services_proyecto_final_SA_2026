@@ -72,7 +72,19 @@ public interface UserService {
      */
     PerfilResponse completarPerfil(UUID usuarioId, CompletarPerfilRequest solicitud);
 
+    /**
+     * Cambia el estado de una cuenta (ACTIVO, INACTIVO o BLOQUEADO). El administrador del sistema
+     * puede hacerlo con cualquier cuenta, sea cliente, personal de sucursal o chofer.
+     * 404 USUARIO_NO_EXISTE, 422 ULTIMO_ADMIN_SISTEMA.
+     */
     UsuarioDetalleResponse cambiarEstado(UUID usuarioId, UserStatusRequest solicitud);
+
+    /**
+     * Quita cualquier bloqueo (el de intentos fallidos o el del administrador) y deja la cuenta ACTIVA.
+     * Atajo de {@code cambiarEstado(id, ACTIVO)} con semántica explícita para el panel.
+     * 404 USUARIO_NO_EXISTE.
+     */
+    UsuarioDetalleResponse desbloquear(UUID usuarioId);
 
     List<AdminContactoResponse> administradoresDe(UUID sucursalId);
 

@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.identity.services.auth;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.models.CodigoDobleFactor;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import gt.cunoc.proyecto2.identity.repositories.CodigoDobleFactorRepository;
@@ -40,9 +41,7 @@ public class VigilanciaAcceso {
         }
         int intentos = usuario.getIntentosFallidos() + 1;
         if (intentos >= MAX_INTENTOS) {
-            usuario.setEstado("BLOQUEADO");
-            usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
-            usuario.setIntentosFallidos(0);
+            bloquearPorIntentos(usuario);
         } else {
             usuario.setIntentosFallidos(intentos);
         }
@@ -52,7 +51,7 @@ public class VigilanciaAcceso {
     /**
      * Suma un fallo de código 2FA; al quinto bloquea la cuenta.
      *
-     * @return true si la cuenta quedó bloqueada.
+     * @return true si el código quedó agotado (al quinto intento).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean falloCodigo(UUID desafioId, UUID usuarioId) {
@@ -68,11 +67,31 @@ public class VigilanciaAcceso {
         }
         Usuario usuario = usuarios.findById(usuarioId).orElse(null);
         if (usuario != null && !bloqueadaPorAdministrador(usuario)) {
-            usuario.setEstado("BLOQUEADO");
-            usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
+            bloquearPorIntentos(usuario);
             usuarios.save(usuario);
         }
         return true;
+    }
+
+    /**
+     * Aplica el bloqueo temporal por intentos fallidos. Si la cuenta es el último ADMIN_SISTEMA activo
+     * no se bloquea (el sistema siempre debe tener al menos un administrador del sistema activo): se
+     * deja el contador al tope y la cuenta sigue activa.
+     */
+    private void bloquearPorIntentos(Usuario usuario) {
+        if (esUltimoAdminActivo(usuario)) {
+            usuario.setIntentosFallidos(MAX_INTENTOS);
+            return;
+        }
+        usuario.setEstado("BLOQUEADO");
+        usuario.setBloqueadoHasta(Instant.now().plus(BLOQUEO));
+        usuario.setIntentosFallidos(0);
+    }
+
+    private boolean esUltimoAdminActivo(Usuario usuario) {
+        return "ACTIVO".equals(usuario.getEstado())
+                && usuario.getRoles().stream().anyMatch(rol -> Roles.ADMIN_SISTEMA.equals(rol.getCodigo()))
+                && usuarios.countByEstadoAndRoles_Codigo("ACTIVO", Roles.ADMIN_SISTEMA) <= 1;
     }
 
     /** BLOQUEADO sin fecha = bloqueo puesto por un administrador (no vence). */

@@ -322,9 +322,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UsuarioDetalleResponse cambiarEstado(UUID usuarioId, UserStatusRequest solicitud) {
         Usuario usuario = buscar(usuarioId);
-        if (usuario.getSucursalId() != null || usuario.getChoferId() != null) {
-            throw new ReglaNegocioException("GESTIONAR_EN_FLEET", "El personal y los choferes se desactivan en Fleet");
-        }
         boolean esUltimoAdmin = "ACTIVO".equals(usuario.getEstado())
                 && !"ACTIVO".equals(solicitud.estado())
                 && usuario.getRoles().stream().anyMatch(rol -> Roles.ADMIN_SISTEMA.equals(rol.getCodigo()))
@@ -335,9 +332,10 @@ public class UserServiceImpl implements UserService {
                     "No se puede desactivar al último administrador del sistema activo");
         }
         usuario.setEstado(solicitud.estado());
-        // Sin fecha: un BLOQUEADO puesto aquí no vence (solo se quita activando la cuenta de nuevo).
+        // BLOQUEADO con duración: se desbloquea solo al vencer (lo limpia el NormalizadorBloqueos).
+        // BLOQUEADO sin duración: no vence, solo se quita activando la cuenta de nuevo.
         // Activar o desactivar también limpia un bloqueo por intentos fallidos.
-        usuario.setBloqueadoHasta(null);
+        usuario.setBloqueadoHasta(bloqueoHastaDe(solicitud));
         usuario.setIntentosFallidos(0);
         // Desactivada o bloqueada: sus JWT dejan de valer al instante (el API Gateway los rechaza)
         Instant revocadaDesde = "ACTIVO".equals(solicitud.estado()) ? null : usuario.revocarTokens(Instant.now());
@@ -350,6 +348,20 @@ public class UserServiceImpl implements UserService {
             refrescos.save(token);
         });
         return aDetalle(usuario, perfiles.findById(usuarioId).orElse(null));
+    }
+
+    @Override
+    @Transactional
+    public UsuarioDetalleResponse desbloquear(UUID usuarioId) {
+        return cambiarEstado(usuarioId, new UserStatusRequest("ACTIVO"));
+    }
+
+    /** Fecha en que vence un BLOQUEADO con duración; null para ACTIVO/INACTIVO o bloqueo sin vencimiento. */
+    private static Instant bloqueoHastaDe(UserStatusRequest solicitud) {
+        if (!"BLOQUEADO".equals(solicitud.estado()) || solicitud.duracionMinutos() == null) {
+            return null;
+        }
+        return Instant.now().plus(Duration.ofMinutes(solicitud.duracionMinutos()));
     }
 
     @Override

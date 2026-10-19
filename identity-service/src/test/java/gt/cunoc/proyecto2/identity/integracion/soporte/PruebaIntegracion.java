@@ -82,6 +82,7 @@ public abstract class PruebaIntegracion {
         registro.add("spring.rabbitmq.password", RABBIT::getAdminPassword);
         registro.add("spring.rabbitmq.listener.simple.retry.initial-interval", () -> "100");
         registro.add("comun.eventos.outbox.intervalo-ms", () -> "200");
+        registro.add("app.cuentas.normalizar-bloqueos-ms", () -> "3600000");
         registro.add("app.jwt.secret", () -> "secreto-de-pruebas-de-al-menos-32-caracteres-00");
     }
 
