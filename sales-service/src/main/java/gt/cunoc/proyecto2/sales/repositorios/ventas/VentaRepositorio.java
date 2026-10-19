@@ -20,6 +20,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VentaRepositorio extends JpaRepository<VentaEntidad, UUID>, JpaSpecificationExecutor<VentaEntidad> {
 
+    /**
+     * La más reciente primero: por fecha de pago y, el mismo día, por el momento en que se registró.
+     * El id solo desempata dos ventas registradas en el mismo instante (así el orden siempre es el mismo).
+     */
+    Sort RECIENTES_PRIMERO = Sort.by(
+            Sort.Order.desc("fechaPago"), Sort.Order.desc("fechaCreacion"), Sort.Order.desc("id"));
+
     /** Historial por NIT (S7, S8): incluye las compras en mostrador hechas con el mismo NIT. */
     List<VentaEntidad> findByClienteNit(String nit, Sort orden);
 

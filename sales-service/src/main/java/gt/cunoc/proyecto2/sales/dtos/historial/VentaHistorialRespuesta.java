@@ -22,6 +22,7 @@ public record VentaHistorialRespuesta(
         List<Integer> asientos,
         BigDecimal montoTotal,
         LocalDate fechaPago,
+        OffsetDateTime fechaRegistro,
         EstadoVenta estado) {
 
     public VentaHistorialRespuesta(VentaEntidad venta, VistaViajeEntidad viaje, List<BoletoEntidad> boletos) {
@@ -33,6 +34,7 @@ public record VentaHistorialRespuesta(
                 boletos.stream().map(BoletoEntidad::getNumeroAsiento).sorted(Comparator.naturalOrder()).toList(),
                 venta.getMontoTotal(),
                 venta.getFechaPago(),
+                Fechas.enGuatemala(venta.getFechaCreacion()),
                 venta.getEstado());
     }
 }

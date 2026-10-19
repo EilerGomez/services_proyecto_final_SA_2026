@@ -24,14 +24,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class HistorialServicioImpl implements HistorialServicio {
-
-    private static final Sort RECIENTES_PRIMERO = Sort.by(Sort.Order.desc("fechaPago"), Sort.Order.desc("id"));
 
     private final VistaClienteRepositorio clientes;
     private final VentaRepositorio ventas;
@@ -68,7 +65,7 @@ public class HistorialServicioImpl implements HistorialServicio {
 
     /** Carga ventas, boletos, viajes y órdenes del NIT con una consulta por tabla. */
     private HistorialRespuesta armar(String nit, Optional<VistaClienteEntidad> perfil) {
-        List<VentaEntidad> suyas = ventas.findByClienteNit(nit, RECIENTES_PRIMERO);
+        List<VentaEntidad> suyas = ventas.findByClienteNit(nit, VentaRepositorio.RECIENTES_PRIMERO);
         List<OrdenAlquilerEntidad> alquileres = ordenes.findByClienteNitOrderByFechaCreacionDesc(nit);
 
         List<UUID> ventaIds = suyas.stream().map(VentaEntidad::getId).toList();

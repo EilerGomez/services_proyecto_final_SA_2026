@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,8 +49,6 @@ public class VentaServicioImpl implements VentaServicio {
 
     private static final Logger log = LoggerFactory.getLogger(VentaServicioImpl.class);
     private static final int LARGO_MOTIVO = 255;
-    private static final Sort RECIENTES_PRIMERO = Sort.by(Sort.Order.desc("fechaPago"), Sort.Order.desc("id"));
-
     private final VentaRepositorio repositorio;
     private final BoletoRepositorio boletos;
     private final AsientoViajeRepositorio asientos;
@@ -194,7 +191,8 @@ public class VentaServicioImpl implements VentaServicio {
     @Override
     @Transactional(readOnly = true)
     public List<VentaRespuesta> listar(FiltroVentas filtro) {
-        List<VentaEntidad> ventas = repositorio.findAll(EspecificacionesVenta.filtrar(filtro), RECIENTES_PRIMERO);
+        List<VentaEntidad> ventas = repositorio.findAll(EspecificacionesVenta.filtrar(filtro),
+                VentaRepositorio.RECIENTES_PRIMERO);
         if (ventas.isEmpty()) {
             return List.of();
         }

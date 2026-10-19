@@ -606,6 +606,7 @@ class VentaServicioImplTest {
                 ArgumentMatchers.<Specification<VentaEntidad>>any(),
                 eq(Sort.by(
                         Sort.Order.desc("fechaPago"),
+                        Sort.Order.desc("fechaCreacion"),
                         Sort.Order.desc("id"))));
     }
 

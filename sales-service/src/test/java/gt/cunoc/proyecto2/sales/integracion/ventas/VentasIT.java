@@ -580,4 +580,30 @@ class VentasIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<List<String>>json(
                 porViaje, "$[*].ventaId")).containsExactly(deGuate.toString());
     }
+
+    private void registradaA(UUID ventaId, OffsetDateTime momento) {
+        jdbc.update("UPDATE ventas SET fecha_creacion = ? WHERE id = ?", momento, ventaId);
+    }
+
+    @Test
+    void lasVentasDelMismoDiaSalenDeLaMasRecienteALaMasAntigua() {
+        UUID primera = insertarVenta(viaje, null, "CONFIRMADA", 1);
+        UUID segunda = insertarVenta(viaje, null, "CONFIRMADA", 2);
+        UUID tercera = insertarVenta(viaje, null, "CONFIRMADA", 3);
+        OffsetDateTime ocho = OffsetDateTime.parse("2026-10-19T08:00:00-06:00");
+        // El orden de registro no coincide con el de inserción: decide la hora, no el id
+        registradaA(tercera, ocho);
+        registradaA(primera, ocho.plusMinutes(5));
+        registradaA(segunda, ocho.plusMinutes(30));
+
+        ResponseEntity<String> lista = get(VENTAS, tokenCajero(xela));
+
+        esStatus(lista, 200);
+        assertThat(PruebaIntegracion.<List<String>>json(lista, "$[*].ventaId"))
+                .containsExactly(segunda.toString(), primera.toString(), tercera.toString());
+        OffsetDateTime masReciente = fecha(lista, "$[0].fechaRegistro");
+        assertThat(masReciente).isAtSameInstantAs(ocho.plusMinutes(30));
+        assertThat(masReciente.getOffset().getTotalSeconds()).isEqualTo(-6 * 3600);
+        assertThat(PruebaIntegracion.<String>json(lista, "$[2].fechaPago")).isEqualTo(FECHA_PAGO.toString());
+    }
 }

@@ -6,11 +6,14 @@ import gt.cunoc.proyecto2.sales.modelos.ventas.CanalVenta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.EstadoVenta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.MetodoPago;
 import gt.cunoc.proyecto2.sales.modelos.ventas.VentaEntidad;
+import gt.cunoc.proyecto2.sales.utilidades.Fechas;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/** fechaRegistro: momento en que se registró la venta (hora de Guatemala); null justo al crearla. */
 public record VentaRespuesta(
         UUID ventaId,
         UUID viajeId,
@@ -21,6 +24,7 @@ public record VentaRespuesta(
         MetodoPago metodoPago,
         BigDecimal montoTotal,
         LocalDate fechaPago,
+        OffsetDateTime fechaRegistro,
         EstadoVenta estado,
         String motivoRechazo,
         String motivoCancelacion,
@@ -39,6 +43,7 @@ public record VentaRespuesta(
                 venta.getMetodoPago(),
                 venta.getMontoTotal(),
                 venta.getFechaPago(),
+                Fechas.enGuatemala(venta.getFechaCreacion()),
                 venta.getEstado(),
                 venta.getMotivoRechazo(),
                 venta.getMotivoCancelacion(),

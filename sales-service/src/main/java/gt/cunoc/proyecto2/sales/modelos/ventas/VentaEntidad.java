@@ -12,6 +12,7 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -82,6 +83,10 @@ public class VentaEntidad {
 
     @Column(name = "fecha_cancelacion")
     private LocalDate fechaCancelacion;
+
+    /** Momento en que se registró (DEFAULT now() en la BD): ordena las ventas del mismo día de pago. */
+    @Column(name = "fecha_creacion", insertable = false, updatable = false)
+    private OffsetDateTime fechaCreacion;
 
     /** Null al crear (así Spring Data sabe que es nueva); Hibernate pone 0 y la sube en cada UPDATE. */
     @Version

@@ -42,7 +42,8 @@ import org.springframework.data.domain.Sort;
 
 class HistorialServicioImplTest {
 
-    private static final Sort RECIENTES_PRIMERO = Sort.by(Sort.Order.desc("fechaPago"), Sort.Order.desc("id"));
+    private static final Sort RECIENTES_PRIMERO = Sort.by(
+            Sort.Order.desc("fechaPago"), Sort.Order.desc("fechaCreacion"), Sort.Order.desc("id"));
 
     private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
     private final VentaRepositorio ventas = mock(VentaRepositorio.class);
