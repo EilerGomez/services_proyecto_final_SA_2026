@@ -45,6 +45,23 @@ class CarteraIT extends PruebaIntegracion {
     }
 
     @Test
+    void elHistorialMuestraPrimeroLoMasRecienteAunqueSeaDelMismoDia() {
+        String token = tokenCliente(UUID.randomUUID());
+        post("/wallet/cartera/recargas", token, "{\"monto\":10.00,\"fechaMovimiento\":\"2026-10-20\"}");
+        post("/wallet/cartera/recargas", token, "{\"monto\":20.00,\"fechaMovimiento\":\"2026-10-21\"}");
+        post("/wallet/cartera/recargas", token, "{\"monto\":30.00,\"fechaMovimiento\":\"2026-10-21\"}");
+
+        ResponseEntity<String> historial = get(
+                "/wallet/cartera/movimientos?desde=2026-10-01&hasta=2026-10-31", token);
+
+        // 21/10 la de 30 (registrada después), 21/10 la de 20, 20/10 la de 10
+        assertThat(PruebaIntegracion.<List<Double>>json(historial, "$[*].monto")).containsExactly(30.0, 20.0, 10.0);
+        assertThat(PruebaIntegracion.<List<Double>>json(historial, "$[*].saldoResultante"))
+                .containsExactly(60.0, 30.0, 10.0);
+        assertThat(PruebaIntegracion.<List<String>>json(historial, "$[*].fechaRegistro")).doesNotContainNull();
+    }
+
+    @Test
     void recargaSinMontoSeRechaza() {
         esError(post("/wallet/cartera/recargas", tokenCliente(UUID.randomUUID()),
                 "{\"monto\":0,\"fechaMovimiento\":\"2026-10-20\"}"), 400, "VALIDACION");

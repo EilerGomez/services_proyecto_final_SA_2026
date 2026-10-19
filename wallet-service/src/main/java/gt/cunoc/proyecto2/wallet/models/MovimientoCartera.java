@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -74,6 +75,10 @@ public class MovimientoCartera {
     @Column(name = "fecha_movimiento", nullable = false)
     private LocalDate fechaMovimiento;
 
+    /** Momento real en que se registró: ordena los movimientos del mismo día (el más reciente primero). */
+    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    private Instant fechaCreacion;
+
     /**
      * Único constructor: todo el movimiento se arma aquí a partir de la cartera (su id y el saldo que quedó).
      * Sin fecha se usa la de hoy.
@@ -89,6 +94,7 @@ public class MovimientoCartera {
         this.proveedorPago = proveedorPago;
         this.referenciaExterna = referenciaExterna;
         this.fechaMovimiento = fecha == null ? LocalDate.now() : fecha;
+        this.fechaCreacion = Instant.now();
     }
 
     /** Movimientos de una venta o un alquiler: no pasan por la pasarela. */
