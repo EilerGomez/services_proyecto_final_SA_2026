@@ -3,6 +3,7 @@ package gt.cunoc.proyecto2.trips.eventos;
 import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.trips.dtos.rutas.RutaRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
+import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerAsignado;
 import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEliminada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEvento;
@@ -21,7 +22,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Los 9 eventos que publica Trips, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
+ * Los eventos que publica Trips, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
  * Los servicios llaman a estos métodos en lugar de escribir nombres de eventos a mano.
  */
 @Component
@@ -84,6 +85,12 @@ public class PublicadorEventosTrips {
         publicar(TipoAgregado.ALQUILER_PRIVADO, alquiler.getId(), alquiler.getVersion(),
                 TipoEvento.COTIZACION_ALQUILER_CONFIRMADA, CotizacionAlquilerConfirmada.desde(alquiler),
                 Fechas.hoy());
+    }
+
+    /** T22: el alquiler pagado ya quedó con bus y chofer (Notification avisa al cliente). */
+    public void alquilerAsignado(AlquilerPrivadoEntidad alquiler, ViajeRespuesta viaje) {
+        publicar(TipoAgregado.ALQUILER_PRIVADO, alquiler.getId(), alquiler.getVersion(),
+                TipoEvento.ALQUILER_ASIGNADO, AlquilerAsignado.desde(alquiler, viaje), Fechas.hoy());
     }
 
     private static Integer siguienteVersion(Integer version) {

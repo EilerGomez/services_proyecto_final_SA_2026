@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.notification.services.correo;
 
+import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerAsignado;
 import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerPagado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
@@ -131,10 +132,10 @@ class CorreoVentasServiceTest {
 
     @Test
     void alquilerPagadoConfirmaElPago() {
-        // Arrange
-        AlquilerPagado alquiler = new AlquilerPagado(UUID.randomUUID(), UUID.randomUUID(), "Colegio San José",
-                "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala", new BigDecimal("2600.00"),
-                "EFECTIVO", FECHA);
+        // Arrange: el pago solo le genera correo al cliente; la sucursal se avisa en el panel
+        AlquilerPagado alquiler = new AlquilerPagado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Colegio San José", "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala",
+                new BigDecimal("2600.00"), "EFECTIVO", FECHA);
 
         // Act
         servicio.alquilerPagado(EVENTO_ID, alquiler);
@@ -146,6 +147,44 @@ class CorreoVentasServiceTest {
                 () -> assertTrue(cuerpo.getValue().contains("Recorrido: Quetzaltenango → Antigua Guatemala")),
                 () -> assertTrue(cuerpo.getValue().contains("Monto: Q 2600.00, pagado con efectivo")),
                 () -> assertTrue(datos.getValue().contains("\"fechaPago\":\"2026-11-01\"")));
+    }
+
+    @Test
+    void alquilerAsignadoAvisaAlClienteElBusYElPiloto() {
+        // Arrange
+        AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Colegio San José", "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala",
+                SALIDA, SALIDA.plusHours(10), "P-123ABC", "Juan Pérez");
+
+        // Act
+        servicio.alquilerAsignado(EVENTO_ID, asignado);
+
+        // Assert
+        capturar("colegio@correo.com", CorreoVentasService.ALQUILER_ASIGNADO);
+        assertAll(
+                () -> assertEquals("Tu alquiler ya tiene bus y piloto", asunto.getValue()),
+                () -> assertTrue(cuerpo.getValue().contains("Recorrido: Quetzaltenango → Antigua Guatemala")),
+                () -> assertTrue(cuerpo.getValue().contains("Salida: 05/11/2026 08:00")),
+                () -> assertTrue(cuerpo.getValue().contains("Bus: P-123ABC")),
+                () -> assertTrue(cuerpo.getValue().contains("Piloto: Juan Pérez")),
+                () -> assertTrue(datos.getValue().contains("\"busPlaca\":\"P-123ABC\"")));
+    }
+
+    @Test
+    void alquilerAsignadoSinPlacaNiPilotoMuestraGuion() {
+        // Arrange
+        AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Colegio", null, "Quetzaltenango", "Antigua", SALIDA, null, null, null);
+
+        // Act
+        servicio.alquilerAsignado(EVENTO_ID, asignado);
+
+        // Assert
+        capturar(null, CorreoVentasService.ALQUILER_ASIGNADO);
+        assertAll(
+                () -> assertTrue(cuerpo.getValue().contains("Bus: -")),
+                () -> assertTrue(cuerpo.getValue().contains("Piloto: -")),
+                () -> assertTrue(cuerpo.getValue().contains("Retorno: -")));
     }
 
     @Test

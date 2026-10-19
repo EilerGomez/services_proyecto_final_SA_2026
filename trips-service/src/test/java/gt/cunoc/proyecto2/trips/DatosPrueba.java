@@ -125,7 +125,9 @@ public final class DatosPrueba {
     public static RecorridoAlquiler recorrido() {
         return new RecorridoAlquiler("Quetzaltenango", "Antigua Guatemala",
                 OffsetDateTime.parse("2026-11-05T07:00:00-06:00"), OffsetDateTime.parse("2026-11-05T19:00:00-06:00"),
-                30, new BigDecimal("200.00"));
+                30, new BigDecimal("200.00"),
+                new BigDecimal("14.834700"), new BigDecimal("-91.518400"),
+                new BigDecimal("14.558600"), new BigDecimal("-90.729500"));
     }
 
     /** Alquiler SOLICITADO EN_LINEA de un cliente con cuenta, en Xela, precio estimado 2750, version 0. */

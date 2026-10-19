@@ -24,7 +24,8 @@ class DtosAlquilerTest {
 
     private static NuevoAlquilerSolicitud solicitud(String nit, String correo, OffsetDateTime retorno) {
         return new NuevoAlquilerSolicitud(DatosPrueba.XELA, nit, "  Ana López ", correo, " Quetzaltenango ",
-                " Antigua Guatemala  ", SALIDA, retorno, 30, new BigDecimal("200.00"), DatosPrueba.FECHA);
+                " Antigua Guatemala  ", SALIDA, retorno, 30, new BigDecimal("200.00"), DatosPrueba.FECHA,
+                null, null, null, null);
     }
 
     // ----- NuevaConfiguracionAlquilerSolicitud y su respuesta -----
@@ -79,7 +80,7 @@ class DtosAlquilerTest {
     @Test
     void textosNullSeQuedanNull() {
         NuevoAlquilerSolicitud solicitud = new NuevoAlquilerSolicitud(null, null, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null, null, null, null);
 
         assertThat(solicitud.clienteNit()).isNull();
         assertThat(solicitud.clienteNombre()).isNull();
@@ -98,6 +99,41 @@ class DtosAlquilerTest {
         assertThat(recorrido.fechaRetorno()).isEqualTo(RETORNO);
         assertThat(recorrido.cantidadPasajeros()).isEqualTo(30);
         assertThat(recorrido.kmEstimados()).isEqualByComparingTo("200.00");
+        assertThat(recorrido.origenLatitud()).isNull();
+        assertThat(recorrido.destinoLongitud()).isNull();
+    }
+
+    @Test
+    void recorridoGuardaLasCoordenadasDelMapa() {
+        NuevoAlquilerSolicitud solicitud = new NuevoAlquilerSolicitud(DatosPrueba.XELA, null, "Ana López", null,
+                "Quetzaltenango", "Antigua Guatemala", SALIDA, RETORNO, 30, new BigDecimal("200.00"),
+                DatosPrueba.FECHA, new BigDecimal("14.834700"), new BigDecimal("-91.518400"),
+                new BigDecimal("14.558600"), new BigDecimal("-90.729500"));
+
+        RecorridoAlquiler recorrido = solicitud.recorrido();
+
+        assertThat(recorrido.origenLatitud()).isEqualByComparingTo("14.834700");
+        assertThat(recorrido.origenLongitud()).isEqualByComparingTo("-91.518400");
+        assertThat(recorrido.destinoLatitud()).isEqualByComparingTo("14.558600");
+        assertThat(recorrido.destinoLongitud()).isEqualByComparingTo("-90.729500");
+    }
+
+    @Test
+    void coordenadasIncompletasSonInvalidas() {
+        NuevoAlquilerSolicitud sinLongitud = new NuevoAlquilerSolicitud(DatosPrueba.XELA, null, "Ana López", null,
+                "Quetzaltenango", "Antigua Guatemala", SALIDA, RETORNO, 30, new BigDecimal("200.00"),
+                DatosPrueba.FECHA, new BigDecimal("14.834700"), null, null, null);
+
+        VerificarError.lanza(sinLongitud::recorrido, ErrorAlquiler.COORDENADAS_INCOMPLETAS);
+    }
+
+    @Test
+    void coordenadasFueraDeRangoSonInvalidas() {
+        NuevoAlquilerSolicitud fueraDeRango = new NuevoAlquilerSolicitud(DatosPrueba.XELA, null, "Ana López", null,
+                "Quetzaltenango", "Antigua Guatemala", SALIDA, RETORNO, 30, new BigDecimal("200.00"),
+                DatosPrueba.FECHA, new BigDecimal("91"), new BigDecimal("-91"), null, null);
+
+        VerificarError.lanza(fueraDeRango::recorrido, ErrorAlquiler.COORDENADAS_FUERA_DE_RANGO);
     }
 
     @Test
@@ -189,6 +225,10 @@ class DtosAlquilerTest {
         assertThat(respuesta.clienteCorreo()).isEqualTo("cliente@correo.com");
         assertThat(respuesta.origen()).isEqualTo("Quetzaltenango");
         assertThat(respuesta.destino()).isEqualTo("Antigua Guatemala");
+        assertThat(respuesta.origenLatitud()).isEqualByComparingTo("14.834700");
+        assertThat(respuesta.origenLongitud()).isEqualByComparingTo("-91.518400");
+        assertThat(respuesta.destinoLatitud()).isEqualByComparingTo("14.558600");
+        assertThat(respuesta.destinoLongitud()).isEqualByComparingTo("-90.729500");
         assertThat(respuesta.fechaSalida()).isEqualTo(SALIDA);
         assertThat(respuesta.fechaRetorno()).isEqualTo(RETORNO);
         assertThat(respuesta.cantidadPasajeros()).isEqualTo(30);
@@ -208,7 +248,7 @@ class DtosAlquilerTest {
         // 13:00 UTC = 07:00 en Guatemala
         NuevoAlquilerSolicitud solicitud = new NuevoAlquilerSolicitud(DatosPrueba.XELA, null, "Juan", null, "Xela",
                 "Guate", OffsetDateTime.of(2026, 11, 5, 13, 0, 0, 0, ZoneOffset.UTC), null, 10,
-                new BigDecimal("205.00"), DatosPrueba.FECHA);
+                new BigDecimal("205.00"), DatosPrueba.FECHA, null, null, null, null);
         AlquilerPrivadoEntidad alquiler = solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, null, null,
                 new BigDecimal("2818.75"), UUID.randomUUID());
         alquiler.cancelar("Sin presupuesto");

@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.trips.DatosPrueba;
 import gt.cunoc.proyecto2.trips.dtos.rutas.RutaRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NombresViaje;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
+import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerAsignado;
 import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEliminada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEvento;
@@ -224,6 +225,25 @@ class PublicadorEventosTripsTest {
             assertThat(e.canal()).isEqualTo(CanalAlquiler.EN_LINEA);
             assertThat(e.precioConfirmado()).isEqualByComparingTo("2600.00");
             assertThat(e.cantidadPasajeros()).isEqualTo(30);
+        });
+        verifyNoMoreInteractions(publicador);
+    }
+
+    @Test
+    void alquilerAsignadoConFechaDeHoy() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquilerPagado();
+        DatosPrueba.conVersion(alquiler, 3);
+        ViajeRespuesta viaje = respuesta(viajeDeNoche());
+
+        eventos.alquilerAsignado(alquiler, viaje);
+
+        Object payload = publicado("AlquilerPrivado", alquiler.getId(), 3L, "AlquilerAsignado", hoy());
+        assertThat(payload).isInstanceOfSatisfying(AlquilerAsignado.class, e -> {
+            assertThat(e.alquilerId()).isEqualTo(alquiler.getId());
+            assertThat(e.viajeId()).isEqualTo(viaje.viajeId());
+            assertThat(e.clienteCorreo()).isEqualTo("cliente@correo.com");
+            assertThat(e.busPlaca()).isEqualTo("P-123ABC");
+            assertThat(e.choferNombre()).isEqualTo("Juan Perez");
         });
         verifyNoMoreInteractions(publicador);
     }

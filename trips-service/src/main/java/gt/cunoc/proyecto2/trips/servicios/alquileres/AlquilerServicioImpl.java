@@ -152,6 +152,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         repositorio.saveAndFlush(alquiler);
         ViajeDetalleRespuesta detalle = viajes.detalle(viaje);
         eventos.viajeProgramado(detalle.viaje());                               // tipo PRIVADO
+        eventos.alquilerAsignado(alquiler, detalle.viaje());                    // avisa al cliente (bus y piloto)
         return detalle;
     }
 

@@ -36,7 +36,7 @@ spring:
 
 # Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo.
 # Publica: RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado,
-#          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada
+#          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada, AlquilerAsignado
 comun:
   eventos:
     exchange: trips.eventos            # publica en este exchange (outbox → RelayOutbox)

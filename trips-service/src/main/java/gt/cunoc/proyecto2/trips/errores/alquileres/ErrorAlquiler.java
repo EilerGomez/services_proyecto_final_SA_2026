@@ -14,7 +14,11 @@ public enum ErrorAlquiler implements CodigoError {
             "La fecha de solicitud (%s) no puede ser anterior a la de hoy (%s)"),    
     ESTADO_INVALIDO(TipoError.REGLA_NEGOCIO, "El alquiler está %s; esta acción solo aplica a alquileres %s"),
     ALQUILER_NO_PAGADO(TipoError.REGLA_NEGOCIO, "El alquiler está %s; solo se asigna bus y chofer a un alquiler PAGADO"),
-    CAPACIDAD_INSUFICIENTE(TipoError.REGLA_NEGOCIO, "El bus tiene %d asientos y el alquiler es para %d pasajeros");
+    CAPACIDAD_INSUFICIENTE(TipoError.REGLA_NEGOCIO, "El bus tiene %d asientos y el alquiler es para %d pasajeros"),
+    COORDENADAS_INCOMPLETAS(TipoError.SOLICITUD_INVALIDA,
+            "Marca el recorrido en el mapa: la latitud y la longitud de cada punto van juntas"),
+    COORDENADAS_FUERA_DE_RANGO(TipoError.SOLICITUD_INVALIDA,
+            "Las coordenadas del recorrido están fuera del rango válido");
 
     private final TipoError tipo;
     private final String mensaje;

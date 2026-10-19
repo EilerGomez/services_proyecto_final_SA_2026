@@ -9,6 +9,7 @@ import gt.cunoc.proyecto2.trips.integracion.soporte.ServidorFalso;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +128,37 @@ class AlquileresIT extends PruebaIntegracion {
     }
 
     // ----- T17 y T18 -----
+
+    @Test
+    void unClienteMarcaElRecorridoEnElMapa() {
+        UUID cliente = UUID.randomUUID();
+        String cuerpo = """
+                {"sucursalId":"%s","clienteNombre":"Maria Lopez","origen":"Xela","destino":"Antigua",
+                 "fechaSalida":"%s","cantidadPasajeros":30,"kmEstimados":180.50,"fechaSolicitud":"%s",
+                 "origenLatitud":14.8347,"origenLongitud":-91.5184,
+                 "destinoLatitud":14.5586,"destinoLongitud":-90.7295}
+                """.formatted(xela, SALIDA_ALQUILER, hoy());
+
+        ResponseEntity<String> respuesta = post(ALQUILERES, tokenCliente(cliente), cuerpo);
+
+        esStatus(respuesta, 201);
+        assertThat(decimal(respuesta, "$.origenLatitud")).isEqualByComparingTo("14.8347");
+        assertThat(decimal(respuesta, "$.origenLongitud")).isEqualByComparingTo("-91.5184");
+        assertThat(decimal(respuesta, "$.destinoLatitud")).isEqualByComparingTo("14.5586");
+        assertThat(decimal(respuesta, "$.destinoLongitud")).isEqualByComparingTo("-90.7295");
+    }
+
+    @Test
+    void coordenadasIncompletasSon400() {
+        String cuerpo = """
+                {"sucursalId":"%s","clienteNombre":"Maria Lopez","origen":"Xela","destino":"Antigua",
+                 "fechaSalida":"%s","cantidadPasajeros":30,"kmEstimados":180.50,"fechaSolicitud":"%s",
+                 "origenLatitud":14.8347}
+                """.formatted(xela, SALIDA_ALQUILER, hoy());
+
+        esError(post(ALQUILERES, tokenCliente(UUID.randomUUID()), cuerpo), 400, "COORDENADAS_INCOMPLETAS");
+        assertThat(contar("alquileres_privados")).isZero();
+    }
 
     @Test
     void elPersonalListaLosAlquileresDeSuSucursal() {
@@ -318,11 +350,20 @@ class AlquileresIT extends PruebaIntegracion {
         assertThat(FLEET.peticiones()).extracting(ServidorFalso.Peticion::consulta)
                 .contains("fecha=" + SALIDA_ALQUILER.toLocalDate());
 
-        String evento = esperarEventos("ViajeProgramado").get("ViajeProgramado");
+        Map<String, String> eventos = esperarEventos("ViajeProgramado", "AlquilerAsignado");
+        String evento = eventos.get("ViajeProgramado");
         assertThat(JsonPath.<String>read(evento, "$.aggregateId")).isEqualTo(viajeId);
         assertThat(JsonPath.<String>read(evento, "$.payload.tipo")).isEqualTo("PRIVADO");
         assertThat(JsonPath.<String>read(evento, "$.payload.alquilerId")).isEqualTo(alquiler.toString());
         assertThat(JsonPath.<String>read(evento, "$.payload.busPlaca")).isEqualTo("P-111AAA");
+
+        // AlquilerAsignado: Notification avisa al cliente que ya tiene bus y piloto
+        String asignado = eventos.get("AlquilerAsignado");
+        assertThat(JsonPath.<String>read(asignado, "$.aggregateId")).isEqualTo(alquiler.toString());
+        assertThat(JsonPath.<String>read(asignado, "$.payload.viajeId")).isEqualTo(viajeId);
+        assertThat(JsonPath.<String>read(asignado, "$.payload.clienteCorreo")).isEqualTo("maria@trips.gt");
+        assertThat(JsonPath.<String>read(asignado, "$.payload.busPlaca")).isEqualTo("P-111AAA");
+        assertThat(JsonPath.<String>read(asignado, "$.payload.choferNombre")).isEqualTo("Juan Perez");
 
         // el detalle del alquiler ya trae su viaje
         ResponseEntity<String> detalle = get(ALQUILERES + "/" + alquiler, tokenAdminSucursal(xela));

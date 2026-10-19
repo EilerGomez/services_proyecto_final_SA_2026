@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.notification.services.correo;
 
+import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerAsignado;
 import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerPagado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
@@ -29,6 +30,7 @@ public class CorreoVentasService {
     public static final String COMPRA_BOLETO = "COMPRA_BOLETO";
     public static final String VENTA_CANCELADA = "VENTA_CANCELADA";
     public static final String ALQUILER_PAGADO = "ALQUILER_PAGADO";
+    public static final String ALQUILER_ASIGNADO = "ALQUILER_ASIGNADO";
     public static final String COTIZACION_ALQUILER = "COTIZACION_ALQUILER";
 
     private static final int LARGO_ASUNTO = 200;
@@ -113,7 +115,8 @@ public class CorreoVentasService {
                 json.writeValueAsString(datos), cuerpo);
     }
 
-    /* AlquilerPagado: confirma el pago del viaje privado. */
+    /* AlquilerPagado: confirma el pago del viaje privado al cliente. La sucursal no recibe correo:
+       el aviso de "pagos por asignar" se ve en el menú del panel. */
     public void alquilerPagado(UUID eventoId, AlquilerPagado alquiler) {
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("ordenId", alquiler.ordenId());
@@ -137,6 +140,36 @@ public class CorreoVentasService {
                 metodo(alquiler.metodoPago()), fecha(alquiler.fechaPago()));
         correos.enviarPlantilla(eventoId, alquiler.clienteCorreo(), ALQUILER_PAGADO, "Pago de alquiler recibido",
                 json.writeValueAsString(datos), cuerpo);
+    }
+
+    /* AlquilerAsignado: el viaje privado ya tiene bus y piloto. */
+    public void alquilerAsignado(UUID eventoId, AlquilerAsignado asignado) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("alquilerId", asignado.alquilerId());
+        datos.put("viajeId", asignado.viajeId());
+        datos.put("origen", asignado.origen());
+        datos.put("destino", asignado.destino());
+        datos.put("fechaSalida", texto(asignado.fechaSalida()));
+        datos.put("fechaRetorno", texto(asignado.fechaRetorno()));
+        datos.put("busPlaca", asignado.busPlaca());
+        datos.put("choferNombre", asignado.choferNombre());
+        String cuerpo = """
+                Hola %s,
+
+                Tu viaje privado ya tiene bus y piloto asignados.
+
+                Recorrido: %s → %s
+                Salida: %s (hora de Guatemala)
+                Retorno: %s
+                Bus: %s
+                Piloto: %s
+
+                ¡Buen viaje!""".formatted(
+                asignado.clienteNombre(), asignado.origen(), asignado.destino(),
+                fechaHora(asignado.fechaSalida()), fechaHora(asignado.fechaRetorno()),
+                valor(asignado.busPlaca()), valor(asignado.choferNombre()));
+        correos.enviarPlantilla(eventoId, asignado.clienteCorreo(), ALQUILER_ASIGNADO,
+                "Tu alquiler ya tiene bus y piloto", json.writeValueAsString(datos), cuerpo);
     }
 
     /* CotizacionAlquilerConfirmada: precio final del alquiler y cómo pagarlo. */
