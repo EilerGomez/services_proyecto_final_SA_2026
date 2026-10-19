@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.RecorridoAlquiler;
 import gt.cunoc.proyecto2.trips.utilidades.Normalizador;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
@@ -35,7 +36,12 @@ public record NuevoAlquilerSolicitud(
         OffsetDateTime fechaRetorno,
         @NotNull @Min(1) @Max(120) Integer cantidadPasajeros,
         @NotNull @DecimalMin("0.01") @Digits(integer = 6, fraction = 2) BigDecimal kmEstimados,
-        @NotNull LocalDate fechaSolicitud) {
+        @NotNull LocalDate fechaSolicitud,
+        // Coordenadas opcionales que el cliente marca en el mapa (origen y destino).
+        @DecimalMin("-90") @DecimalMax("90") @Digits(integer = 3, fraction = 6) BigDecimal origenLatitud,
+        @DecimalMin("-180") @DecimalMax("180") @Digits(integer = 3, fraction = 6) BigDecimal origenLongitud,
+        @DecimalMin("-90") @DecimalMax("90") @Digits(integer = 3, fraction = 6) BigDecimal destinoLatitud,
+        @DecimalMin("-180") @DecimalMax("180") @Digits(integer = 3, fraction = 6) BigDecimal destinoLongitud) {
 
     public NuevoAlquilerSolicitud {
         clienteNit = Normalizador.codigo(Normalizador.textoOpcional(clienteNit));
@@ -47,7 +53,8 @@ public record NuevoAlquilerSolicitud(
 
     /** 400 RETORNO_ANTES_DE_SALIDA si el retorno es anterior a la salida. */
     public RecorridoAlquiler recorrido() {
-        return new RecorridoAlquiler(origen, destino, fechaSalida, fechaRetorno, cantidadPasajeros, kmEstimados);
+        return new RecorridoAlquiler(origen, destino, fechaSalida, fechaRetorno, cantidadPasajeros, kmEstimados,
+                origenLatitud, origenLongitud, destinoLatitud, destinoLongitud);
     }
 
     /**

@@ -89,7 +89,8 @@ class AlquilerServicioImplTest {
     private static NuevoAlquilerSolicitud nuevoAlquiler(UUID sucursalId, String correo, OffsetDateTime retorno,
                                                         LocalDate fechaSolicitud) {
         return new NuevoAlquilerSolicitud(sucursalId, null, "Ana López", correo, "Quetzaltenango",
-                "Antigua Guatemala", SALIDA, retorno, 30, new BigDecimal("123.45"), fechaSolicitud);
+                "Antigua Guatemala", SALIDA, retorno, 30, new BigDecimal("123.45"), fechaSolicitud,
+                null, null, null, null);
     }
 
     /*Alquiler COTIZADO (aun sin pagar) */
@@ -326,6 +327,33 @@ class AlquilerServicioImplTest {
         assertThat(respuesta.confirmadoPor()).isEqualTo(admin.usuarioId());
         verify(repositorio).saveAndFlush(alquiler);
         verify(eventos).cotizacionAlquilerConfirmada(alquiler);
+    }
+
+    // asignar bus y chofer a un alquiler pagado
+
+    @Test
+    void asignarCreaElViajePrivadoYAvisaAlCliente() {
+        UsuarioActual admin = DatosPrueba.adminSucursal(XELA);
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquilerPagado();
+        existe(alquiler);
+        UUID busId = UUID.randomUUID();
+        UUID choferId = UUID.randomUUID();
+        when(asignaciones.validarNueva(alquiler.getSucursalId(), busId, choferId, alquiler.getFechaSalida(),
+                LLEGADA_ESTIMADA))
+                .thenReturn(new AsignacionViaje(busId, 45, choferId, new BigDecimal("1000.00"),
+                        alquiler.getFechaSalida(), LLEGADA_ESTIMADA));
+        when(viajeRepositorio.saveAndFlush(any(ViajeEntidad.class))).thenAnswer(i -> i.getArgument(0));
+        when(viajes.detalle(any(ViajeEntidad.class))).thenAnswer(i -> detalleDe(i.getArgument(0)));
+        guardarDevuelveElMismo();
+
+        ViajeDetalleRespuesta detalle = servicio.asignar(alquiler.getId(),
+                new AsignarAlquilerSolicitud(busId, choferId, LLEGADA_ESTIMADA, 0), admin);
+
+        assertThat(detalle.viaje().tipo()).isEqualTo(TipoViaje.PRIVADO);
+        assertThat(alquiler.getEstado()).isEqualTo(EstadoAlquiler.ASIGNADO);
+        verify(repositorio).saveAndFlush(alquiler);
+        verify(eventos).viajeProgramado(detalle.viaje());                 // el viaje PRIVADO ya existe
+        verify(eventos).alquilerAsignado(alquiler, detalle.viaje());      // el cliente recibe bus y piloto
     }
 
 

@@ -8,11 +8,13 @@ import java.util.UUID;
 
 /*
  * Pago de un alquiler privado publicado por Sales (cartera o efectivo).
+ * sucursalId se usa para buscar a sus administradores y avisarles del pago.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AlquilerPagado(
         UUID ordenId,
         UUID alquilerId,
+        UUID sucursalId,
         String clienteNombre,
         String clienteCorreo,
         String origen,

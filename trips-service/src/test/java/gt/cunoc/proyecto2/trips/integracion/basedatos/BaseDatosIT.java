@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 
-/** Migraciones V1–V12, triggers, CHECK y consultas propias de los repositorios contra PostgreSQL 16 real. */
+/** Migraciones V1–V13, triggers, CHECK y consultas propias de los repositorios contra PostgreSQL 16 real. */
 class BaseDatosIT extends PruebaIntegracion {
 
     /** El nuevo viaje todavía no tiene id: el mismo valor que usa AsignacionViajeServicioImpl. */
@@ -47,11 +47,11 @@ class BaseDatosIT extends PruebaIntegracion {
     }
 
     @Test
-    void flywayAplicoLasDoceMigraciones() {
+    void flywayAplicoTodasLasMigraciones() {
         Integer aplicadas = jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class);
 
-        assertThat(aplicadas).isEqualTo(12);
+        assertThat(aplicadas).isEqualTo(13);
     }
 
     // ----- fn_registro_inmutable (V1) -----
@@ -174,6 +174,16 @@ class BaseDatosIT extends PruebaIntegracion {
         assertThatThrownBy(() -> insertarViajePrivado(UUID.randomUUID(), xela, UUID.randomUUID(), UUID.randomUUID(),
                 SALIDA, "PROGRAMADO"))
                 .isInstanceOf(DataAccessException.class);
+        // coordenadas del recorrido (V13): latitud y longitud van juntas y dentro de rango
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE alquileres_privados SET origen_latitud = 14.8347 WHERE id = ?", alquiler))
+                .isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE alquileres_privados SET destino_latitud = 91, destino_longitud = -91 WHERE id = ?", alquiler))
+                .isInstanceOf(DataAccessException.class);
+        assertThat(jdbc.update(
+                "UPDATE alquileres_privados SET origen_latitud = 14.8347, origen_longitud = -91.5184 WHERE id = ?",
+                alquiler)).isEqualTo(1);
         assertThat(estadoDelAlquiler(alquiler)).isEqualTo("SOLICITADO");
     }
 

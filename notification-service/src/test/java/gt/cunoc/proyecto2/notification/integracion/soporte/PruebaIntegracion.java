@@ -1,7 +1,10 @@
 package gt.cunoc.proyecto2.notification.integracion.soporte;
 
 import com.jayway.jsonpath.JsonPath;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -31,6 +34,10 @@ public abstract class PruebaIntegracion {
     protected static final String TRIPS_EVENTOS = "trips.eventos";
     protected static final String SALES_EVENTOS = "sales.eventos";
 
+    /** Correos que devuelve el Identity de prueba (ClienteIdentity hace llamadas REST reales). */
+    protected static final String ADMIN_CORREO = "admin.sucursal@correo.com";
+    protected static final String CHOFER_CORREO = "chofer@correo.com";
+
     private static final int SMTP = 1025;
     private static final int API = 8025;
 
@@ -38,6 +45,7 @@ public abstract class PruebaIntegracion {
     private static final RabbitMQContainer RABBIT = new RabbitMQContainer("rabbitmq:4-management");
     private static final GenericContainer<?> MAILPIT = new GenericContainer<>("axllent/mailpit:v1.20.0")
             .withExposedPorts(SMTP, API);
+    private static final HttpServer IDENTITY = iniciarIdentity();
 
     private static final HttpClient HTTP = HttpClient.newHttpClient();
 
@@ -59,6 +67,40 @@ public abstract class PruebaIntegracion {
         registro.add("spring.rabbitmq.listener.simple.retry.initial-interval", () -> "100");
         registro.add("spring.mail.host", MAILPIT::getHost);
         registro.add("spring.mail.port", () -> MAILPIT.getMappedPort(SMTP));
+        registro.add("app.servicios.identity-url", () -> "http://127.0.0.1:" + IDENTITY.getAddress().getPort());
+        registro.add("app.recordatorios.habilitado", () -> "false");   // el job no corre durante las pruebas
+    }
+
+    /** Identity de mentira: responde los administradores de una sucursal y el contacto de un usuario. */
+    private static HttpServer iniciarIdentity() {
+        try {
+            HttpServer servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+            servidor.createContext("/identity/interno/", PruebaIntegracion::responderIdentity);
+            servidor.start();
+            return servidor;
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo arrancar el Identity de prueba", e);
+        }
+    }
+
+    private static void responderIdentity(HttpExchange intercambio) throws IOException {
+        String ruta = intercambio.getRequestURI().getPath();
+        String cuerpo;
+        if (ruta.endsWith("/administradores")) {
+            cuerpo = "[{\"usuarioId\":\"" + UUID.randomUUID() + "\",\"nombre\":\"Admin Sucursal\",\"correo\":\""
+                    + ADMIN_CORREO + "\"}]";
+        } else if (ruta.endsWith("/contacto")) {
+            String usuarioId = ruta.replaceAll(".*/usuarios/([^/]+)/contacto", "$1");
+            cuerpo = "{\"usuarioId\":\"" + usuarioId + "\",\"nombre\":\"Chofer Prueba\",\"correo\":\""
+                    + CHOFER_CORREO + "\",\"telefono\":null}";
+        } else {
+            cuerpo = "[]";
+        }
+        byte[] bytes = cuerpo.getBytes(StandardCharsets.UTF_8);
+        intercambio.getResponseHeaders().add("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        intercambio.sendResponseHeaders(200, bytes.length);
+        intercambio.getResponseBody().write(bytes);
+        intercambio.close();
     }
 
     @Autowired

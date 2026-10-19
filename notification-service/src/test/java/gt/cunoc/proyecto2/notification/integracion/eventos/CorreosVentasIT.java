@@ -113,7 +113,7 @@ class CorreosVentasIT extends PruebaIntegracion {
     }
 
     @Test
-    void alquilerPagadoConfirmaElPago() {
+    void alquilerPagadoLeConfirmaAlClienteYNoLeEscribeAlAdmin() {
         String payload = """
                 {"ordenId":"%s","alquilerId":"%s","sucursalId":"%s","clienteUsuarioId":null,"clienteNit":"CF",
                  "clienteNombre":"Colegio San José","clienteCorreo":"colegio@correo.com","origen":"Quetzaltenango",
@@ -128,7 +128,31 @@ class CorreosVentasIT extends PruebaIntegracion {
                 assertThat(asuntosPara("colegio@correo.com")).containsExactly("Pago de alquiler recibido"));
         assertThat(textoPara("colegio@correo.com")).contains("Recorrido: Quetzaltenango → Antigua Guatemala",
                 "Monto: Q 2600.00, pagado con efectivo", "Fecha de pago: 02/11/2026");
-        assertThat(notificaciones(eventId).get(0)).containsEntry("plantilla", "ALQUILER_PAGADO");
+
+        // el admin ya no recibe correo: el aviso de "pagos por asignar" vive en el menú del panel
+        assertThat(asuntosPara(ADMIN_CORREO)).isEmpty();
+        assertThat(notificaciones(eventId)).extracting(f -> f.get("plantilla"))
+                .containsExactly("ALQUILER_PAGADO");
+    }
+
+    @Test
+    void alquilerAsignadoAvisaAlClienteElBusYElPiloto() {
+        String payload = """
+                {"alquilerId":"%s","sucursalId":"%s","viajeId":"%s","clienteNombre":"Colegio San José",
+                 "clienteCorreo":"colegio@correo.com","origen":"Quetzaltenango","destino":"Antigua Guatemala",
+                 "fechaSalida":"2026-12-20T07:00:00-06:00","fechaRetorno":"2026-12-20T19:00:00-06:00",
+                 "busId":"%s","busPlaca":"P-123ABC","choferId":"%s","choferNombre":"Juan Pérez"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID());
+
+        UUID eventId = publicarEvento(TRIPS_EVENTOS, "AlquilerAsignado", "2026-12-20", payload);
+
+        await().atMost(ESPERA).until(() -> procesado(eventId));
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(asuntosPara("colegio@correo.com"))
+                .containsExactly("Tu alquiler ya tiene bus y piloto"));
+        assertThat(textoPara("colegio@correo.com")).contains("Recorrido: Quetzaltenango → Antigua Guatemala",
+                "Salida: 20/12/2026 07:00", "Bus: P-123ABC", "Piloto: Juan Pérez");
+        assertThat(notificaciones(eventId).get(0)).containsEntry("plantilla", "ALQUILER_ASIGNADO");
     }
 
     @Test

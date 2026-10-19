@@ -54,6 +54,18 @@ public class AlquilerPrivadoEntidad {
     @Column(nullable = false, updatable = false)
     private String destino;
 
+    @Column(name = "origen_latitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal origenLatitud;
+
+    @Column(name = "origen_longitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal origenLongitud;
+
+    @Column(name = "destino_latitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal destinoLatitud;
+
+    @Column(name = "destino_longitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal destinoLongitud;
+
     @Column(name = "fecha_salida", nullable = false, updatable = false)
     private OffsetDateTime fechaSalida;
 
@@ -105,6 +117,10 @@ public class AlquilerPrivadoEntidad {
         alquiler.clienteCorreo = cliente.correo();
         alquiler.origen = recorrido.origen();
         alquiler.destino = recorrido.destino();
+        alquiler.origenLatitud = recorrido.origenLatitud();
+        alquiler.origenLongitud = recorrido.origenLongitud();
+        alquiler.destinoLatitud = recorrido.destinoLatitud();
+        alquiler.destinoLongitud = recorrido.destinoLongitud();
         alquiler.fechaSalida = recorrido.fechaSalida();
         alquiler.fechaRetorno = recorrido.fechaRetorno();
         alquiler.cantidadPasajeros = recorrido.cantidadPasajeros();

@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.notification.messaging.consumer;
 
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
+import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerAsignado;
 import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerPagado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
@@ -35,6 +36,7 @@ class ManejadoresVentasTest {
     @InjectMocks private ManejadorBoletoVendido manejadorBoleto;
     @InjectMocks private ManejadorVentaCancelada manejadorCancelada;
     @InjectMocks private ManejadorAlquilerPagado manejadorAlquiler;
+    @InjectMocks private ManejadorAlquilerAsignado manejadorAsignado;
     @InjectMocks private ManejadorCotizacionAlquilerConfirmada manejadorCotizacion;
     @InjectMocks private ManejadorLicenciaChoferActualizada manejadorLicencia;
 
@@ -49,11 +51,13 @@ class ManejadoresVentasTest {
         assertEquals("BoletoVendido", manejadorBoleto.tipoEvento());
         assertEquals("VentaCancelada", manejadorCancelada.tipoEvento());
         assertEquals("AlquilerPagado", manejadorAlquiler.tipoEvento());
+        assertEquals("AlquilerAsignado", manejadorAsignado.tipoEvento());
         assertEquals("CotizacionAlquilerConfirmada", manejadorCotizacion.tipoEvento());
         assertEquals("LicenciaChoferActualizada", manejadorLicencia.tipoEvento());
         assertEquals(BoletoVendido.class, manejadorBoleto.tipoPayload());
         assertEquals(VentaCancelada.class, manejadorCancelada.tipoPayload());
         assertEquals(AlquilerPagado.class, manejadorAlquiler.tipoPayload());
+        assertEquals(AlquilerAsignado.class, manejadorAsignado.tipoPayload());
         assertEquals(CotizacionAlquilerConfirmada.class, manejadorCotizacion.tipoPayload());
         assertEquals(LicenciaChoferActualizada.class, manejadorLicencia.tipoPayload());
     }
@@ -89,8 +93,9 @@ class ManejadoresVentasTest {
     @Test
     void alquilerPagadoDelegaConElEventId() {
         // Arrange
-        AlquilerPagado alquiler = new AlquilerPagado(UUID.randomUUID(), UUID.randomUUID(), "Colegio",
-                "colegio@correo.com", "Quetzaltenango", "Antigua", new BigDecimal("2600.00"), "EFECTIVO", FECHA);
+        AlquilerPagado alquiler = new AlquilerPagado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Colegio", "colegio@correo.com", "Quetzaltenango", "Antigua", new BigDecimal("2600.00"),
+                "EFECTIVO", FECHA);
         EventoRecibido<AlquilerPagado> evento = evento("AlquilerPagado", alquiler);
 
         // Act
@@ -98,6 +103,21 @@ class ManejadoresVentasTest {
 
         // Assert
         verify(correos).alquilerPagado(evento.eventId(), alquiler);
+    }
+
+    @Test
+    void alquilerAsignadoDelegaConElEventId() {
+        // Arrange
+        AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Colegio", "colegio@correo.com", "Quetzaltenango", "Antigua", SALIDA, SALIDA.plusHours(10),
+                "P-123ABC", "Juan Pérez");
+        EventoRecibido<AlquilerAsignado> evento = evento("AlquilerAsignado", asignado);
+
+        // Act
+        manejadorAsignado.manejar(evento);
+
+        // Assert
+        verify(correos).alquilerAsignado(evento.eventId(), asignado);
     }
 
     @Test

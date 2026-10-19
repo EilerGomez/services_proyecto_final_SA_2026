@@ -15,6 +15,7 @@ public enum TipoEvento {
     VIAJE_INICIADO("ViajeIniciado"),
     VIAJE_COMPLETADO("ViajeCompletado"),
     COTIZACION_ALQUILER_CONFIRMADA("CotizacionAlquilerConfirmada"),
+    ALQUILER_ASIGNADO("AlquilerAsignado"),
 
     // ----- Consume Trips (cola trips.q) -----
     SUCURSAL_CREADA("SucursalCreada"),

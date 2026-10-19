@@ -55,7 +55,8 @@ class AlquilerControladorTest {
     void solicitarResponde201() {
         NuevoAlquilerSolicitud solicitud = new NuevoAlquilerSolicitud(XELA, null, "Ana López", null,
                 "Quetzaltenango", "Antigua Guatemala", OffsetDateTime.parse("2026-11-05T07:00:00-06:00"),
-                OffsetDateTime.parse("2026-11-05T19:00:00-06:00"), 30, new BigDecimal("200.00"), FECHA);
+                OffsetDateTime.parse("2026-11-05T19:00:00-06:00"), 30, new BigDecimal("200.00"), FECHA,
+                null, null, null, null);
         when(servicio.solicitar(solicitud, cliente)).thenReturn(respuesta);
 
         ResponseEntity<AlquilerRespuesta> creado = controlador.solicitar(solicitud, cliente);

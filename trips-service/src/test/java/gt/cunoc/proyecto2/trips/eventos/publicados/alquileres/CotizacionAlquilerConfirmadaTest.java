@@ -42,7 +42,8 @@ class CotizacionAlquilerConfirmadaTest {
     void presencialSoloIdaSinCuentaNiRetorno() {
         ClienteAlquiler cliente = new ClienteAlquiler(null, null, "Pedro Gómez", null);
         RecorridoAlquiler recorrido = new RecorridoAlquiler("Xela", "Retalhuleu",
-                OffsetDateTime.parse("2026-11-10T12:00:00Z"), null, 10, new BigDecimal("60.00"));
+                OffsetDateTime.parse("2026-11-10T12:00:00Z"), null, 10, new BigDecimal("60.00"),
+                null, null, null, null);
         AlquilerPrivadoEntidad alquiler = AlquilerPrivadoEntidad.solicitar(XELA, CanalAlquiler.PRESENCIAL, cliente,
                 recorrido, new BigDecimal("900.00"), DatosPrueba.FECHA, UUID.randomUUID());
         alquiler.cotizar(new BigDecimal("850.00"), UUID.randomUUID());
