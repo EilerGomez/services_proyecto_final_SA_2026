@@ -57,7 +57,7 @@ comun:
     suscripciones:
       "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada, CodigoDobleFactorSolicitado, RolAsignado]
       "[fleet.eventos]": [LicenciaChoferActualizada]
-      "[trips.eventos]": [CotizacionAlquilerConfirmada]
+      "[trips.eventos]": [CotizacionAlquilerConfirmada, AlquilerAsignado]
       "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]
 
 app:
@@ -66,6 +66,9 @@ app:
     secret: ${JWT_SECRET:solo-desarrollo-cambiar-este-secreto-de-32-caracteres}
   servicios:
     identity-url: ${IDENTITY_URL:http://localhost:8081}
+  recordatorios:
+    cron: ${RECORDATORIOS_CRON:0 0 7 * * *}            # todos los días a las 7:00 (hora de Guatemala)
+    habilitado: ${RECORDATORIOS_HABILITADO:true}
 
 springdoc:
   api-docs:
