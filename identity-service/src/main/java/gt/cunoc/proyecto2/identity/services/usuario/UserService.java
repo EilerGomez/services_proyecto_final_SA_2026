@@ -7,11 +7,13 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -37,7 +39,18 @@ public interface UserService {
      * motivoDetallado = false (admin de sucursal): no revela si es admin del sistema o chofer.
      * 400 CORREO_REQUERIDO, 404 USUARIO_NO_EXISTE.
      */
-    UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado);
+    default UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado) {
+        return buscarPorCorreo(correo, motivoDetallado, PuestoAsignable.PERSONAL);
+    }
+
+    /**
+     * Igual, indicando el puesto: PERSONAL (admin de sucursal o cajero) o CHOFER. {@code puedeSerPersonal}
+     * de la respuesta dice si la cuenta puede tomar ESE puesto.
+     */
+    UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado, PuestoAsignable puesto);
+
+    /** Cuentas activas que pueden tomar el puesto, ordenadas por correo (solo datos mínimos). */
+    List<UsuarioAsignableResponse> asignables(PuestoAsignable puesto);
 
     /**
      * Da el rol ADMIN_SISTEMA a una cuenta existente y le avisa por correo (RolAsignado).

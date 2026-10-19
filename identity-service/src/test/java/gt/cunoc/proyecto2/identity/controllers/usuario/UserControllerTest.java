@@ -17,6 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -75,6 +76,20 @@ class UserControllerTest extends BaseControladorTest {
                                 "direccion":"Xela"}"""))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.correo").value("ana@correo.com"));
+    }
+
+    @Test
+    void elAdministradorNoPuedeCambiarElEstadoDeSuPropiaCuenta() throws Exception {
+        var actual = usuario(Set.of(Roles.ADMIN_SISTEMA), null);
+        sesion("token", actual);
+
+        mvc.perform(patch("/identity/usuarios/" + actual.usuarioId() + "/estado")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"INACTIVO\"}"))
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.codigo").value("CUENTA_PROPIA"));
+        verify(servicio, never()).cambiarEstado(any(), any());
     }
 
     @Test

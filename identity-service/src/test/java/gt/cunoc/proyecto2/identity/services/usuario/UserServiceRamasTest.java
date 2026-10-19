@@ -197,6 +197,22 @@ class UserServiceRamasTest {
                 new UpdateProfileRequest(null, null, "CF", null, null, null));
 
         verify(perfiles, org.mockito.Mockito.never()).existsByNit(any());
+        assertEquals(null, perfil.getNit());      // CF se guarda sin NIT
+    }
+
+    @Test
+    void nitVacioQuitaElNitSinRevisarDuplicados() {
+        Usuario usuario = usuarioBasico();
+        Perfil perfil = perfilBasico();
+        perfil.setNit("1234567-8");
+        when(usuarios.findById(usuario.getId())).thenReturn(Optional.of(usuario));
+        when(perfiles.findById(usuario.getId())).thenReturn(Optional.of(perfil));
+
+        servicio.actualizarPerfil(usuario.getId(), new UpdateProfileRequest(null, null, "  ", null, null, null));
+
+        assertEquals(null, perfil.getNit());
+        verify(perfiles, org.mockito.Mockito.never()).existsByNit(any());
+        verify(perfiles).save(perfil);
     }
 
     @Test

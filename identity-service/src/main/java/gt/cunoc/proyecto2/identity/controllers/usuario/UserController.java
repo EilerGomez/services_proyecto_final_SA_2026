@@ -1,14 +1,17 @@
 package gt.cunoc.proyecto2.identity.controllers.usuario;
 
 import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
+import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -59,13 +62,38 @@ public class UserController {
         return ResponseEntity.created(URI.create("/identity/usuarios/" + respuesta.usuarioId())).body(respuesta);
     }
 
-    /** Buscar cuenta por correo exacto (para asignarla como personal de sucursal). */
+    /**
+     * Buscar cuenta por correo exacto para asignarle un puesto: PERSONAL (admin de sucursal o cajero,
+     * por defecto), CHOFER o ADMIN_SISTEMA (este último solo el administrador del sistema).
+     */
     @GetMapping("/por-correo")
     @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
     public ResponseEntity<UsuarioBusquedaResponse> buscarPorCorreo(
             @RequestParam String correo,
+            @RequestParam(defaultValue = "PERSONAL") PuestoAsignable puesto,
             @Parameter(hidden = true) UsuarioActual usuario) {
-        return ResponseEntity.ok(servicio.buscarPorCorreo(correo, usuario.esAdminSistema()));
+        verificarPuesto(puesto, usuario);
+        return ResponseEntity.ok(servicio.buscarPorCorreo(correo, usuario.esAdminSistema(), puesto));
+    }
+
+    /**
+     * Cuentas activas que pueden tomar el puesto, para elegir de una lista sin escribir el correo.
+     * Solo correo, nombre y foto; las que no pueden tomarlo no aparecen.
+     */
+    @GetMapping("/asignables")
+    @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
+    public ResponseEntity<List<UsuarioAsignableResponse>> asignables(
+            @RequestParam(defaultValue = "PERSONAL") PuestoAsignable puesto,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        verificarPuesto(puesto, usuario);
+        return ResponseEntity.ok(servicio.asignables(puesto));
+    }
+
+    private static void verificarPuesto(PuestoAsignable puesto, UsuarioActual usuario) {
+        if (puesto == PuestoAsignable.ADMIN_SISTEMA && !usuario.esAdminSistema()) {
+            throw new ProhibidoException("SOLO_ADMIN_SISTEMA",
+                    "Solo el administrador del sistema puede asignar ese puesto");
+        }
     }
 
     /** Hacer administrador del sistema a una cuenta existente (se le avisa por correo). */
@@ -88,11 +116,17 @@ public class UserController {
         return ResponseEntity.ok(respuesta);
     }
 
+    /** El administrador no puede cambiar el estado de su propia cuenta (desactivarse o bloquearse). */
     @PatchMapping("/{id}/estado")
     @RequiereRol(Roles.ADMIN_SISTEMA)
     public ResponseEntity<UsuarioDetalleResponse> cambiarEstado(
             @PathVariable UUID id,
-            @RequestBody @Valid UserStatusRequest solicitud) {
+            @RequestBody @Valid UserStatusRequest solicitud,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        if (id.equals(usuario.usuarioId())) {
+            throw new ReglaNegocioException("CUENTA_PROPIA",
+                    "No puede cambiar el estado de su propia cuenta; pídaselo a otro administrador del sistema");
+        }
         return ResponseEntity.ok(servicio.cambiarEstado(id, solicitud));
     }
 }

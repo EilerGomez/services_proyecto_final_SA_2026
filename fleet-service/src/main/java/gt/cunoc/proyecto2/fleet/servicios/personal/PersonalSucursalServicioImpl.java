@@ -162,6 +162,9 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
                                                 UsuarioActual usuario) {
         PersonalSucursalEntidad personal = obtenerPorId(id);
         usuario.verificarAccesoSucursal(personal.getSucursalId());
+        if (personal.getUsuarioId().equals(usuario.usuarioId())) {
+            throw ErrorPersonal.RETIRO_PROPIO.excepcion();      // nadie se retira a sí mismo
+        }
         verificarPuedeGestionar(personal.getRol(), usuario);
         VerificadorVersion.verificar(personal.getVersion(), solicitud.version());
         verificarActivo(personal);

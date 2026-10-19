@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.identity.services.personal;
 
 
 import gt.cunoc.proyecto2.comun.errores.ConflictoException;
+import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
@@ -30,6 +31,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -165,9 +167,13 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
 
     /**
      * R5b: la cuenta ya existe (la persona se registró antes). Solo VALIDA y registra la solicitud; no
-     * cambia la cuenta. El rol y la sucursal se los pone el evento PersonalSucursalAsignado que Fleet
-     * publica en la misma transacción en que guarda la fila (outbox): si Fleet revierte, la cuenta no
-     * queda con un rol sin respaldo. Al recibir ese evento se publica RolAsignado (aviso por correo).
+     * cambia el rol. El rol y la sucursal se los pone el evento que Fleet publica en la misma transacción
+     * en que guarda la fila (outbox): PersonalSucursalAsignado para el personal y ChoferCreado para el
+     * chofer (su choferId es el solicitudId). Si Fleet revierte, la cuenta no queda con un rol sin respaldo.
+     * Al recibir ese evento se publica RolAsignado (aviso por correo).
+     *
+     * <p>CHOFER: la foto es obligatoria. Si llega una foto nueva se guarda ya como foto de perfil (es la
+     * foto de la persona; si Fleet revierte, solo queda la foto actualizada).
      */
     @Override
     @Transactional
@@ -181,10 +187,12 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
                 throw new ConflictoException("SOLICITUD_YA_USADA",
                         "El solicitudId ya se usó con otros datos; genere uno nuevo");
             }
-            // Si Fleet revirtió la vez anterior, la cuenta aún no es personal: se valida de nuevo
+            // Si Fleet revirtió la vez anterior, la cuenta aún no tiene el puesto: se valida de nuevo
             Usuario previo = usuarios.findById(previa.getUsuarioId()).orElse(null);
-            if (previo != null && !ReglasAsignacionRol.esPersonal(previo)) {
-                ReglasAsignacionRol.impedimentoParaPersonal(previo, Instant.now()).ifPresent(impedimento -> {
+            boolean yaTienePuesto = previo == null
+                    || (esChofer(solicitud) ? previo.getChoferId() != null : ReglasAsignacionRol.esPersonal(previo));
+            if (!yaTienePuesto) {
+                impedimento(previo, solicitud).ifPresent(impedimento -> {
                     throw impedimento;
                 });
             }
@@ -193,9 +201,12 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         // 422 (no 404): Fleet trata los 404 de otro servicio como error de configuración (503)
         Usuario usuario = usuarios.findById(solicitud.usuarioId())
                 .orElseThrow(() -> new ReglaNegocioException("USUARIO_NO_EXISTE", "La cuenta indicada no existe"));
-        ReglasAsignacionRol.impedimentoParaPersonal(usuario, Instant.now()).ifPresent(impedimento -> {
+        impedimento(usuario, solicitud).ifPresent(impedimento -> {
             throw impedimento;
         });
+        if (esChofer(solicitud)) {
+            guardarFotoDeChofer(usuario, solicitud.fotoUrl());
+        }
 
         SolicitudCuentaPersonal registro = new SolicitudCuentaPersonal();
         registro.setSolicitudId(solicitud.solicitudId());
@@ -205,6 +216,35 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         solicitudes.save(registro);
 
         return new CuentaPersonalResponse(usuario.getId(), usuario.getCorreo(), nombreDe(usuario), false);
+    }
+
+    private static boolean esChofer(VincularCuentaRequest solicitud) {
+        return Roles.CHOFER.equals(solicitud.rol());
+    }
+
+    private static Optional<NegocioException> impedimento(Usuario usuario, VincularCuentaRequest solicitud) {
+        return esChofer(solicitud)
+                ? ReglasAsignacionRol.impedimentoParaChofer(usuario, Instant.now())
+                : ReglasAsignacionRol.impedimentoParaPersonal(usuario, Instant.now());
+    }
+
+    /** Foto nueva (subida con /identity/archivos/fotos) o la que ya tiene el perfil; sin ninguna, 422. */
+    private void guardarFotoDeChofer(Usuario usuario, String fotoUrl) {
+        Perfil perfil = perfiles.findById(usuario.getId())
+                .orElseThrow(() -> new ReglaNegocioException("PERFIL_NO_EXISTE", "La cuenta no tiene perfil"));
+        boolean conFotoNueva = fotoUrl != null && !fotoUrl.isBlank();
+        if (!conFotoNueva) {
+            if (perfil.getFotoUrl() == null || perfil.getFotoUrl().isBlank()) {
+                throw new ReglaNegocioException("FOTO_OBLIGATORIA",
+                        "La cuenta no tiene foto de perfil; suba la foto del chofer");
+            }
+            return;
+        }
+        if (!fotos.esDelBucket(fotoUrl)) {
+            throw new SolicitudInvalidaException("FOTO_INVALIDA", "La foto debe subirse con /identity/archivos/fotos");
+        }
+        perfil.setFotoUrl(fotoUrl);
+        perfiles.save(perfil);
     }
 
     /** Reintento de una solicitud ya procesada: devuelve la misma cuenta. */

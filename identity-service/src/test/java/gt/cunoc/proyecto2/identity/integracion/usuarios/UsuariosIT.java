@@ -2,8 +2,11 @@ package gt.cunoc.proyecto2.identity.integracion.usuarios;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
+import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.integracion.soporte.PruebaIntegracion;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +27,19 @@ class UsuariosIT extends PruebaIntegracion {
     }
 
     @Test
-    void desactivarAlUltimoAdminSistemaSeRechaza() {
+    void nadieCambiaElEstadoDeSuPropiaCuenta() {
         ResponseEntity<String> respuesta = patch("/identity/usuarios/" + adminId + "/estado",
                 tokenAdmin, "{\"estado\":\"INACTIVO\"}");
+        esError(respuesta, 422, "CUENTA_PROPIA");
+    }
+
+    @Test
+    void desactivarAlUltimoAdminSistemaSeRechaza() {
+        // Otro administrador (solo en el token) intenta desactivar al único admin activo de la base
+        String tokenOtroAdmin = jwt.generar(new UsuarioActual(UUID.randomUUID(), "otro@pruebas.gt",
+                Set.of(Roles.ADMIN_SISTEMA, Roles.CLIENTE), null, null));
+        ResponseEntity<String> respuesta = patch("/identity/usuarios/" + adminId + "/estado",
+                tokenOtroAdmin, "{\"estado\":\"INACTIVO\"}");
         esError(respuesta, 422, "ULTIMO_ADMIN_SISTEMA");
     }
 

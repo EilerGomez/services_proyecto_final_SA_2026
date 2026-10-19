@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.ConflictoException;
 import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import java.time.Instant;
 import java.util.Optional;
@@ -16,6 +17,15 @@ import java.util.Optional;
 public final class ReglasAsignacionRol {
 
     private ReglasAsignacionRol() {
+    }
+
+    /** El impedimento según el puesto (lista de cuentas asignables y búsqueda por correo). */
+    public static Optional<NegocioException> impedimentoPara(PuestoAsignable puesto, Usuario usuario, Instant ahora) {
+        return switch (puesto) {
+            case PERSONAL -> impedimentoParaPersonal(usuario, ahora);
+            case CHOFER -> impedimentoParaChofer(usuario, ahora);
+            case ADMIN_SISTEMA -> impedimentoParaAdminSistema(usuario, ahora);
+        };
     }
 
     /** ADMIN_SUCURSAL o CAJERO: cuenta utilizable, sin sucursal, sin rol de personal, no chofer ni admin del sistema. */
@@ -47,6 +57,35 @@ public final class ReglasAsignacionRol {
         if (usuario.getChoferId() != null) {
             return Optional.of(new ReglaNegocioException("ES_CHOFER",
                     "La cuenta pertenece a un chofer; no puede ser personal de sucursal"));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * CHOFER: cuenta utilizable, que no sea administrador del sistema, ni personal de sucursal, ni chofer
+     * (tampoco uno retirado: conserva su choferId y su historial de viajes).
+     */
+    public static Optional<NegocioException> impedimentoParaChofer(Usuario usuario, Instant ahora) {
+        Optional<NegocioException> estado = impedimentoPorEstado(usuario, ahora);
+        if (estado.isPresent()) {
+            return estado;
+        }
+        return impedimentoTipoParaChofer(usuario);
+    }
+
+    /** Lo mismo sin revisar el estado: última defensa al recibir ChoferCreado. */
+    public static Optional<NegocioException> impedimentoTipoParaChofer(Usuario usuario) {
+        if (tieneRol(usuario, Roles.ADMIN_SISTEMA)) {
+            return Optional.of(new ReglaNegocioException("ES_ADMIN_SISTEMA",
+                    "La cuenta es de un administrador del sistema; no puede ser chofer"));
+        }
+        if (usuario.getChoferId() != null) {
+            return Optional.of(new ConflictoException("YA_ES_CHOFER",
+                    "La cuenta ya es (o fue) de un chofer"));
+        }
+        if (esPersonal(usuario)) {
+            return Optional.of(new ReglaNegocioException("ES_PERSONAL_SUCURSAL",
+                    "La persona trabaja como personal de una sucursal; no puede ser chofer"));
         }
         return Optional.empty();
     }

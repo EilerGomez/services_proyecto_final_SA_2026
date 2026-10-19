@@ -50,7 +50,7 @@ comun:
     cola: identity.q
     suscripciones:
       # La cartera (débito/reembolso de la saga con Sales) ahora es wallet-service
-      "[fleet.eventos]": [ChoferDesactivado, PersonalSucursalAsignado, PersonalSucursalDesactivado]
+      "[fleet.eventos]": [ChoferCreado, ChoferDesactivado, PersonalSucursalAsignado, PersonalSucursalDesactivado]
 
 app:
   jwt:

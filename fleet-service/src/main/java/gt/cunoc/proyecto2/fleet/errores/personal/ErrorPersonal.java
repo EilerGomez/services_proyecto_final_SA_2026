@@ -22,6 +22,8 @@ public enum ErrorPersonal implements CodigoError {
     PERSONAL_CUENTA_BLOQUEADA(TipoError.REGLA_NEGOCIO,
             "La cuenta de la persona está bloqueada %s; no se puede reintegrar mientras siga bloqueada"),
     PERSONAL_CUENTA_NO_ELEGIBLE(TipoError.REGLA_NEGOCIO, "%s"),
+    RETIRO_PROPIO(TipoError.REGLA_NEGOCIO,
+            "No puede retirarse a sí mismo de la sucursal; pídaselo al administrador del sistema"),
     CUENTA_REQUERIDA(TipoError.SOLICITUD_INVALIDA,
             "Indique los datos de una cuenta nueva o elija un usuario existente (solo una de las dos)");
 

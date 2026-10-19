@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.ContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
@@ -20,6 +21,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Perfil;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.TokenRecuperacion;
 import gt.cunoc.proyecto2.identity.models.Usuario;
@@ -41,6 +43,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -174,7 +177,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado) {
+    public UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado, PuestoAsignable puesto) {
         if (correo == null || correo.isBlank()) {
             throw new SolicitudInvalidaException("CORREO_REQUERIDO", "Escriba el correo de la cuenta");
         }
@@ -182,12 +185,29 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE",
                         "No hay ninguna cuenta con ese correo"));
         Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
-        Optional<String> motivo = ReglasAsignacionRol.impedimentoParaPersonal(usuario, Instant.now())
-                .map(impedimento -> motivoVisible(impedimento, motivoDetallado));
+        boolean paraChofer = puesto == PuestoAsignable.CHOFER;
+        Optional<String> motivo = ReglasAsignacionRol.impedimentoPara(puesto, usuario, Instant.now())
+                .map(impedimento -> motivoVisible(impedimento, motivoDetallado, paraChofer));
         return new UsuarioBusquedaResponse(
                 usuario.getId(), usuario.getCorreo(), nombreDe(usuario, perfil),
                 perfil == null ? null : perfil.getFotoUrl(),
                 motivo.isEmpty(), motivo.orElse(null));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UsuarioAsignableResponse> asignables(PuestoAsignable puesto) {
+        Instant ahora = Instant.now();
+        List<Usuario> candidatos = usuarios.findByEstadoOrderByCorreoAsc("ACTIVO").stream()
+                .filter(usuario -> ReglasAsignacionRol.impedimentoPara(puesto, usuario, ahora).isEmpty())
+                .toList();
+        Map<UUID, Perfil> perfilPorUsuario = perfiles.findAllById(candidatos.stream().map(Usuario::getId).toList())
+                .stream().collect(Collectors.toMap(Perfil::getUsuarioId, perfil -> perfil));
+        return candidatos.stream().map(usuario -> {
+            Perfil perfil = perfilPorUsuario.get(usuario.getId());
+            return new UsuarioAsignableResponse(usuario.getId(), usuario.getCorreo(), nombreDe(usuario, perfil),
+                    perfil == null ? null : perfil.getFotoUrl());
+        }).toList();
     }
 
     @Override
@@ -220,11 +240,14 @@ public class UserServiceImpl implements UserService {
         if (solicitud.apellidos() != null) {
             perfil.setApellidos(solicitud.apellidos());
         }
-        if (solicitud.nit() != null && !solicitud.nit().equals(perfil.getNit())) {
-            if (perfiles.existsByNit(solicitud.nit())) {
+        if (solicitud.nit() != null) {
+            // NIT opcional: vacío o "CF" se guarda sin NIT (Sales lo trata como consumidor final)
+            String nit = solicitud.nit().trim();
+            nit = nit.isEmpty() || "CF".equalsIgnoreCase(nit) ? null : nit;
+            if (nit != null && !nit.equals(perfil.getNit()) && perfiles.existsByNit(nit)) {
                 throw new ConflictoException("NIT_EN_USO", "El NIT ya está registrado");
             }
-            perfil.setNit(solicitud.nit());
+            perfil.setNit(nit);
         }
         if (solicitud.telefono() != null) {
             perfil.setTelefono(solicitud.telefono());
@@ -357,11 +380,17 @@ public class UserServiceImpl implements UserService {
     }
 
     /** Un admin de sucursal no necesita saber si la cuenta es de un admin del sistema o de un chofer. */
-    private static String motivoVisible(NegocioException impedimento, boolean detallado) {
+    /** Al admin de sucursal no se le dice si la cuenta es de un admin del sistema, de un chofer o de otro personal. */
+    private static String motivoVisible(NegocioException impedimento, boolean detallado, boolean paraChofer) {
         boolean tipoDeCuenta = "ES_ADMIN_SISTEMA".equals(impedimento.getCodigo())
-                || "ES_CHOFER".equals(impedimento.getCodigo());
-        return detallado || !tipoDeCuenta
-                ? impedimento.getMessage()
+                || "ES_CHOFER".equals(impedimento.getCodigo())
+                || "YA_ES_CHOFER".equals(impedimento.getCodigo())
+                || "ES_PERSONAL_SUCURSAL".equals(impedimento.getCodigo());
+        if (detallado || !tipoDeCuenta) {
+            return impedimento.getMessage();
+        }
+        return paraChofer
+                ? "Esta cuenta no se puede asignar como chofer"
                 : "Esta cuenta no se puede asignar como personal de sucursal";
     }
 

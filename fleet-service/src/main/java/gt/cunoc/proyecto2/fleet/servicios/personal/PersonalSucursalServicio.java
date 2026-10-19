@@ -45,7 +45,7 @@ public interface PersonalSucursalServicio {
     PersonalSucursalEntidad registrarAltaExistente(SucursalEntidad sucursal, RolPersonal rol,
                                                    LocalDate fechaAsignacion, UsuarioExistenteSolicitud existente);
 
-    /** F8. 403 SOLO_CAJEROS, 409 MODIFICACION_CONCURRENTE, 422 PERSONAL_INACTIVO o SUCURSAL_SIN_ADMIN */
+    /** F8. 403 SOLO_CAJEROS, 409 MODIFICACION_CONCURRENTE, 422 RETIRO_PROPIO, PERSONAL_INACTIVO o SUCURSAL_SIN_ADMIN */
     PersonalSucursalRespuesta desactivar(UUID id, DesactivarPersonalSolicitud solicitud, UsuarioActual usuario);
 
     /** Evento PerfilActualizado: refresca la copia de nombre y correo. Devuelve las filas actualizadas. */

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
+import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.fleet.DatosPrueba;
 import gt.cunoc.proyecto2.fleet.VerificarError;
@@ -38,6 +39,7 @@ import gt.cunoc.proyecto2.fleet.repositorios.sucursales.SucursalRepositorio;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -212,6 +214,18 @@ class PersonalSucursalServicioImplTest {
 
         VerificarError.lanza(() -> servicio.desactivar(cajero.getId(), new DesactivarPersonalSolicitud(FECHA, 7),
                 adminXela), ErrorGeneral.MODIFICACION_CONCURRENTE);
+    }
+
+    @Test
+    void nadieSeRetiraASiMismo() {
+        PersonalSucursalEntidad yo = DatosPrueba.personal(xela.getId(), RolPersonal.ADMIN_SUCURSAL);
+        when(repositorio.findById(yo.getId())).thenReturn(Optional.of(yo));
+        UsuarioActual sesion = new UsuarioActual(yo.getUsuarioId(), "ana@fleet.gt",
+                Set.of(Roles.ADMIN_SUCURSAL), xela.getId(), null);
+
+        VerificarError.lanza(() -> servicio.desactivar(yo.getId(), new DesactivarPersonalSolicitud(FECHA, 0),
+                sesion), ErrorPersonal.RETIRO_PROPIO);
+        verify(repositorio, never()).saveAndFlush(any());
     }
 
     @Test

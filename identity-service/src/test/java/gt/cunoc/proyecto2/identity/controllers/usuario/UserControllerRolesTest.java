@@ -3,9 +3,12 @@ package gt.cunoc.proyecto2.identity.controllers.usuario;
 import gt.cunoc.proyecto2.comun.errores.ConflictoException;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.controllers.BaseControladorTest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import gt.cunoc.proyecto2.identity.services.usuario.UserService;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -33,7 +36,7 @@ class UserControllerRolesTest extends BaseControladorTest {
     void adminSucursalPuedeBuscarPorCorreo() throws Exception {
         // Arrange
         sesion("token", usuario(Set.of(Roles.ADMIN_SUCURSAL), UUID.randomUUID()));
-        when(servicio.buscarPorCorreo("ana@correo.com", false)).thenReturn(new UsuarioBusquedaResponse(
+        when(servicio.buscarPorCorreo("ana@correo.com", false, PuestoAsignable.PERSONAL)).thenReturn(new UsuarioBusquedaResponse(
                 UUID.randomUUID(), "ana@correo.com", "Ana López", null, true, null));
 
         // Act + Assert
@@ -53,7 +56,41 @@ class UserControllerRolesTest extends BaseControladorTest {
         mvc.perform(get("/identity/usuarios/por-correo").param("correo", "ana@correo.com")
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isForbidden());
-        verify(servicio, never()).buscarPorCorreo(any(), anyBoolean());
+        verify(servicio, never()).buscarPorCorreo(any(), anyBoolean(), any());
+    }
+
+    @Test
+    void adminSucursalVeLasCuentasAsignablesComoCajero() throws Exception {
+        sesion("token", usuario(Set.of(Roles.ADMIN_SUCURSAL), UUID.randomUUID()));
+        when(servicio.asignables(PuestoAsignable.PERSONAL)).thenReturn(List.of(
+                new UsuarioAsignableResponse(UUID.randomUUID(), "ana@correo.com", "Ana López", null)));
+
+        mvc.perform(get("/identity/usuarios/asignables").header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].correo").value("ana@correo.com"));
+    }
+
+    @Test
+    void adminSucursalNoPuedeListarCandidatosAAdminDelSistema() throws Exception {
+        sesion("token", usuario(Set.of(Roles.ADMIN_SUCURSAL), UUID.randomUUID()));
+
+        mvc.perform(get("/identity/usuarios/asignables").param("puesto", "ADMIN_SISTEMA")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isForbidden());
+        verify(servicio, never()).asignables(any());
+    }
+
+    @Test
+    void buscarParaChoferPasaElPuesto() throws Exception {
+        sesion("token", usuario(Set.of(Roles.ADMIN_SISTEMA), null));
+        when(servicio.buscarPorCorreo("ana@correo.com", true, PuestoAsignable.CHOFER)).thenReturn(
+                new UsuarioBusquedaResponse(UUID.randomUUID(), "ana@correo.com", "Ana López", null, false,
+                        "La cuenta ya es (o fue) de un chofer"));
+
+        mvc.perform(get("/identity/usuarios/por-correo").param("correo", "ana@correo.com").param("puesto", "CHOFER")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.puedeSerPersonal").value(false));
     }
 
     @Test

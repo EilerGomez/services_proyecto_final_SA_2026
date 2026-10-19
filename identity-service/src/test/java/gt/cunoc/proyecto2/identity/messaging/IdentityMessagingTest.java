@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.comun.eventos.sobre.EventoSobre;
 import gt.cunoc.proyecto2.comun.idempotencia.ProcesadorIdempotente;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
+import gt.cunoc.proyecto2.identity.evento.recibido.ChoferCreado;
 import gt.cunoc.proyecto2.identity.evento.recibido.ChoferDesactivado;
 import gt.cunoc.proyecto2.identity.evento.recibido.PersonalSucursalAsignado;
 import gt.cunoc.proyecto2.identity.evento.recibido.PersonalSucursalDesactivado;
@@ -99,11 +100,12 @@ class IdentityMessagingTest {
     }
 
     @Test
-    void registraLosTresConsumersSinDuplicados() {
+    void registraLosConsumersSinDuplicados() {
         // La saga de cartera (DebitoCarteraSolicitado, ReembolsoCarteraSolicitado) ahora la atiende wallet-service
         assertThat(contexto.getBeansOfType(ManejadorEvento.class).values())
                 .extracting(ManejadorEvento::tipoEvento)
-                .containsExactlyInAnyOrder("ChoferDesactivado", "PersonalSucursalAsignado", "PersonalSucursalDesactivado");
+                .containsExactlyInAnyOrder("ChoferCreado", "ChoferDesactivado", "PersonalSucursalAsignado",
+                        "PersonalSucursalDesactivado");
     }
 
     @ParameterizedTest
@@ -202,6 +204,52 @@ class IdentityMessagingTest {
         assertThat(usuario.getRoles()).extracting(Rol::getCodigo).containsExactly(Roles.CLIENTE);
         assertThat(token.getRevocadoEn()).isNotNull();
         verify(usuarios).save(usuario);
+    }
+
+    @Test
+    void choferConCuentaExistenteRecibeElRolLaSucursalYElAviso() {
+        Usuario usuario = usuario();
+        usuario.getRoles().add(rol(Roles.CLIENTE));
+        UUID choferId = UUID.randomUUID();
+        when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
+        when(roles.findById(Roles.CHOFER)).thenReturn(Optional.of(rol(Roles.CHOFER)));
+
+        recibir("ChoferCreado", new ChoferCreado(choferId, usuarioId, sucursalId));
+
+        assertThat(usuario.getChoferId()).isEqualTo(choferId);
+        assertThat(usuario.getSucursalId()).isEqualTo(sucursalId);
+        assertThat(usuario.getRoles()).extracting(Rol::getCodigo)
+                .containsExactlyInAnyOrder(Roles.CLIENTE, Roles.CHOFER);
+        verify(usuarios).save(usuario);
+        verify(jdbc).update(contains("INSERT INTO eventos_salida"), any(Object[].class));   // RolAsignado
+    }
+
+    @Test
+    void choferConCuentaNuevaYaTieneElRolYNoSeVuelveAAvisar() {
+        Usuario usuario = usuario();
+        UUID choferId = UUID.randomUUID();
+        usuario.setChoferId(choferId);
+        when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
+
+        recibir("ChoferCreado", new ChoferCreado(choferId, usuarioId, sucursalId));
+
+        verify(usuarios, never()).save(any());
+        verifyNoInteractions(roles);
+        sinSalida();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {Roles.ADMIN_SISTEMA, Roles.CAJERO})
+    void choferNoSeAsignaSiLaCuentaPasoASerAdminOPersonal(String codigo) {
+        Usuario usuario = usuario();
+        usuario.getRoles().add(rol(codigo));
+        when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
+
+        recibir("ChoferCreado", new ChoferCreado(UUID.randomUUID(), usuarioId, sucursalId));
+
+        assertThat(usuario.getChoferId()).isNull();
+        verify(usuarios, never()).save(any());
+        sinSalida();
     }
 
     @Test

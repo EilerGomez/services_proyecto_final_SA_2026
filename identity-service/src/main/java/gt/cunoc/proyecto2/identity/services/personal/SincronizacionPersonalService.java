@@ -97,6 +97,37 @@ public class SincronizacionPersonalService {
         }
     }
 
+    /**
+     * ChoferCreado. Con cuenta nueva (R5) la cuenta ya tiene el choferId y el rol: no hace nada.
+     * Con cuenta existente (R5b) se le ponen el choferId, la sucursal y el rol CHOFER, y se publica
+     * RolAsignado para avisarle por correo. Última defensa: si entre la validación de R5b y este evento la
+     * cuenta pasó a ser administrador del sistema, personal de sucursal u otro chofer, no recibe el rol.
+     */
+    @Transactional
+    public void asignarChofer(UUID usuarioId, UUID choferId, UUID sucursalId) {
+        Usuario usuario = usuarioId == null ? null : usuarios.findById(usuarioId).orElse(null);
+
+        if (usuario == null || Objects.equals(choferId, usuario.getChoferId())) {
+            return;
+        }
+        Optional<NegocioException> impedimento = ReglasAsignacionRol.impedimentoTipoParaChofer(usuario);
+        if (impedimento.isPresent()) {
+            log.warn("ChoferCreado ignorado para el usuario {}: {}", usuarioId, impedimento.get().getMessage());
+            return;
+        }
+        Rol rol = roles.findById(Roles.CHOFER).orElse(null);
+        if (rol == null) {
+            log.warn("ChoferCreado ignorado para el usuario {}: no existe el rol CHOFER", usuarioId);
+            return;
+        }
+        usuario.setChoferId(choferId);
+        usuario.setSucursalId(sucursalId);
+        usuario.getRoles().add(rol);
+        usuarios.save(usuario);
+        publicador.publicarRolAsignado(usuario.getId(), usuario.getCorreo(), nombreDe(usuario),
+                Roles.CHOFER, sucursalId, null, LocalDate.now());
+    }
+
     private String nombreDe(Usuario usuario) {
         Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
         return perfil == null ? usuario.getCorreo() : perfil.getNombres() + " " + perfil.getApellidos();

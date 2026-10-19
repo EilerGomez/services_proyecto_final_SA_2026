@@ -22,6 +22,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     boolean existsByCorreo(String correo);
 
+    List<Usuario> findByEstadoOrderByCorreoAsc(String estado);
+
     long countByEstadoAndRoles_Codigo(String estado, String rolCodigo);
 
     @Query("""

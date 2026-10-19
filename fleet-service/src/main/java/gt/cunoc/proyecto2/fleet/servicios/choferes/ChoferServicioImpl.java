@@ -11,6 +11,7 @@ import gt.cunoc.proyecto2.fleet.dtos.choferes.DesactivarChoferSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.choferes.NuevoChoferSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
+import gt.cunoc.proyecto2.fleet.dtos.identity.VinculoCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.dtos.trips.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.fleet.errores.choferes.ErrorChofer;
 import gt.cunoc.proyecto2.fleet.errores.generales.ErrorGeneral;
@@ -87,29 +88,42 @@ public class ChoferServicioImpl implements ChoferServicio {
     @Transactional
     public ChoferRespuesta crear(NuevoChoferSolicitud solicitud, UsuarioActual usuario) {
         usuario.verificarAccesoSucursal(solicitud.sucursalId());
+        boolean conCuentaExistente = solicitud.conUsuarioExistente();   // 400 si no viene exactamente una
 
-        // El id del chofer es el solicitudId de R5: el mismo en cada reintento
-        UUID choferId = solicitud.cuenta().solicitudId() != null
-                ? solicitud.cuenta().solicitudId() : UUID.randomUUID();
-        
+        // El id del chofer es el solicitudId de R5/R5b: el mismo en cada reintento
+        UUID choferId = solicitud.choferIdSolicitado();
+
         Optional<ChoferEntidad> yaRegistrado = repositorio.findById(choferId);
-        
+
         if (yaRegistrado.isPresent()) {
+            if (conCuentaExistente
+                    && !yaRegistrado.get().getUsuarioId().equals(solicitud.usuarioExistente().usuarioId())) {
+                throw ErrorGeneral.SOLICITUD_YA_USADA.excepcion();
+            }
             return reintentoDeAltaCompleta(yaRegistrado.get(), solicitud);
         }
 
-        verificarSucursalActiva(solicitud.sucursalId());
-        
-        fotos.verificarUrl(solicitud.cuenta().fotoUrl());
-        
+        SucursalEntidad sucursal = sucursalActiva(solicitud.sucursalId());
+
+        String fotoUrl = conCuentaExistente ? solicitud.usuarioExistente().fotoUrl() : solicitud.cuenta().fotoUrl();
+        if (!conCuentaExistente || fotoUrl != null) {
+            fotos.verificarUrl(fotoUrl);    // con cuenta existente y sin foto nueva se usa la de su perfil
+        }
+
         verificarLicenciaVigente(solicitud.fechaVencimientoLicencia(), solicitud.fechaRegistro());
-        
+
         if (repositorio.existsByNumeroLicencia(solicitud.numeroLicencia())) {
             throw ErrorChofer.LICENCIA_EN_USO.excepcion(solicitud.numeroLicencia());
         }
 
-        CuentaPersonalRespuesta cuenta = identity.crearCuentaPersonal(
-                SolicitudCuentaPersonal.paraChofer(choferId, solicitud.sucursalId(), solicitud.cuenta()));
+        // R5 crea la cuenta con el rol CHOFER. R5b solo valida la cuenta existente (activa, no admin del
+        // sistema, no personal, no chofer; foto): el rol se lo pone Identity al recibir ChoferCreado, que
+        // sale en esta misma transacción (outbox).
+        CuentaPersonalRespuesta cuenta = conCuentaExistente
+                ? identity.vincularCuentaExistente(VinculoCuentaPersonal.paraChofer(choferId,
+                        solicitud.usuarioExistente().usuarioId(), sucursal.getId(), sucursal.getNombre(), fotoUrl))
+                : identity.crearCuentaPersonal(
+                        SolicitudCuentaPersonal.paraChofer(choferId, solicitud.sucursalId(), solicitud.cuenta()));
 
         ChoferEntidad chofer = repositorio.saveAndFlush(
                 solicitud.crearEntidad(choferId, cuenta.usuarioId(), cuenta.nombreCompleto()));
@@ -191,12 +205,13 @@ public class ChoferServicioImpl implements ChoferServicio {
         return new ChoferInternoRespuesta(obtenerPorId(id), fecha);
     }
 
-    private void verificarSucursalActiva(UUID sucursalId) {
+    private SucursalEntidad sucursalActiva(UUID sucursalId) {
         SucursalEntidad sucursal = sucursales.findById(sucursalId)
                 .orElseThrow(() -> ErrorSucursal.SUCURSAL_NO_EXISTE.excepcion());
         if (!sucursal.isActiva()) {
             throw ErrorSucursal.SUCURSAL_INACTIVA.excepcion();
         }
+        return sucursal;
     }
 
     /** No se registra una licencia que ya venció en la fecha de registro elegida por el usuario. */

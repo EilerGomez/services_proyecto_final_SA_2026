@@ -3,10 +3,12 @@ package gt.cunoc.proyecto2.identity.services.usuario;
 import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioAsignableResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Perfil;
+import gt.cunoc.proyecto2.identity.models.PuestoAsignable;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.Usuario;
 import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
@@ -16,6 +18,7 @@ import gt.cunoc.proyecto2.identity.repositories.TokenRefrescoRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
 import gt.cunoc.proyecto2.identity.services.comun.TokenOpacoService;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -119,6 +122,46 @@ class UserServiceRolesTest {
         // Act + Assert
         assertThat(servicio.buscarPorCorreo("ana@correo.com", false).motivo())
                 .isEqualTo("La persona ya trabaja en una sucursal");
+    }
+
+    @Test
+    void paraChoferUnClienteSiSePuedeAsignar() {
+        Usuario cliente = usuario(Roles.CLIENTE);
+        when(usuarios.findByCorreo("ana@correo.com")).thenReturn(Optional.of(cliente));
+        when(perfiles.findById(cliente.getId())).thenReturn(Optional.of(perfil()));
+
+        assertThat(servicio.buscarPorCorreo("ana@correo.com", false, PuestoAsignable.CHOFER).puedeSerPersonal())
+                .isTrue();
+    }
+
+    @Test
+    void paraChoferElCajeroNoSePuedeYAlAdminDeSucursalNoSeLeDicePorQue() {
+        Usuario cajero = usuario(Roles.CAJERO, Roles.CLIENTE);
+        cajero.setSucursalId(UUID.randomUUID());
+        when(usuarios.findByCorreo("ana@correo.com")).thenReturn(Optional.of(cajero));
+        when(perfiles.findById(cajero.getId())).thenReturn(Optional.empty());
+
+        UsuarioBusquedaResponse oculto = servicio.buscarPorCorreo("ana@correo.com", false, PuestoAsignable.CHOFER);
+        UsuarioBusquedaResponse detallado = servicio.buscarPorCorreo("ana@correo.com", true, PuestoAsignable.CHOFER);
+
+        assertThat(oculto.puedeSerPersonal()).isFalse();
+        assertThat(oculto.motivo()).isEqualTo("Esta cuenta no se puede asignar como chofer");
+        assertThat(detallado.motivo()).isEqualTo("La persona trabaja como personal de una sucursal; no puede ser chofer");
+    }
+
+    @Test
+    void asignablesSoloDevuelveLasCuentasQuePuedenTomarElPuesto() {
+        Usuario cliente = usuario(Roles.CLIENTE);
+        Usuario cajero = usuario(Roles.CLIENTE, Roles.CAJERO);
+        Usuario admin = usuario(Roles.CLIENTE, Roles.ADMIN_SISTEMA);
+        Perfil perfil = perfil();
+        perfil.setUsuarioId(cliente.getId());
+        perfil.setFotoUrl("https://foto");
+        when(usuarios.findByEstadoOrderByCorreoAsc("ACTIVO")).thenReturn(List.of(cliente, cajero, admin));
+        when(perfiles.findAllById(List.of(cliente.getId()))).thenReturn(List.of(perfil));
+
+        assertThat(servicio.asignables(PuestoAsignable.CHOFER)).containsExactly(
+                new UsuarioAsignableResponse(cliente.getId(), "ana@correo.com", "Ana López", "https://foto"));
     }
 
     @Test
