@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
-import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.json.JsonMapper;
 
 /** La cola propia del gateway, enlazada a SesionRevocada del exchange de identity. */
@@ -34,7 +33,7 @@ class ConfiguracionRevocacionesTest {
     @Test
     void tokenDeServicioYCargaInicialSeArmanConLaConfiguracion() {
         TokenServicio token = configuracion.tokenServicio(JwtPrueba.SECRETO, JsonMapper.builder().build());
-        CargaInicialRevocaciones carga = new CargaInicialRevocaciones(WebClient.builder(), "http://identity:8081",
+        CargaInicialRevocaciones carga = new CargaInicialRevocaciones("http://identity:8081",
                 token, new RegistroRevocaciones(Duration.ofMinutes(65)));
 
         assertThat(token.generar()).contains(".");

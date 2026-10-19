@@ -34,11 +34,14 @@ public class CargaInicialRevocaciones {
     private final int intentos;
     private final Duration espera;
 
+    /**
+     * El WebClient se arma aquí: en Spring Boot 4 el bean {@code WebClient.Builder} solo existe con
+     * spring-boot-starter-webclient, que el gateway no usa (pedirlo tumbaba el arranque).
+     */
     @Autowired
-    public CargaInicialRevocaciones(WebClient.Builder clientes,
-                                    @Value("${gateway.services.identity-url}") String identityUrl,
+    public CargaInicialRevocaciones(@Value("${gateway.services.identity-url}") String identityUrl,
                                     TokenServicio token, RegistroRevocaciones registro) {
-        this(clientes.baseUrl(identityUrl).build(), token, registro, 40, Duration.ofSeconds(3));
+        this(WebClient.create(identityUrl), token, registro, 40, Duration.ofSeconds(3));
     }
 
     CargaInicialRevocaciones(WebClient identity, TokenServicio token, RegistroRevocaciones registro,
