@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.wallet.dtos.WalletRechargeRequest;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.pagos.ProveedorPagos;
 import gt.cunoc.proyecto2.wallet.pagos.ResultadoCobro;
@@ -44,11 +45,7 @@ class WalletRamasTest {
     private final UUID usuarioId = UUID.randomUUID();
 
     private Cartera cartera(String saldo) {
-        Cartera cartera = new Cartera();
-        cartera.setId(UUID.randomUUID());
-        cartera.setUsuarioId(usuarioId);
-        cartera.setSaldo(new BigDecimal(saldo));
-        return cartera;
+        return DatosPrueba.cartera(usuarioId, saldo);
     }
 
     @Test
@@ -110,7 +107,8 @@ class WalletRamasTest {
     void debitarDuplicadoConcurrenteDevuelveElExistente() {
         when(carteras.findWithLockByUsuarioId(usuarioId)).thenReturn(Optional.of(cartera("100.00")));
         UUID referenciaId = UUID.randomUUID();
-        MovimientoCartera existente = new MovimientoCartera();
+        MovimientoCartera existente = MovimientoCartera.debito(cartera("90.00"), BigDecimal.TEN, "VENTA",
+                referenciaId, LocalDate.now());
         when(movimientos.saveAndFlush(any(MovimientoCartera.class)))
                 .thenThrow(new DataIntegrityViolationException("dup"));
         when(movimientos.findByTipoAndReferenciaId("DEBITO", referenciaId))
@@ -155,7 +153,8 @@ class WalletRamasTest {
         assertTrue(resultado.isPresent());
         assertEquals(LocalDate.now(), resultado.get().getFechaMovimiento());
 
-        MovimientoCartera existente = new MovimientoCartera();
+        MovimientoCartera existente = MovimientoCartera.reembolso(cartera("25.00"), new BigDecimal("25.00"),
+                "VENTA", referenciaId, LocalDate.now());
         when(movimientos.findByTipoAndReferenciaId("REEMBOLSO", referenciaId))
                 .thenReturn(Optional.of(existente));
 
@@ -167,7 +166,8 @@ class WalletRamasTest {
     void reembolsoDuplicadoAlGuardarDevuelveExistente() {
         when(carteras.findWithLockByUsuarioId(usuarioId)).thenReturn(Optional.of(cartera("0.00")));
         UUID referenciaId = UUID.randomUUID();
-        MovimientoCartera existente = new MovimientoCartera();
+        MovimientoCartera existente = MovimientoCartera.reembolso(cartera("25.00"), new BigDecimal("25.00"),
+                "VENTA", referenciaId, LocalDate.now());
         when(movimientos.findByTipoAndReferenciaId("REEMBOLSO", referenciaId))
                 .thenReturn(Optional.empty(), Optional.of(existente));
         when(movimientos.saveAndFlush(any(MovimientoCartera.class)))

@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.wallet.dtos.CarteraSistemaResponse;
 import gt.cunoc.proyecto2.wallet.dtos.WalletMovementResponse;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.wallet.repositories.MovimientoRepository;
@@ -48,10 +49,7 @@ class CarteraSistemaServiceTest {
     @BeforeEach
     void preparar() {
         servicio = new CarteraSistemaService(carteras, movimientos);
-        sistema = new Cartera();
-        sistema.setId(UUID.randomUUID());
-        sistema.setTipo(Cartera.SISTEMA);
-        sistema.setSaldo(new BigDecimal("100.00"));
+        sistema = DatosPrueba.sistema("100.00");
     }
 
     private void sistemaBloqueada() {
@@ -60,15 +58,11 @@ class CarteraSistemaServiceTest {
     }
 
     private static MovimientoCartera movimiento(String tipo) {
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setId(UUID.randomUUID());
-        movimiento.setTipo(tipo);
-        movimiento.setMonto(new BigDecimal("40.00"));
-        movimiento.setSaldoResultante(new BigDecimal("60.00"));
-        movimiento.setTipoReferencia("VENTA");
-        movimiento.setReferenciaId(REFERENCIA);
-        movimiento.setFechaMovimiento(FECHA);
-        return movimiento;
+        Cartera conSaldo = DatosPrueba.cartera("60.00");
+        BigDecimal monto = new BigDecimal("40.00");
+        return DatosPrueba.conId(MovimientoCartera.COBRO.equals(tipo)
+                ? MovimientoCartera.cobro(conSaldo, monto, "VENTA", REFERENCIA, FECHA)
+                : MovimientoCartera.devolucion(conSaldo, monto, "VENTA", REFERENCIA, FECHA));
     }
 
     @Test

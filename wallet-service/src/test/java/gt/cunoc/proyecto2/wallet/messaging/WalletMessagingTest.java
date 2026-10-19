@@ -11,6 +11,7 @@ import gt.cunoc.proyecto2.wallet.evento.recibido.CuentaCreada;
 import gt.cunoc.proyecto2.wallet.evento.recibido.DebitoCarteraSolicitado;
 import gt.cunoc.proyecto2.wallet.evento.recibido.ReembolsoCarteraSolicitado;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.wallet.repositories.MovimientoRepository;
@@ -315,16 +316,12 @@ class WalletMessagingTest {
 
     private void prepararDebito() {
         when(identity.cuentaActiva(usuarioId)).thenReturn(true);
-        when(carteras.findByUsuarioId(usuarioId)).thenReturn(Optional.of(new Cartera()));
+        when(carteras.findByUsuarioId(usuarioId)).thenReturn(Optional.of(DatosPrueba.cartera(usuarioId, "0.00")));
     }
 
     private MovimientoCartera movimiento(BigDecimal importe) {
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setId(UUID.randomUUID());
-        movimiento.setMonto(importe);
-        movimiento.setSaldoResultante(new BigDecimal("100.00"));
-        movimiento.setFechaMovimiento(fechaPayload);
-        return movimiento;
+        return DatosPrueba.conId(MovimientoCartera.debito(DatosPrueba.cartera("100.00"), importe,
+                "VENTA", referenciaId, fechaPayload));
     }
 
     private void recibirDebito() {

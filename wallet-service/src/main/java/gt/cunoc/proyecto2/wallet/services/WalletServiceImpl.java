@@ -37,8 +37,6 @@ public class WalletServiceImpl implements WalletService {
      */
     private static final LocalDate SIN_LIMITE = LocalDate.of(9999, 12, 31);
 
-    private static final String MANUAL = "MANUAL";
-
     private final CarteraRepository carteras;
     private final MovimientoRepository movimientos;
     private final ProveedorPagos pagos;
@@ -71,7 +69,7 @@ public class WalletServiceImpl implements WalletService {
         carteras.crearSiNoExiste(usuarioId);
 
         // 1. Antes de cobrar se revisa que el nuevo saldo sea válido, para no cobrar una recarga que no cabe
-        carteras.findByUsuarioId(usuarioId).ifPresent(actual -> nuevoSaldo(actual.getSaldo(), monto));
+        carteras.findByUsuarioId(usuarioId).ifPresent(actual -> actual.validarAcreditacion(monto));
 
         // 2. Cobro en la pasarela (antes de bloquear la cartera)
         ResultadoCobro cobro = pagos.cobrar(new SolicitudCobro(
@@ -83,21 +81,13 @@ public class WalletServiceImpl implements WalletService {
 
         // 3. Acreditación con la cartera bloqueada (se vuelve a validar con el saldo ya bloqueado)
         Cartera cartera = carteras.findWithLockByUsuarioId(usuarioId).orElseThrow(WalletServiceImpl::sinCartera);
-        LocalDate fecha = solicitud.fechaMovimiento() == null ? LocalDate.now() : solicitud.fechaMovimiento();
-        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto));
+        cartera.acreditar(monto);
         carteras.save(cartera);
 
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setCarteraId(cartera.getId());
-        movimiento.setTipo(MovimientoCartera.RECARGA);
-        movimiento.setMonto(monto);
-        movimiento.setSaldoResultante(cartera.getSaldo());
-        movimiento.setTipoReferencia(MANUAL);
-        movimiento.setProveedorPago(pagos.codigo());
-        movimiento.setReferenciaExterna(cobro.referenciaExterna());
-        movimiento.setFechaMovimiento(fecha);
+        MovimientoCartera movimiento = MovimientoCartera.recarga(cartera, monto, pagos.codigo(),
+                cobro.referenciaExterna(), solicitud.fechaMovimiento());
         movimientos.save(movimiento);
-        return aRespuesta(movimiento);
+        return WalletMovementResponse.de(movimiento);
     }
 
     @Override
@@ -110,7 +100,7 @@ public class WalletServiceImpl implements WalletService {
         LocalDate fin = hasta == null ? SIN_LIMITE : hasta;
 
         return movimientos.findByCarteraIdAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(cartera.getId(), inicio, fin, paginado)
-                .map(this::aRespuesta);
+                .map(WalletMovementResponse::de);
     }
 
     @Override
@@ -121,20 +111,14 @@ public class WalletServiceImpl implements WalletService {
         if (cartera == null) {
             return Optional.empty();
         }
-        if (cartera.getSaldo().compareTo(monto) < 0) {
+        if (!cartera.alcanzaPara(monto)) {
             return Optional.empty();
         }
 
-        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto.negate()));
+        cartera.debitar(monto);
         carteras.save(cartera);
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setCarteraId(cartera.getId());
-        movimiento.setTipo(MovimientoCartera.DEBITO);
-        movimiento.setMonto(monto);
-        movimiento.setSaldoResultante(cartera.getSaldo());
-        movimiento.setTipoReferencia(referenciaTipo);
-        movimiento.setReferenciaId(referenciaId);
-        movimiento.setFechaMovimiento(fechaMovimiento == null ? LocalDate.now() : fechaMovimiento);
+        MovimientoCartera movimiento = MovimientoCartera.debito(cartera, monto, referenciaTipo, referenciaId,
+                fechaMovimiento);
 
         try {
             movimientos.saveAndFlush(movimiento);
@@ -158,16 +142,10 @@ public class WalletServiceImpl implements WalletService {
             throw ErrorCartera.MONTO_INVALIDO.excepcion();
         }
 
-        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto));
+        cartera.acreditar(monto);
         carteras.save(cartera);
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setCarteraId(cartera.getId());
-        movimiento.setTipo(MovimientoCartera.REEMBOLSO);
-        movimiento.setMonto(monto);
-        movimiento.setSaldoResultante(cartera.getSaldo());
-        movimiento.setTipoReferencia(referenciaTipo);
-        movimiento.setReferenciaId(referenciaId);
-        movimiento.setFechaMovimiento(fechaMovimiento == null ? LocalDate.now() : fechaMovimiento);
+        MovimientoCartera movimiento = MovimientoCartera.reembolso(cartera, monto, referenciaTipo, referenciaId,
+                fechaMovimiento);
 
         try {
             movimientos.saveAndFlush(movimiento);
@@ -184,33 +162,7 @@ public class WalletServiceImpl implements WalletService {
         }
     }
 
-    /**
-     * Saldo que queda al aplicar el cambio (positivo suma, negativo resta).
-     * Nunca puede quedar negativo ni pasar del máximo que cabe en la base de datos.
-     */
-    static BigDecimal nuevoSaldo(BigDecimal saldoActual, BigDecimal cambio) {
-        BigDecimal nuevo = saldoActual.add(cambio);
-        if (nuevo.signum() < 0) {
-            throw ErrorCartera.SALDO_NEGATIVO.excepcion();
-        }
-        if (nuevo.compareTo(Cartera.SALDO_MAXIMO) > 0) {
-            throw ErrorCartera.SALDO_EXCEDE_LIMITE.excepcion(Cartera.SALDO_MAXIMO.toPlainString());
-        }
-        return nuevo;
-    }
-
     private static NegocioException sinCartera() {
         return ErrorCartera.CARTERA_NO_EXISTE.excepcion();
-    }
-
-    private WalletMovementResponse aRespuesta(MovimientoCartera movimiento) {
-        return new WalletMovementResponse(
-                movimiento.getId(),
-                movimiento.getTipo(),
-                movimiento.getMonto(),
-                movimiento.getSaldoResultante(),
-                movimiento.getTipoReferencia(),
-                movimiento.getReferenciaId(),
-                movimiento.getFechaMovimiento());
     }
 }

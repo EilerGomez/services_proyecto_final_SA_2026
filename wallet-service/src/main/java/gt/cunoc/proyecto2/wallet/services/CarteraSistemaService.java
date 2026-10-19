@@ -59,7 +59,10 @@ public class CarteraSistemaService {
         if (previo.isPresent()) {
             return previo.get();
         }
-        return registrar(MovimientoCartera.COBRO, monto, monto, referenciaTipo, referenciaId, fecha);
+        Cartera sistema = sistema(true);
+        sistema.acreditar(monto);
+        carteras.save(sistema);
+        return movimientos.save(MovimientoCartera.cobro(sistema, monto, referenciaTipo, referenciaId, fecha));
     }
 
     /**
@@ -79,8 +82,12 @@ public class CarteraSistemaService {
                     referenciaId);
             return Optional.empty();
         }
-        return Optional.of(registrar(MovimientoCartera.DEVOLUCION, monto, monto.negate(), referenciaTipo,
-                referenciaId, fecha));
+        Cartera sistema = sistema(true);
+        // No debería quedar negativa: no hay retiros y cada devolución tiene su cobro. Si pasa, se revierte.
+        sistema.debitar(monto);
+        carteras.save(sistema);
+        return Optional.of(movimientos.save(
+                MovimientoCartera.devolucion(sistema, monto, referenciaTipo, referenciaId, fecha)));
     }
 
     /** W4: saldo y totales (solo ADMIN_SISTEMA). */
@@ -108,31 +115,6 @@ public class CarteraSistemaService {
                 : movimientos.findByCarteraIdAndTipoAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(
                         sistema.getId(), tipo, inicio, fin, paginado);
         return pagina.map(WalletMovementResponse::de);
-    }
-
-    private MovimientoCartera registrar(String tipo, BigDecimal monto, BigDecimal cambio, String referenciaTipo,
-                                        UUID referenciaId, LocalDate fecha) {
-        Cartera sistema = sistema(true);
-        BigDecimal nuevoSaldo = sistema.getSaldo().add(cambio);
-        if (nuevoSaldo.signum() < 0) {
-            // No debería pasar: no hay retiros y cada devolución tiene su cobro. Se revierte y se reintenta.
-            throw ErrorCartera.SALDO_SISTEMA_INSUFICIENTE.excepcion();
-        }
-        if (nuevoSaldo.compareTo(Cartera.SALDO_MAXIMO) > 0) {
-            throw ErrorCartera.SALDO_EXCEDE_LIMITE.excepcion(Cartera.SALDO_MAXIMO.toPlainString());
-        }
-        sistema.setSaldo(nuevoSaldo);
-        carteras.save(sistema);
-
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setCarteraId(sistema.getId());
-        movimiento.setTipo(tipo);
-        movimiento.setMonto(monto);
-        movimiento.setSaldoResultante(nuevoSaldo);
-        movimiento.setTipoReferencia(referenciaTipo);
-        movimiento.setReferenciaId(referenciaId);
-        movimiento.setFechaMovimiento(fecha == null ? LocalDate.now() : fecha);
-        return movimientos.save(movimiento);
     }
 
     private Cartera sistema(boolean bloquear) {

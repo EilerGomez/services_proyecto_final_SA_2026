@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.wallet.services;
 
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.pagos.ProveedorPagos;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.wallet.repositories.MovimientoRepository;
@@ -36,10 +37,7 @@ class WalletMovimientosFechasTest {
 
     @Test
     void movimientosConFechasUsaRangoDado() {
-        Cartera cartera = new Cartera();
-        cartera.setId(UUID.randomUUID());
-        cartera.setUsuarioId(usuarioId);
-        cartera.setSaldo(BigDecimal.ZERO);
+        Cartera cartera = DatosPrueba.cartera(usuarioId, "0.00");
         when(carteras.findByUsuarioId(usuarioId)).thenReturn(Optional.of(cartera));
         LocalDate desde = LocalDate.of(2026, 9, 1);
         LocalDate hasta = LocalDate.of(2026, 9, 30);

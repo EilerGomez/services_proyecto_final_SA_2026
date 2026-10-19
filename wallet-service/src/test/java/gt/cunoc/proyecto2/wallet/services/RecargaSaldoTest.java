@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import gt.cunoc.proyecto2.wallet.dtos.WalletRechargeRequest;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.pagos.ProveedorPagos;
 import gt.cunoc.proyecto2.wallet.pagos.ResultadoCobro;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Validación del saldo resultante en recargas, débitos y reembolsos. */
+/** Validaciones de la recarga: monto válido y saldo resultante dentro del máximo, antes y después de cobrar. */
 @ExtendWith(MockitoExtension.class)
 class RecargaSaldoTest {
 
@@ -41,11 +42,7 @@ class RecargaSaldoTest {
     private final UUID usuarioId = UUID.randomUUID();
 
     private Cartera cartera(String saldo) {
-        Cartera cartera = new Cartera();
-        cartera.setId(UUID.randomUUID());
-        cartera.setUsuarioId(usuarioId);
-        cartera.setSaldo(new BigDecimal(saldo));
-        return cartera;
+        return DatosPrueba.cartera(usuarioId, saldo);
     }
 
     @ParameterizedTest
@@ -103,15 +100,5 @@ class RecargaSaldoTest {
 
         assertEquals("SALDO_EXCEDE_LIMITE", error.getCodigo());
         verify(carteras, never()).save(any());
-    }
-
-    @Test
-    void elNuevoSaldoNuncaPuedeSerNegativo() {
-        var error = assertThrows(ReglaNegocioException.class,
-                () -> WalletServiceImpl.nuevoSaldo(new BigDecimal("10.00"), new BigDecimal("-10.01")));
-
-        assertEquals("SALDO_NEGATIVO", error.getCodigo());
-        assertEquals(0, BigDecimal.ZERO.compareTo(
-                WalletServiceImpl.nuevoSaldo(new BigDecimal("10.00"), new BigDecimal("-10.00"))));
     }
 }

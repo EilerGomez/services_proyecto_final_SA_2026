@@ -6,8 +6,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,11 +20,17 @@ import java.util.UUID;
  *
  * <p>{@code UNIQUE(tipo, referencia_id)} hace idempotente la saga y
  * {@code UNIQUE(proveedor_pago, referencia_externa)} evita acreditar dos veces el mismo cobro de la pasarela.
+ *
+ * <p>Se crea solo con sus métodos de fábrica ({@link #recarga}, {@link #debito}, {@link #reembolso},
+ * {@link #cobro}, {@link #devolucion}), que reciben la {@link Cartera} ya con el saldo aplicado: de ahí
+ * toman la cartera y el saldo resultante; todos llaman al constructor privado. Es inmutable (sin setters):
+ * un movimiento no se edita.
+ * El constructor vacío es solo para JPA.
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "movimientos_cartera")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MovimientoCartera {
 
     public static final String RECARGA = "RECARGA";
@@ -31,6 +38,9 @@ public class MovimientoCartera {
     public static final String REEMBOLSO = "REEMBOLSO";
     public static final String COBRO = "COBRO";
     public static final String DEVOLUCION = "DEVOLUCION";
+
+    /** Tipo de referencia de las recargas: no vienen de una venta ni de un alquiler. */
+    public static final String MANUAL = "MANUAL";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -63,4 +73,57 @@ public class MovimientoCartera {
 
     @Column(name = "fecha_movimiento", nullable = false)
     private LocalDate fechaMovimiento;
+
+    /**
+     * Único constructor: todo el movimiento se arma aquí a partir de la cartera (su id y el saldo que quedó).
+     * Sin fecha se usa la de hoy.
+     */
+    private MovimientoCartera(Cartera cartera, String tipo, BigDecimal monto, String tipoReferencia,
+                              UUID referenciaId, String proveedorPago, String referenciaExterna, LocalDate fecha) {
+        this.carteraId = cartera.getId();
+        this.tipo = tipo;
+        this.monto = monto;
+        this.saldoResultante = cartera.getSaldo();
+        this.tipoReferencia = tipoReferencia;
+        this.referenciaId = referenciaId;
+        this.proveedorPago = proveedorPago;
+        this.referenciaExterna = referenciaExterna;
+        this.fechaMovimiento = fecha == null ? LocalDate.now() : fecha;
+    }
+
+    /** Movimientos de una venta o un alquiler: no pasan por la pasarela. */
+    private MovimientoCartera(Cartera cartera, String tipo, BigDecimal monto, String tipoReferencia,
+                              UUID referenciaId, LocalDate fecha) {
+        this(cartera, tipo, monto, tipoReferencia, referenciaId, null, null, fecha);
+    }
+
+    /** Recarga cobrada en la pasarela de pagos. */
+    public static MovimientoCartera recarga(Cartera cartera, BigDecimal monto, String proveedorPago,
+                                            String referenciaExterna, LocalDate fecha) {
+        return new MovimientoCartera(cartera, RECARGA, monto, MANUAL, null, proveedorPago, referenciaExterna, fecha);
+    }
+
+    /** Pago de una venta o un alquiler con la cartera del cliente. */
+    public static MovimientoCartera debito(Cartera cartera, BigDecimal monto, String tipoReferencia,
+                                           UUID referenciaId, LocalDate fecha) {
+        return new MovimientoCartera(cartera, DEBITO, monto, tipoReferencia, referenciaId, fecha);
+    }
+
+    /** Devolución al cliente de una venta o un alquiler cancelado. */
+    public static MovimientoCartera reembolso(Cartera cartera, BigDecimal monto, String tipoReferencia,
+                                              UUID referenciaId, LocalDate fecha) {
+        return new MovimientoCartera(cartera, REEMBOLSO, monto, tipoReferencia, referenciaId, fecha);
+    }
+
+    /** Entrada a la billetera del sistema del pago de una compra en línea. */
+    public static MovimientoCartera cobro(Cartera sistema, BigDecimal monto, String tipoReferencia,
+                                          UUID referenciaId, LocalDate fecha) {
+        return new MovimientoCartera(sistema, COBRO, monto, tipoReferencia, referenciaId, fecha);
+    }
+
+    /** Salida de la billetera del sistema por el reembolso de una compra. */
+    public static MovimientoCartera devolucion(Cartera sistema, BigDecimal monto, String tipoReferencia,
+                                               UUID referenciaId, LocalDate fecha) {
+        return new MovimientoCartera(sistema, DEVOLUCION, monto, tipoReferencia, referenciaId, fecha);
+    }
 }

@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.wallet.dtos.WalletRechargeRequest;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
+import gt.cunoc.proyecto2.wallet.models.DatosPrueba;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.pagos.ProveedorPagos;
 import gt.cunoc.proyecto2.wallet.pagos.ResultadoCobro;
@@ -145,8 +146,8 @@ class WalletServiceImplTest {
     void reembolsoDuplicadoDevuelveElExistente() {
         // Arrange
         Cartera cartera = cartera(new BigDecimal("100.00"));
-        MovimientoCartera previo = new MovimientoCartera();
-        previo.setMonto(new BigDecimal("150.00"));
+        MovimientoCartera previo = MovimientoCartera.reembolso(cartera(new BigDecimal("250.00")),
+                new BigDecimal("150.00"), "VENTA", REFERENCIA_ID, LocalDate.now());
         when(carteras.findWithLockByUsuarioId(USUARIO_ID)).thenReturn(Optional.of(cartera));
         when(movimientos.findByTipoAndReferenciaId("REEMBOLSO", REFERENCIA_ID))
                 .thenReturn(Optional.of(previo));
@@ -189,13 +190,8 @@ class WalletServiceImplTest {
     void movimientosPaginaMapeada() {
         // Arrange
         Cartera cartera = cartera(new BigDecimal("100.00"));
-        MovimientoCartera movimiento = new MovimientoCartera();
-        movimiento.setId(UUID.randomUUID());
-        movimiento.setTipo("RECARGA");
-        movimiento.setMonto(new BigDecimal("100.00"));
-        movimiento.setSaldoResultante(new BigDecimal("100.00"));
-        movimiento.setTipoReferencia("MANUAL");
-        movimiento.setFechaMovimiento(LocalDate.of(2026, 10, 5));
+        MovimientoCartera movimiento = DatosPrueba.conId(MovimientoCartera.recarga(cartera,
+                new BigDecimal("100.00"), "SIMULADO", "SIM-1", LocalDate.of(2026, 10, 5)));
         when(carteras.findByUsuarioId(USUARIO_ID)).thenReturn(Optional.of(cartera));
         when(movimientos.findByCarteraIdAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(
                 any(), any(), any(), any()))
@@ -211,9 +207,6 @@ class WalletServiceImplTest {
     }
 
     private Cartera cartera(BigDecimal saldo) {
-        Cartera cartera = new Cartera();
-        cartera.setUsuarioId(USUARIO_ID);
-        cartera.setSaldo(saldo);
-        return cartera;
+        return DatosPrueba.cartera(USUARIO_ID, saldo.toPlainString());
     }
 }
