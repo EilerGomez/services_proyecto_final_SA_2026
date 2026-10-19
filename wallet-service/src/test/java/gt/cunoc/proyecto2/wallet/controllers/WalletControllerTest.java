@@ -95,6 +95,19 @@ class WalletControllerTest extends BaseControladorTest {
     }
 
     @Test
+    void recargaConMasDeDosDecimalesDa400() throws Exception {
+        sesion("token", usuario(Set.of(Roles.CLIENTE)));
+
+        mvc.perform(post("/wallet/cartera/recargas")
+                        .header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"monto":10.555,"fechaMovimiento":"2026-10-20"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.codigo").value("VALIDACION"));
+    }
+
+    @Test
     void movimientosAceptaFiltrosDeFecha() throws Exception {
         // Arrange
         var actual = usuario(Set.of(Roles.CLIENTE));

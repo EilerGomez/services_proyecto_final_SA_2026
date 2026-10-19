@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.wallet.services;
 
 import gt.cunoc.proyecto2.wallet.clientes.ClienteIdentity;
+import gt.cunoc.proyecto2.wallet.errores.MotivoRechazoDebito;
 import gt.cunoc.proyecto2.wallet.messaging.publisher.CarteraEventPublisher;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
@@ -44,12 +45,12 @@ public class DebitoCarteraService {
     @Transactional
     public void procesar(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaNegocio) {
         if (!identity.cuentaActiva(usuarioId)) {
-            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, "USUARIO_INACTIVO");
+            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, MotivoRechazoDebito.USUARIO_INACTIVO);
             return;
         }
 
         if (carteras.findByUsuarioId(usuarioId).isEmpty()) {
-            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, "CARTERA_INEXISTENTE");
+            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, MotivoRechazoDebito.CARTERA_INEXISTENTE);
             return;
         }
 
@@ -69,7 +70,7 @@ public class DebitoCarteraService {
             sistema.registrarCobro(monto, referenciaTipo, referenciaId, debito.get().getFechaMovimiento());
             publicarDebitada(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, debito.get());
         } else {
-            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, "SALDO_INSUFICIENTE");
+            rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, MotivoRechazoDebito.SALDO_INSUFICIENTE);
         }
     }
 
@@ -81,10 +82,10 @@ public class DebitoCarteraService {
                 fechaNegocio);
     }
 
-    private void rechazar(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaNegocio, String motivo) {
+    private void rechazar(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaNegocio, MotivoRechazoDebito motivo) {
         publicador.publicarDebitoCarteraRechazado(
                 referenciaTipo, referenciaId, usuarioId,
-                monto, motivo,
+                monto, motivo.name(),
                 fechaNegocio);
     }
 }

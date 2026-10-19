@@ -1,10 +1,10 @@
 package gt.cunoc.proyecto2.wallet.services;
 
-import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
-import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
+import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.wallet.dtos.WalletMovementResponse;
 import gt.cunoc.proyecto2.wallet.dtos.WalletRechargeRequest;
 import gt.cunoc.proyecto2.wallet.dtos.WalletResponse;
+import gt.cunoc.proyecto2.wallet.errores.ErrorCartera;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.pagos.ProveedorPagos;
@@ -66,26 +66,31 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional
     public WalletMovementResponse recargar(UUID usuarioId, WalletRechargeRequest solicitud) {
+        BigDecimal monto = solicitud.monto();
+        validarMontoRecarga(monto);
         carteras.crearSiNoExiste(usuarioId);
 
-        // 1. Cobro en la pasarela (antes de bloquear la cartera)
+        // 1. Antes de cobrar se revisa que el nuevo saldo sea válido, para no cobrar una recarga que no cabe
+        carteras.findByUsuarioId(usuarioId).ifPresent(actual -> nuevoSaldo(actual.getSaldo(), monto));
+
+        // 2. Cobro en la pasarela (antes de bloquear la cartera)
         ResultadoCobro cobro = pagos.cobrar(new SolicitudCobro(
-                UUID.randomUUID(), usuarioId, solicitud.monto(), SolicitudCobro.QUETZALES));
+                UUID.randomUUID(), usuarioId, monto, SolicitudCobro.QUETZALES));
         if (!cobro.aprobado()) {
-            throw new ReglaNegocioException("PAGO_RECHAZADO",
-                    cobro.motivo() == null ? "La pasarela de pagos rechazó el cobro" : cobro.motivo());
+            throw ErrorCartera.PAGO_RECHAZADO.excepcion(
+                    cobro.motivo() == null ? ErrorCartera.PAGO_RECHAZADO_SIN_MOTIVO : cobro.motivo());
         }
 
-        // 2. Acreditación con la cartera bloqueada
+        // 3. Acreditación con la cartera bloqueada (se vuelve a validar con el saldo ya bloqueado)
         Cartera cartera = carteras.findWithLockByUsuarioId(usuarioId).orElseThrow(WalletServiceImpl::sinCartera);
         LocalDate fecha = solicitud.fechaMovimiento() == null ? LocalDate.now() : solicitud.fechaMovimiento();
-        cartera.setSaldo(cartera.getSaldo().add(solicitud.monto()));
+        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto));
         carteras.save(cartera);
 
         MovimientoCartera movimiento = new MovimientoCartera();
         movimiento.setCarteraId(cartera.getId());
         movimiento.setTipo(MovimientoCartera.RECARGA);
-        movimiento.setMonto(solicitud.monto());
+        movimiento.setMonto(monto);
         movimiento.setSaldoResultante(cartera.getSaldo());
         movimiento.setTipoReferencia(MANUAL);
         movimiento.setProveedorPago(pagos.codigo());
@@ -120,7 +125,7 @@ public class WalletServiceImpl implements WalletService {
             return Optional.empty();
         }
 
-        cartera.setSaldo(cartera.getSaldo().subtract(monto));
+        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto.negate()));
         carteras.save(cartera);
         MovimientoCartera movimiento = new MovimientoCartera();
         movimiento.setCarteraId(cartera.getId());
@@ -150,10 +155,10 @@ public class WalletServiceImpl implements WalletService {
             return existente;
         }
         if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ReglaNegocioException("MONTO_INVALIDO", "El monto del reembolso debe ser mayor que cero");
+            throw ErrorCartera.MONTO_INVALIDO.excepcion();
         }
 
-        cartera.setSaldo(cartera.getSaldo().add(monto));
+        cartera.setSaldo(nuevoSaldo(cartera.getSaldo(), monto));
         carteras.save(cartera);
         MovimientoCartera movimiento = new MovimientoCartera();
         movimiento.setCarteraId(cartera.getId());
@@ -172,8 +177,30 @@ public class WalletServiceImpl implements WalletService {
         return Optional.of(movimiento);
     }
 
-    private static NoEncontradoException sinCartera() {
-        return new NoEncontradoException("CARTERA_NO_EXISTE", "El usuario no tiene cartera");
+    /** Mayor que cero y con dos decimales como máximo (la columna es NUMERIC(12,2)). */
+    private static void validarMontoRecarga(BigDecimal monto) {
+        if (monto == null || monto.signum() <= 0 || monto.stripTrailingZeros().scale() > 2) {
+            throw ErrorCartera.MONTO_RECARGA_INVALIDO.excepcion();
+        }
+    }
+
+    /**
+     * Saldo que queda al aplicar el cambio (positivo suma, negativo resta).
+     * Nunca puede quedar negativo ni pasar del máximo que cabe en la base de datos.
+     */
+    static BigDecimal nuevoSaldo(BigDecimal saldoActual, BigDecimal cambio) {
+        BigDecimal nuevo = saldoActual.add(cambio);
+        if (nuevo.signum() < 0) {
+            throw ErrorCartera.SALDO_NEGATIVO.excepcion();
+        }
+        if (nuevo.compareTo(Cartera.SALDO_MAXIMO) > 0) {
+            throw ErrorCartera.SALDO_EXCEDE_LIMITE.excepcion(Cartera.SALDO_MAXIMO.toPlainString());
+        }
+        return nuevo;
+    }
+
+    private static NegocioException sinCartera() {
+        return ErrorCartera.CARTERA_NO_EXISTE.excepcion();
     }
 
     private WalletMovementResponse aRespuesta(MovimientoCartera movimiento) {

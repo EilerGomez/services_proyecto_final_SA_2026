@@ -35,6 +35,9 @@ public class Cartera {
     public static final String USUARIO = "USUARIO";
     public static final String SISTEMA = "SISTEMA";
 
+    /** Mayor saldo que cabe en la columna NUMERIC(12,2). */
+    public static final BigDecimal SALDO_MAXIMO = new BigDecimal("9999999999.99");
+
     @Column(name = "usuario_id", unique = true)
     private UUID usuarioId;
 

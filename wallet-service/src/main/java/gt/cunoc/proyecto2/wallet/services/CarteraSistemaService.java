@@ -1,9 +1,8 @@
 package gt.cunoc.proyecto2.wallet.services;
 
-import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
-import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
 import gt.cunoc.proyecto2.wallet.dtos.CarteraSistemaResponse;
 import gt.cunoc.proyecto2.wallet.dtos.WalletMovementResponse;
+import gt.cunoc.proyecto2.wallet.errores.ErrorCartera;
 import gt.cunoc.proyecto2.wallet.models.Cartera;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
@@ -98,7 +97,7 @@ public class CarteraSistemaService {
     @Transactional
     public Page<WalletMovementResponse> movimientos(String tipo, LocalDate desde, LocalDate hasta, Pageable paginado) {
         if (tipo != null && !tipo.isBlank() && !TIPOS.contains(tipo)) {
-            throw new SolicitudInvalidaException("TIPO_INVALIDO", "El tipo debe ser COBRO o DEVOLUCION");
+            throw ErrorCartera.TIPO_INVALIDO.excepcion();
         }
         Cartera sistema = sistema(false);
         LocalDate inicio = desde == null ? LocalDate.of(2000, 1, 1) : desde;
@@ -117,8 +116,10 @@ public class CarteraSistemaService {
         BigDecimal nuevoSaldo = sistema.getSaldo().add(cambio);
         if (nuevoSaldo.signum() < 0) {
             // No debería pasar: no hay retiros y cada devolución tiene su cobro. Se revierte y se reintenta.
-            throw new ReglaNegocioException("SALDO_SISTEMA_INSUFICIENTE",
-                    "La billetera del sistema no tiene saldo para el reembolso");
+            throw ErrorCartera.SALDO_SISTEMA_INSUFICIENTE.excepcion();
+        }
+        if (nuevoSaldo.compareTo(Cartera.SALDO_MAXIMO) > 0) {
+            throw ErrorCartera.SALDO_EXCEDE_LIMITE.excepcion(Cartera.SALDO_MAXIMO.toPlainString());
         }
         sistema.setSaldo(nuevoSaldo);
         carteras.save(sistema);

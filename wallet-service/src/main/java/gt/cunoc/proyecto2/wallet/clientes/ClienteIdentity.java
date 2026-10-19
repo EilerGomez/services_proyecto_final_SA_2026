@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.wallet.clientes;
 
 import gt.cunoc.proyecto2.comun.cliente.ClientesInternos;
 import gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException;
+import gt.cunoc.proyecto2.wallet.errores.ErrorCartera;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,8 +52,7 @@ public class ClienteIdentity {
             return false;
         } catch (RestClientException e) {
             log.warn("Identity no respondió el estado de la cuenta {}: {}", usuarioId, e.getMessage());
-            throw new ServicioNoDisponibleException("IDENTITY_NO_DISPONIBLE",
-                    "No se pudo verificar el estado de la cuenta, intente de nuevo");
+            throw ErrorCartera.IDENTITY_NO_DISPONIBLE.excepcion();
         }
     }
 }
