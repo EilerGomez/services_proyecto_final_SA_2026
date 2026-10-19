@@ -9,12 +9,25 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * OAuth2 con Google sin proveedor real: sin credenciales el servicio responde
  * 503/302/401 controlados y el resto sigue igual (las credenciales nunca van al repo).
  */
 class OAuthIT extends PruebaIntegracion {
+
+    /**
+     * Fuerza "sin configurar" aunque el application.yml local traiga credenciales
+     * reales: estas pruebas validan el modo apagado y no deben depender del entorno.
+     */
+    @DynamicPropertySource
+    static void sinCredenciales(DynamicPropertyRegistry registro) {
+        registro.add("app.oauth2.google.client-id", () -> "");
+        registro.add("app.oauth2.google.client-secret", () -> "");
+        registro.add("app.oauth2.google.redirect-uri", () -> "");
+    }
 
     @Value("${local.server.port}")
     private int puerto;

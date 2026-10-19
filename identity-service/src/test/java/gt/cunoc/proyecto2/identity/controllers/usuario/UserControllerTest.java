@@ -108,6 +108,31 @@ class UserControllerTest extends BaseControladorTest {
         verify(servicio).cambiarEstado(any(), any());
     }
 
+    @Test
+    void desbloquearDevuelve200() throws Exception {
+        // Arrange
+        sesion("token", usuario(Set.of(Roles.ADMIN_SISTEMA), null));
+        when(servicio.desbloquear(any())).thenReturn(detalle(null));
+
+        // Act + Assert
+        mvc.perform(post("/identity/usuarios/" + UUID.randomUUID() + "/desbloquear")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk());
+        verify(servicio).desbloquear(any());
+    }
+
+    @Test
+    void elAdminDeSucursalNoPuedeDesbloquear() throws Exception {
+        // Arrange
+        sesion("token", usuario(Set.of(Roles.ADMIN_SUCURSAL), UUID.randomUUID()));
+
+        // Act + Assert
+        mvc.perform(post("/identity/usuarios/" + UUID.randomUUID() + "/desbloquear")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isForbidden());
+        verify(servicio, never()).desbloquear(any());
+    }
+
     private UsuarioListaResponse fila() {
         return new UsuarioListaResponse(UUID.randomUUID(), "ana@correo.com", "Ana López",
                 "1234567-8", Set.of(Roles.CLIENTE), "ACTIVO", null, Instant.now());
