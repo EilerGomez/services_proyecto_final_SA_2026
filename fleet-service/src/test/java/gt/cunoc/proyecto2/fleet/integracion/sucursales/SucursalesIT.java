@@ -106,7 +106,8 @@ class SucursalesIT extends PruebaIntegracion {
 
         esError(respuesta, 400, "VALIDACION");
         List<String> campos = json(respuesta, "$.errores[*].campo");
-        assertThat(campos).contains("nombre", "latitud", "adminInicial");
+        // adminInicial ya no es obligatorio aquí: puede venir adminExistente (lo valida el servicio: CUENTA_REQUERIDA)
+        assertThat(campos).contains("nombre", "latitud");
     }
 
     @Test

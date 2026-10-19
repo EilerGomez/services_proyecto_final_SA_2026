@@ -20,7 +20,10 @@ public enum ErrorPersonal implements CodigoError {
     PERSONAL_CUENTA_INACTIVA(TipoError.REGLA_NEGOCIO,
             "La cuenta de la persona está desactivada; actívela en Usuarios antes de reintegrarla"),
     PERSONAL_CUENTA_BLOQUEADA(TipoError.REGLA_NEGOCIO,
-            "La cuenta de la persona está bloqueada %s; no se puede reintegrar mientras siga bloqueada");
+            "La cuenta de la persona está bloqueada %s; no se puede reintegrar mientras siga bloqueada"),
+    PERSONAL_CUENTA_NO_ELEGIBLE(TipoError.REGLA_NEGOCIO, "%s"),
+    CUENTA_REQUERIDA(TipoError.SOLICITUD_INVALIDA,
+            "Indique los datos de una cuenta nueva o elija un usuario existente (solo una de las dos)");
 
     private final TipoError tipo;
     private final String mensaje;
@@ -28,6 +31,17 @@ public enum ErrorPersonal implements CodigoError {
     ErrorPersonal(TipoError tipo, String mensaje) {
         this.tipo = tipo;
         this.mensaje = mensaje;
+    }
+
+    /**
+     * Altas de personal: debe venir exactamente una forma de cuenta (nueva o existente).
+     * Devuelve true si es la existente.
+     */
+    public static boolean verificarUnaCuenta(Object cuentaNueva, Object cuentaExistente) {
+        if ((cuentaNueva == null) == (cuentaExistente == null)) {
+            throw CUENTA_REQUERIDA.excepcion();
+        }
+        return cuentaExistente != null;
     }
 
     @Override

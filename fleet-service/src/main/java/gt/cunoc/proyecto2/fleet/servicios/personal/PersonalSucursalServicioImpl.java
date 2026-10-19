@@ -3,9 +3,11 @@ package gt.cunoc.proyecto2.fleet.servicios.personal;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.fleet.clientes.identity.ClienteIdentity;
 import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.cuentas.UsuarioExistenteSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.EstadoCuentaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
+import gt.cunoc.proyecto2.fleet.dtos.identity.VinculoCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.dtos.personal.DesactivarPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.NuevoPersonalSolicitud;
 import gt.cunoc.proyecto2.fleet.dtos.personal.PersonalSucursalRespuesta;
@@ -85,8 +87,10 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         SucursalEntidad sucursal = sucursales.findById(sucursalId)
                 .orElseThrow(() -> ErrorSucursal.SUCURSAL_NO_EXISTE.excepcion());
 
-        PersonalSucursalEntidad personal =
-                registrarAlta(sucursal, solicitud.rol(), solicitud.fechaAsignacion(), solicitud.cuenta());
+        PersonalSucursalEntidad personal = solicitud.conUsuarioExistente()
+                ? registrarAltaExistente(sucursal, solicitud.rol(), solicitud.fechaAsignacion(),
+                        solicitud.usuarioExistente())
+                : registrarAlta(sucursal, solicitud.rol(), solicitud.fechaAsignacion(), solicitud.cuenta());
         return new PersonalSucursalRespuesta(personal);
     }
 
@@ -107,13 +111,48 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         }
 
         CuentaPersonalRespuesta creada = identity.crearCuentaPersonal(
-                SolicitudCuentaPersonal.paraPersonal(personalId, sucursal.getId(), rol, cuenta));
+                SolicitudCuentaPersonal.paraPersonal(personalId, sucursal.getId(), sucursal.getNombre(), rol, cuenta));
 
+        return guardarAlta(personalId, sucursal, rol, fechaAsignacion, creada);
+    }
+
+    @Override
+    @Transactional
+    public PersonalSucursalEntidad registrarAltaExistente(SucursalEntidad sucursal, RolPersonal rol,
+                                                          LocalDate fechaAsignacion,
+                                                          UsuarioExistenteSolicitud existente) {
+        if (!sucursal.isActiva()) {
+            throw ErrorSucursal.SUCURSAL_INACTIVA.excepcion();
+        }
+
+        UUID personalId = existente.solicitudId() != null ? existente.solicitudId() : UUID.randomUUID();
+
+        Optional<PersonalSucursalEntidad> yaRegistrado = repositorio.findById(personalId);
+        if (yaRegistrado.isPresent()) {
+            if (!yaRegistrado.get().getUsuarioId().equals(existente.usuarioId())) {
+                throw ErrorGeneral.SOLICITUD_YA_USADA.excepcion();
+            }
+            return reintentoDeAltaCompleta(yaRegistrado.get(), sucursal);
+        }
+        if (repositorio.existsByUsuarioIdAndActivoTrue(existente.usuarioId())) {
+            throw ErrorPersonal.PERSONAL_EN_OTRA_SUCURSAL.excepcion();
+        }
+
+        // R5b: Identity valida la cuenta (activa, no chofer, no admin del sistema...). El rol se lo pone
+        // al recibir PersonalSucursalAsignado, que sale en esta misma transacción (outbox).
+        CuentaPersonalRespuesta vinculada = identity.vincularCuentaExistente(new VinculoCuentaPersonal(
+                personalId, existente.usuarioId(), rol.name(), sucursal.getId(), sucursal.getNombre()));
+
+        return guardarAlta(personalId, sucursal, rol, fechaAsignacion, vinculada);
+    }
+
+    /** INSERT de la fila de personal con los datos que devolvió Identity y evento PersonalSucursalAsignado. */
+    private PersonalSucursalEntidad guardarAlta(UUID personalId, SucursalEntidad sucursal, RolPersonal rol,
+                                                LocalDate fechaAsignacion, CuentaPersonalRespuesta cuenta) {
         PersonalSucursalEntidad personal = repositorio.saveAndFlush(PersonalSucursalEntidad.asignar(
-                personalId, sucursal.getId(), creada.usuarioId(), creada.nombreCompleto(),
-                creada.correo(), rol, fechaAsignacion));
-        eventos.personalAsignado(personal, fechaAsignacion);
-
+                personalId, sucursal.getId(), cuenta.usuarioId(), cuenta.nombreCompleto(),
+                cuenta.correo(), rol, fechaAsignacion));
+        eventos.personalAsignado(personal, sucursal.getNombre(), fechaAsignacion);
         return personal;
     }
 
@@ -159,7 +198,7 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
 
         // Primero el cierre y luego la nueva asignación: Identity termina con la sucursal nueva
         eventos.personalDesactivado(anterior, solicitud.fechaTraslado());
-        eventos.personalAsignado(nueva, solicitud.fechaTraslado());
+        eventos.personalAsignado(nueva, destino.getNombre(), solicitud.fechaTraslado());
 
         return new TrasladoPersonalRespuesta(new PersonalSucursalRespuesta(anterior),
                 new PersonalSucursalRespuesta(nueva));
@@ -192,7 +231,7 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         // Sin R5: la cuenta ya existe. Identity le devuelve el rol y la sucursal con el evento.
         PersonalSucursalEntidad nueva = repositorio.saveAndFlush(
                 retirado.reintegrar(destino.getId(), solicitud.rol(), solicitud.fechaAsignacion()));
-        eventos.personalAsignado(nueva, solicitud.fechaAsignacion());
+        eventos.personalAsignado(nueva, destino.getNombre(), solicitud.fechaAsignacion());
         return new PersonalSucursalRespuesta(nueva);
     }
 
@@ -216,6 +255,10 @@ public class PersonalSucursalServicioImpl implements PersonalSucursalServicio {
         }
         if (cuenta.inactiva()) {
             throw ErrorPersonal.PERSONAL_CUENTA_INACTIVA.excepcion();
+        }
+        // Mientras estuvo retirada pudo volverse administrador del sistema (o ser chofer)
+        if (cuenta.impedimentoPersonal() != null) {
+            throw ErrorPersonal.PERSONAL_CUENTA_NO_ELEGIBLE.excepcion(cuenta.impedimentoPersonal());
         }
     }
 

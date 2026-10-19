@@ -31,6 +31,12 @@ import java.util.UUID;
 @Service
 public class WalletServiceImpl implements WalletService {
 
+    /**
+     * Sin "hasta" no hay tope: la fecha del movimiento es la fecha de negocio que elige el usuario
+     * y puede ser posterior a hoy (antes se cortaba en mañana y esos movimientos no aparecían).
+     */
+    private static final LocalDate SIN_LIMITE = LocalDate.of(9999, 12, 31);
+
     private static final String MANUAL = "MANUAL";
 
     private final CarteraRepository carteras;
@@ -96,7 +102,7 @@ public class WalletServiceImpl implements WalletService {
         Cartera cartera = carteras.findByUsuarioId(usuarioId).orElseThrow(WalletServiceImpl::sinCartera);
 
         LocalDate inicio = desde == null ? LocalDate.of(2000, 1, 1) : desde;
-        LocalDate fin = hasta == null ? LocalDate.now().plusDays(1) : hasta;
+        LocalDate fin = hasta == null ? SIN_LIMITE : hasta;
 
         return movimientos.findByCarteraIdAndFechaMovimientoBetweenOrderByFechaMovimientoDesc(cartera.getId(), inicio, fin, paginado)
                 .map(this::aRespuesta);

@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.identity.archivos.AlmacenFotos;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalRequest;
 import gt.cunoc.proyecto2.identity.dtos.personal.CuentaPersonalResponse;
+import gt.cunoc.proyecto2.identity.dtos.personal.VincularCuentaRequest;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
 import gt.cunoc.proyecto2.identity.models.Perfil;
 import gt.cunoc.proyecto2.identity.models.Rol;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 
 
 /**
- * R5 idempotente: la llave es {@code solicitudId} generado en Fleet.
+ * R5 (cuenta nueva) y R5b (cuenta existente) idempotentes: la llave es {@code solicitudId} generado en Fleet.
  */
 @Service
 public class CuentasPersonalServiceImpl implements CuentasPersonalService {
@@ -90,12 +91,7 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
     public CuentaPersonalResponse crear(CuentaPersonalRequest solicitud) {
         SolicitudCuentaPersonal previa = solicitudes.findById(solicitud.solicitudId()).orElse(null);
         if (previa != null) {
-            Usuario existente = usuarios.findById(previa.getUsuarioId())
-                    .orElseThrow(() -> new ReglaNegocioException("CUENTA_INCONSISTENTE", "La solicitud ya existe sin usuario"));
-            Perfil perfil = perfiles.findById(existente.getId()).orElse(null);
-            String nombrePrevio = perfil == null ? existente.getCorreo()
-                    : perfil.getNombres() + " " + perfil.getApellidos();
-            return new CuentaPersonalResponse(existente.getId(), existente.getCorreo(), nombrePrevio, false);
+            return respuestaPrevia(previa);
         }
         boolean esChofer = Roles.CHOFER.equals(solicitud.rol());
         if (esChofer && solicitud.choferId() == null) {
@@ -159,10 +155,67 @@ public class CuentasPersonalServiceImpl implements CuentasPersonalService {
         publicador.publicarCuentaCreada(
                 usuario.getId(), correo, nombre, codigos,
                 urlFrontend + "/restablecer?token=" + crudo,
+                solicitud.sucursalNombre(),
                 LocalDate.now());
         publicador.publicarClienteRegistrado(
                 usuario.getId(), solicitud.nit(), nombre, correo,
                 LocalDate.now());
         return new CuentaPersonalResponse(usuario.getId(), correo, nombre, true);
+    }
+
+    /**
+     * R5b: la cuenta ya existe (la persona se registró antes). Solo VALIDA y registra la solicitud; no
+     * cambia la cuenta. El rol y la sucursal se los pone el evento PersonalSucursalAsignado que Fleet
+     * publica en la misma transacción en que guarda la fila (outbox): si Fleet revierte, la cuenta no
+     * queda con un rol sin respaldo. Al recibir ese evento se publica RolAsignado (aviso por correo).
+     */
+    @Override
+    @Transactional
+    public CuentaPersonalResponse vincular(VincularCuentaRequest solicitud) {
+        SolicitudCuentaPersonal previa = solicitudes.findById(solicitud.solicitudId()).orElse(null);
+        if (previa != null) {
+            boolean misma = previa.getUsuarioId().equals(solicitud.usuarioId())
+                    && previa.getRolCodigo().equals(solicitud.rol())
+                    && previa.getSucursalId().equals(solicitud.sucursalId());
+            if (!misma) {
+                throw new ConflictoException("SOLICITUD_YA_USADA",
+                        "El solicitudId ya se usó con otros datos; genere uno nuevo");
+            }
+            // Si Fleet revirtió la vez anterior, la cuenta aún no es personal: se valida de nuevo
+            Usuario previo = usuarios.findById(previa.getUsuarioId()).orElse(null);
+            if (previo != null && !ReglasAsignacionRol.esPersonal(previo)) {
+                ReglasAsignacionRol.impedimentoParaPersonal(previo, Instant.now()).ifPresent(impedimento -> {
+                    throw impedimento;
+                });
+            }
+            return respuestaPrevia(previa);
+        }
+        // 422 (no 404): Fleet trata los 404 de otro servicio como error de configuración (503)
+        Usuario usuario = usuarios.findById(solicitud.usuarioId())
+                .orElseThrow(() -> new ReglaNegocioException("USUARIO_NO_EXISTE", "La cuenta indicada no existe"));
+        ReglasAsignacionRol.impedimentoParaPersonal(usuario, Instant.now()).ifPresent(impedimento -> {
+            throw impedimento;
+        });
+
+        SolicitudCuentaPersonal registro = new SolicitudCuentaPersonal();
+        registro.setSolicitudId(solicitud.solicitudId());
+        registro.setUsuarioId(usuario.getId());
+        registro.setRolCodigo(solicitud.rol());
+        registro.setSucursalId(solicitud.sucursalId());
+        solicitudes.save(registro);
+
+        return new CuentaPersonalResponse(usuario.getId(), usuario.getCorreo(), nombreDe(usuario), false);
+    }
+
+    /** Reintento de una solicitud ya procesada: devuelve la misma cuenta. */
+    private CuentaPersonalResponse respuestaPrevia(SolicitudCuentaPersonal previa) {
+        Usuario existente = usuarios.findById(previa.getUsuarioId())
+                .orElseThrow(() -> new ReglaNegocioException("CUENTA_INCONSISTENTE", "La solicitud ya existe sin usuario"));
+        return new CuentaPersonalResponse(existente.getId(), existente.getCorreo(), nombreDe(existente), false);
+    }
+
+    private String nombreDe(Usuario usuario) {
+        Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
+        return perfil == null ? usuario.getCorreo() : perfil.getNombres() + " " + perfil.getApellidos();
     }
 }

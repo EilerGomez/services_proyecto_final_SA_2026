@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.identity.evento.payload.CodigoDobleFactorPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
+import gt.cunoc.proyecto2.identity.evento.payload.RolAsignadoPayload;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,8 +30,35 @@ public class UsuarioEventPublisher {
             String urlActivacion,
             LocalDate fechaNegocio) {
 
+        publicarCuentaCreada(usuarioId, correo, nombre, roles, urlActivacion, null, fechaNegocio);
+    }
+
+    /** CuentaCreada de personal o chofer: incluye el nombre de la sucursal para el correo de bienvenida. */
+    public void publicarCuentaCreada(
+            UUID usuarioId,
+            String correo,
+            String nombre,
+            List<String> roles,
+            String urlActivacion,
+            String sucursalNombre,
+            LocalDate fechaNegocio) {
+
         publicador.publicar("Usuario", usuarioId, "CuentaCreada",
-                new CuentaCreadaPayload(usuarioId, correo, nombre, roles, urlActivacion), fechaNegocio);
+                new CuentaCreadaPayload(usuarioId, correo, nombre, roles, urlActivacion, sucursalNombre), fechaNegocio);
+    }
+
+    /** RolAsignado: una cuenta existente recibió ADMIN_SISTEMA, ADMIN_SUCURSAL o CAJERO. */
+    public void publicarRolAsignado(
+            UUID usuarioId,
+            String correo,
+            String nombre,
+            String rol,
+            UUID sucursalId,
+            String sucursalNombre,
+            LocalDate fechaNegocio) {
+
+        publicador.publicar("Usuario", usuarioId, "RolAsignado",
+                new RolAsignadoPayload(usuarioId, correo, nombre, rol, sucursalId, sucursalNombre), fechaNegocio);
     }
 
     public void publicarClienteRegistrado(

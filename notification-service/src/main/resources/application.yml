@@ -55,7 +55,7 @@ comun:
     # sin exchange: este servicio no publica eventos
     cola: notification.q
     suscripciones:
-      "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada, CodigoDobleFactorSolicitado]
+      "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada, CodigoDobleFactorSolicitado, RolAsignado]
       "[fleet.eventos]": [LicenciaChoferActualizada]
       "[trips.eventos]": [CotizacionAlquilerConfirmada]
       "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]

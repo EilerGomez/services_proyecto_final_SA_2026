@@ -28,6 +28,7 @@ public class ManejadorPersonalAsignado implements ManejadorEvento<PersonalSucurs
     @Override
     public void manejar(EventoRecibido<PersonalSucursalAsignado> evento) {
         PersonalSucursalAsignado payload = evento.payload();
-        servicio.asignarPersonal(payload.usuarioId(), payload.sucursalId(), payload.rolCodigo());
+        servicio.asignarPersonal(payload.usuarioId(), payload.sucursalId(), payload.rolCodigo(),
+                payload.sucursalNombre());
     }
 }

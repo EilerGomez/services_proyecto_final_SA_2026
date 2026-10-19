@@ -14,7 +14,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Movimiento de cartera (RECARGA, DEBITO o REEMBOLSO).
+ * Movimiento de cartera. Del cliente: RECARGA, DEBITO o REEMBOLSO. De la billetera del sistema:
+ * COBRO (entra el pago de una compra en línea) y DEVOLUCION (sale el reembolso de esa compra).
  *
  * <p>{@code UNIQUE(tipo, referencia_id)} hace idempotente la saga y
  * {@code UNIQUE(proveedor_pago, referencia_externa)} evita acreditar dos veces el mismo cobro de la pasarela.
@@ -28,6 +29,8 @@ public class MovimientoCartera {
     public static final String RECARGA = "RECARGA";
     public static final String DEBITO = "DEBITO";
     public static final String REEMBOLSO = "REEMBOLSO";
+    public static final String COBRO = "COBRO";
+    public static final String DEVOLUCION = "DEVOLUCION";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

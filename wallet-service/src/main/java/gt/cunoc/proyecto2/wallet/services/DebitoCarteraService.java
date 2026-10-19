@@ -15,6 +15,7 @@ import java.util.UUID;
 
 /**
  * Saga de pago: debita y responde CarteraDebitada o DebitoCarteraRechazado.
+ * El monto debitado entra a la billetera del sistema (COBRO) en la misma transacción.
  *
  * <p>El rechazo es un resultado normal: se publica y la transacción se confirma.
  * El estado de la cuenta lo da Identity (R4c); si Identity no responde, el evento se reintenta.
@@ -27,14 +28,17 @@ public class DebitoCarteraService {
     private final MovimientoRepository movimientos;
     private final WalletService servicio;
     private final CarteraEventPublisher publicador;
+    private final CarteraSistemaService sistema;
 
     public DebitoCarteraService(ClienteIdentity identity, CarteraRepository carteras, MovimientoRepository movimientos,
-                                WalletService servicio, CarteraEventPublisher publicador) {
+                                WalletService servicio, CarteraEventPublisher publicador,
+                                CarteraSistemaService sistema) {
         this.identity = identity;
         this.carteras = carteras;
         this.movimientos = movimientos;
         this.servicio = servicio;
         this.publicador = publicador;
+        this.sistema = sistema;
     }
 
     @Transactional
@@ -61,6 +65,8 @@ public class DebitoCarteraService {
                 referenciaId, fechaNegocio);
 
         if (debito.isPresent()) {
+            // El pago entra a la billetera del sistema en esta misma transacción
+            sistema.registrarCobro(monto, referenciaTipo, referenciaId, debito.get().getFechaMovimiento());
             publicarDebitada(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, debito.get());
         } else {
             rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, "SALDO_INSUFICIENTE");

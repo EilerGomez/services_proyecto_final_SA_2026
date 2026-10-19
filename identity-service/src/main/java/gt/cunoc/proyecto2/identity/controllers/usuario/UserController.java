@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.RequiereRol;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdministradorSistemaRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
@@ -27,7 +28,8 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
- * Usuarios: listado con filtros (I11), detalle (I12), alta de admin (I13) y estado (I14).
+ * Usuarios: listado con filtros (I11), detalle (I12), alta de admin (I13), estado (I14),
+ * búsqueda por correo y promoción a administrador del sistema.
  */
 @RestController
 @RequestMapping("/identity/usuarios")
@@ -55,6 +57,22 @@ public class UserController {
             @RequestBody @Valid AdministradorSistemaRequest solicitud) {
         UsuarioDetalleResponse respuesta = servicio.crearAdministradorSistema(solicitud);
         return ResponseEntity.created(URI.create("/identity/usuarios/" + respuesta.usuarioId())).body(respuesta);
+    }
+
+    /** Buscar cuenta por correo exacto (para asignarla como personal de sucursal). */
+    @GetMapping("/por-correo")
+    @RequiereRol({Roles.ADMIN_SISTEMA, Roles.ADMIN_SUCURSAL})
+    public ResponseEntity<UsuarioBusquedaResponse> buscarPorCorreo(
+            @RequestParam String correo,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.buscarPorCorreo(correo, usuario.esAdminSistema()));
+    }
+
+    /** Hacer administrador del sistema a una cuenta existente (se le avisa por correo). */
+    @PostMapping("/{id}/administrador-sistema")
+    @RequiereRol(Roles.ADMIN_SISTEMA)
+    public ResponseEntity<UsuarioDetalleResponse> hacerAdministradorSistema(@PathVariable UUID id) {
+        return ResponseEntity.ok(servicio.hacerAdministradorSistema(id));
     }
 
     @GetMapping("/{id}")

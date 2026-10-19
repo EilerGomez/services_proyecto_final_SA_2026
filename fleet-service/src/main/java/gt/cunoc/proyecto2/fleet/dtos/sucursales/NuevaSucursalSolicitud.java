@@ -1,6 +1,9 @@
 package gt.cunoc.proyecto2.fleet.dtos.sucursales;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import gt.cunoc.proyecto2.fleet.dtos.cuentas.DatosCuentaSolicitud;
+import gt.cunoc.proyecto2.fleet.dtos.cuentas.UsuarioExistenteSolicitud;
+import gt.cunoc.proyecto2.fleet.errores.personal.ErrorPersonal;
 import gt.cunoc.proyecto2.fleet.modelos.sucursales.SucursalEntidad;
 import gt.cunoc.proyecto2.fleet.utilidades.Normalizador;
 import jakarta.validation.Valid;
@@ -17,6 +20,8 @@ import java.util.UUID;
 /**
  * Cuerpo de F3 · POST /fleet/sucursales: la sucursal y su admin inicial.
  * fechaAsignacion: fecha (elegida por el usuario) desde la que el admin inicial trabaja ahí.
+ * Admin inicial: exactamente uno de adminInicial (cuenta nueva, R5) o adminExistente (persona ya
+ * registrada, R5b).
  */
 public record NuevaSucursalSolicitud(
         @NotBlank @Size(max = 10) @Pattern(regexp = "^[A-Z0-9_-]+$",
@@ -29,9 +34,18 @@ public record NuevaSucursalSolicitud(
         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitud,
         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitud,
         @NotNull LocalDate fechaAsignacion,
-        @NotNull @Valid DatosCuentaSolicitud adminInicial) {
+        @Valid DatosCuentaSolicitud adminInicial,
+        @Valid UsuarioExistenteSolicitud adminExistente) {
 
-    /** Se ejecuta al leer el JSON, antes de las validaciones. */
+    public NuevaSucursalSolicitud(String codigo, String nombre, String departamento, String municipio,
+                                  String direccion, String telefono, BigDecimal latitud, BigDecimal longitud,
+                                  LocalDate fechaAsignacion, DatosCuentaSolicitud adminInicial) {
+        this(codigo, nombre, departamento, municipio, direccion, telefono, latitud, longitud, fechaAsignacion,
+                adminInicial, null);
+    }
+
+    /** Se ejecuta al leer el JSON, antes de las validaciones. @JsonCreator: el JSON usa este (el canónico). */
+    @JsonCreator
     public NuevaSucursalSolicitud {
         codigo = Normalizador.codigo(codigo);
         nombre = Normalizador.texto(nombre);
@@ -41,6 +55,11 @@ public record NuevaSucursalSolicitud(
         telefono = Normalizador.textoOpcional(telefono);
         latitud = Normalizador.coordenada(latitud);
         longitud = Normalizador.coordenada(longitud);
+    }
+
+    /** true: el admin inicial es una cuenta existente. 400 CUENTA_REQUERIDA si no viene exactamente uno. */
+    public boolean conAdminExistente() {
+        return ErrorPersonal.verificarUnaCuenta(adminInicial, adminExistente);
     }
 
     public SucursalEntidad crearEntidad() {

@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.fleet.configuracion.ConfiguracionClientes;
 import gt.cunoc.proyecto2.fleet.dtos.identity.CuentaPersonalRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.EstadoCuentaRespuesta;
 import gt.cunoc.proyecto2.fleet.dtos.identity.SolicitudCuentaPersonal;
+import gt.cunoc.proyecto2.fleet.dtos.identity.VinculoCuentaPersonal;
 import gt.cunoc.proyecto2.fleet.errores.integraciones.ErrorIntegracion;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -17,12 +18,14 @@ import org.springframework.web.client.RestClient;
  * Llamadas de Fleet a Identity.
  * R5 · POST /identity/interno/cuentas-personal: crea la cuenta del personal (y del chofer en F18).
  * Es seguro reintentar: Identity no crea dos cuentas con el mismo solicitudId.
+ * R5b · POST /identity/interno/cuentas-personal/existente: asigna una cuenta que ya existe (mismo solicitudId).
  * R4c · GET /identity/interno/usuarios/{id}/estado: estado de la cuenta antes de reintegrar personal.
  */
 @Component
 public class ClienteIdentity {
 
     private static final String RUTA_CUENTAS_PERSONAL = "/identity/interno/cuentas-personal";
+    private static final String RUTA_CUENTA_EXISTENTE = "/identity/interno/cuentas-personal/existente";
     private static final String RUTA_ESTADO_CUENTA = "/identity/interno/usuarios/{id}/estado";
 
     private final RestClient cliente;
@@ -39,6 +42,16 @@ public class ClienteIdentity {
                 () -> cliente.post()
                         .uri(RUTA_CUENTAS_PERSONAL)
                         .body(solicitud)
+                        .retrieve()
+                        .body(CuentaPersonalRespuesta.class),
+                ErrorIntegracion.IDENTITY_NO_DISPONIBLE);
+    }
+
+    public CuentaPersonalRespuesta vincularCuentaExistente(VinculoCuentaPersonal vinculo) {
+        return LlamadasRemotas.ejecutar(circuito,
+                () -> cliente.post()
+                        .uri(RUTA_CUENTA_EXISTENTE)
+                        .body(vinculo)
                         .retrieve()
                         .body(CuentaPersonalRespuesta.class),
                 ErrorIntegracion.IDENTITY_NO_DISPONIBLE);

@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.identity.evento.payload.ClienteRegistradoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.CuentaCreadaPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.PerfilActualizadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.RecuperacionContrasenaPayload;
+import gt.cunoc.proyecto2.identity.evento.payload.RolAsignadoPayload;
 import gt.cunoc.proyecto2.identity.evento.payload.TarifaDepreciacionPayload;
 import gt.cunoc.proyecto2.identity.messaging.publisher.TarifaEventPublisher;
 import gt.cunoc.proyecto2.identity.messaging.publisher.UsuarioEventPublisher;
@@ -26,6 +27,7 @@ class PublishersTest {
 
     private static final UUID USUARIO = UUID.randomUUID();
     private static final UUID CHOFER = UUID.randomUUID();
+    private static final UUID SUCURSAL = UUID.randomUUID();
     private static final BigDecimal MONTO = new BigDecimal("25.50");
     private static final LocalDate FECHA = LocalDate.of(2026, 9, 20);
     private static final LocalDate FECHA_MOVIMIENTO = LocalDate.of(2026, 9, 19);
@@ -49,6 +51,14 @@ class PublishersTest {
                 contrato("Usuario", "CuentaCreada",
                         new CuentaCreadaPayload(USUARIO, "correo", "nombre", List.of("CLIENTE"), null),
                         t -> t.usuarios.publicarCuentaCreada(USUARIO, "correo", "nombre", List.of("CLIENTE"), null, FECHA)),
+                contrato("Usuario", "CuentaCreada",
+                        new CuentaCreadaPayload(USUARIO, "correo", "nombre", List.of("CAJERO", "CLIENTE"), "url", "Xela"),
+                        t -> t.usuarios.publicarCuentaCreada(USUARIO, "correo", "nombre", List.of("CAJERO", "CLIENTE"),
+                                "url", "Xela", FECHA)),
+                contrato("Usuario", "RolAsignado",
+                        new RolAsignadoPayload(USUARIO, "correo", "nombre", "ADMIN_SUCURSAL", SUCURSAL, "Xela"),
+                        t -> t.usuarios.publicarRolAsignado(USUARIO, "correo", "nombre", "ADMIN_SUCURSAL",
+                                SUCURSAL, "Xela", FECHA)),
                 contrato("Usuario", "ClienteRegistrado",
                         new ClienteRegistradoPayload(USUARIO, "nit", "nombre", "correo"),
                         t -> t.usuarios.publicarClienteRegistrado(USUARIO, "nit", "nombre", "correo", FECHA)),

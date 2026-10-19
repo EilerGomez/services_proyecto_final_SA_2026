@@ -4,6 +4,8 @@ import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CodigoDobleFactorSolicitado;
 import gt.cunoc.proyecto2.notification.evento.recibido.CuentaCreada;
 import gt.cunoc.proyecto2.notification.evento.recibido.RecuperacionContrasenaSolicitada;
+import gt.cunoc.proyecto2.notification.evento.recibido.RolAsignado;
+import gt.cunoc.proyecto2.notification.services.correo.CorreoCuentasService;
 import gt.cunoc.proyecto2.notification.services.correo.EnvioCorreoService;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,6 +27,8 @@ class ManejadoresTest {
 
     @Mock private EnvioCorreoService correos;
 
+    @Mock private CorreoCuentasService cuentas;
+
     @InjectMocks
     private ManejadorRecuperacionContrasena manejadorRecuperacion;
 
@@ -34,12 +38,18 @@ class ManejadoresTest {
     @InjectMocks
     private ManejadorCodigoDobleFactor manejadorCodigo;
 
+    @InjectMocks
+    private ManejadorRolAsignado manejadorRol;
+
     @Test
     void tiposDeEvento() {
         // Act + Assert
         assertEquals("RecuperacionContrasenaSolicitada", manejadorRecuperacion.tipoEvento());
         assertEquals("CuentaCreada", manejadorCuenta.tipoEvento());
         assertEquals("CodigoDobleFactorSolicitado", manejadorCodigo.tipoEvento());
+        assertEquals("RolAsignado", manejadorRol.tipoEvento());
+        assertEquals(RolAsignado.class, manejadorRol.tipoPayload());
+        assertEquals(CuentaCreada.class, manejadorCuenta.tipoPayload());
     }
 
     @Test
@@ -60,15 +70,30 @@ class ManejadoresTest {
     @Test
     void cuentaCreadaDelegaEnCorreos() {
         // Arrange
+        CuentaCreada cuenta = new CuentaCreada(UUID.randomUUID(), "ana@correo.com", "Ana", List.of("CLIENTE"),
+                null, null);
         var evento = new EventoRecibido<>(UUID.randomUUID(), "CuentaCreada",
-                1, UUID.randomUUID(), null, Instant.now(), LocalDate.now(), UUID.randomUUID(),
-                new CuentaCreada(UUID.randomUUID(), "ana@correo.com", "Ana", List.of("CLIENTE"), null));
+                1, UUID.randomUUID(), null, Instant.now(), LocalDate.now(), UUID.randomUUID(), cuenta);
 
         // Act
         manejadorCuenta.manejar(evento);
 
         // Assert
-        verify(correos).enviarBienvenida(any(), eq("ana@correo.com"), eq("Ana"), any());
+        verify(cuentas).bienvenida(evento.eventId(), cuenta);
+    }
+
+    @Test
+    void rolAsignadoDelegaEnCorreosDeCuentas() {
+        // Arrange
+        RolAsignado rol = new RolAsignado(UUID.randomUUID(), "ana@correo.com", "Ana", "ADMIN_SISTEMA", null, null);
+        var evento = new EventoRecibido<>(UUID.randomUUID(), "RolAsignado",
+                1, UUID.randomUUID(), null, Instant.now(), LocalDate.now(), UUID.randomUUID(), rol);
+
+        // Act
+        manejadorRol.manejar(evento);
+
+        // Assert
+        verify(cuentas).rolAsignado(evento.eventId(), rol);
     }
 
     @Test

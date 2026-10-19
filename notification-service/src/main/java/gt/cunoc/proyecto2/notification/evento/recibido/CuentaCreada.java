@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Cuenta creada publicada por Identity.
+ * Cuenta creada publicada por Identity. sucursalNombre solo viene en cuentas de personal o choferes.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CuentaCreada(
@@ -14,5 +14,6 @@ public record CuentaCreada(
         String correo,
         String nombre,
         List<String> roles,
-        String urlActivacion) {
+        String urlActivacion,
+        String sucursalNombre) {
 }

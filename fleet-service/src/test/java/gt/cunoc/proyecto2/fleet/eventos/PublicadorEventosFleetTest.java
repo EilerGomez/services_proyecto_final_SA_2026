@@ -62,7 +62,7 @@ class PublicadorEventosFleetTest {
     void eventosDePersonal() {
         PersonalSucursalEntidad personal = DatosPrueba.personal(sucursalId, RolPersonal.CAJERO);
 
-        eventos.personalAsignado(personal, FECHA);
+        eventos.personalAsignado(personal, "Xela Central", FECHA);
         Object asignado = publicado("PersonalSucursal", personal.getId(), 0L, "PersonalSucursalAsignado");
 
         personal.desactivar(FECHA);
@@ -72,6 +72,7 @@ class PublicadorEventosFleetTest {
         assertThat(asignado).isInstanceOfSatisfying(PersonalSucursalAsignado.class, e -> {
             assertThat(e.usuarioId()).isEqualTo(personal.getUsuarioId());
             assertThat(e.rolCodigo()).isEqualTo(RolPersonal.CAJERO);
+            assertThat(e.sucursalNombre()).isEqualTo("Xela Central");
         });
         assertThat(desactivado).isInstanceOfSatisfying(PersonalSucursalDesactivado.class,
                 e -> assertThat(e.fechaDesasignacion()).isEqualTo(FECHA));

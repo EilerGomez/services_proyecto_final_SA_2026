@@ -5,13 +5,31 @@ Cartera digital de los clientes. Puerto **8088**, base **bd_cartera** (usuario `
 Antes la cartera vivía dentro de Identity. Se separó porque el dinero es otro contexto de negocio:
 otras reglas de auditoría, otra seguridad (una pasarela de pagos real solo toca este servicio) y otra escala que el inicio de sesión.
 
-## Endpoints (todos con rol CLIENTE)
+## Endpoints
 
-| Código | Método y ruta | Qué hace |
+| Código | Rol | Método y ruta | Qué hace |
+|---|---|---|---|
+| W1 | CLIENTE | `GET /wallet/cartera` | Saldo. Si el cliente no tiene cartera, se le abre en cero |
+| W2 | CLIENTE | `POST /wallet/cartera/recargas` | Recarga: cobra la pasarela configurada y acredita el saldo |
+| W3 | CLIENTE | `GET /wallet/cartera/movimientos?desde=&hasta=` | Historial de recargas, débitos y reembolsos |
+| W4 | ADMIN_SISTEMA | `GET /wallet/sistema` | Saldo de la billetera del sistema y totales cobrados y devueltos |
+| W5 | ADMIN_SISTEMA | `GET /wallet/sistema/movimientos?tipo=&desde=&hasta=` | Cobros y devoluciones (`tipo`: COBRO o DEVOLUCION) |
+
+## Billetera del sistema
+
+Una sola cartera (`tipo = SISTEMA`, sin usuario) creada por la migración V2 en Q0:
+
+| Saga | Cartera del cliente | Billetera del sistema |
 |---|---|---|
-| W1 | `GET /wallet/cartera` | Saldo. Si el cliente no tiene cartera, se le abre en cero |
-| W2 | `POST /wallet/cartera/recargas` | Recarga: cobra la pasarela configurada y acredita el saldo |
-| W3 | `GET /wallet/cartera/movimientos?desde=&hasta=` | Historial de recargas, débitos y reembolsos |
+| `DebitoCarteraSolicitado` (compra en línea de boletos o alquiler) | `DEBITO` −monto | `COBRO` +monto |
+| `ReembolsoCarteraSolicitado` | `REEMBOLSO` +monto | `DEVOLUCION` −monto |
+
+- Los dos movimientos van en la **misma transacción local** de wallet: la saga con Sales no cambió.
+- Bloqueo siempre en el mismo orden (primero la cartera del cliente, luego la del sistema) para evitar interbloqueos.
+- Idempotente por `UNIQUE(tipo, referencia_id)`: un COBRO y una DEVOLUCION por venta u orden como máximo.
+- No hay retiros (el botón del front solo explica dónde se integraría la transferencia bancaria), así que cada
+  devolución tiene su cobro y el saldo nunca queda negativo. Un reembolso de una compra hecha antes de que existiera
+  la billetera no descuenta nada (no hay COBRO que devolver).
 
 Swagger: `/wallet/swagger-ui.html` (o el agregado del gateway, definición `wallet-service`).
 

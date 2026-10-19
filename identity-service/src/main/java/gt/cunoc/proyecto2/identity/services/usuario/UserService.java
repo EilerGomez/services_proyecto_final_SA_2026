@@ -7,12 +7,10 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -32,6 +30,20 @@ public interface UserService {
     Page<UsuarioListaResponse> listar(String rol, String estado, String q, Pageable paginado);
 
     UsuarioDetalleResponse crearAdministradorSistema(AdministradorSistemaRequest solicitud);
+
+    /**
+     * Busca una cuenta por correo exacto para asignarla como personal de sucursal.
+     * motivoDetallado = false (admin de sucursal): no revela si es admin del sistema o chofer.
+     * 400 CORREO_REQUERIDO, 404 USUARIO_NO_EXISTE.
+     */
+    UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado);
+
+    /**
+     * Da el rol ADMIN_SISTEMA a una cuenta existente y le avisa por correo (RolAsignado).
+     * 404 USUARIO_NO_EXISTE, 409 YA_ES_ADMIN_SISTEMA,
+     * 422 CUENTA_INACTIVA, CUENTA_BLOQUEADA, ES_CHOFER o ES_PERSONAL_SUCURSAL.
+     */
+    UsuarioDetalleResponse hacerAdministradorSistema(UUID usuarioId);
 
     PerfilResponse actualizarPerfil(UUID usuarioId, UpdateProfileRequest solicitud);
 

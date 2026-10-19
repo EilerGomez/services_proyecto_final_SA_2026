@@ -15,6 +15,7 @@ import java.util.UUID;
 
 /**
  * Compensación: acredita el reembolso si existe el débito y publica CarteraReembolsada.
+ * El monto sale de la billetera del sistema (DEVOLUCION) en la misma transacción.
  */
 @Service
 public class ReembolsoCarteraService {
@@ -23,11 +24,14 @@ public class ReembolsoCarteraService {
     private final MovimientoRepository movimientos;
     private final WalletService servicio;
     private final CarteraEventPublisher publicador;
+    private final CarteraSistemaService sistema;
 
-    public ReembolsoCarteraService(MovimientoRepository movimientos, WalletService servicio, CarteraEventPublisher publicador) {
+    public ReembolsoCarteraService(MovimientoRepository movimientos, WalletService servicio,
+                                   CarteraEventPublisher publicador, CarteraSistemaService sistema) {
         this.movimientos = movimientos;
         this.servicio = servicio;
         this.publicador = publicador;
+        this.sistema = sistema;
     }
 
     @Transactional
@@ -51,7 +55,12 @@ public class ReembolsoCarteraService {
         Optional<MovimientoCartera> reembolso = servicio.solicitarReembolso(
                 usuarioId, monto, referenciaTipo,
                 referenciaId, motivo, fechaNegocio);
-        reembolso.ifPresent(movimiento -> publicar(usuarioId, referenciaTipo, referenciaId, fechaNegocio, movimiento));
+        reembolso.ifPresent(movimiento -> {
+            // El reembolso sale de la billetera del sistema en esta misma transacción
+            sistema.registrarDevolucion(movimiento.getMonto(), referenciaTipo, referenciaId,
+                    movimiento.getFechaMovimiento());
+            publicar(usuarioId, referenciaTipo, referenciaId, fechaNegocio, movimiento);
+        });
     }
 
     private void publicar(UUID usuarioId, String referenciaTipo, UUID referenciaId, LocalDate fechaNegocio, MovimientoCartera movimiento) {

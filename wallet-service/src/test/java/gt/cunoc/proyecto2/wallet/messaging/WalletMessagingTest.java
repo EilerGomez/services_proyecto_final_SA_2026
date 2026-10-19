@@ -14,6 +14,7 @@ import gt.cunoc.proyecto2.wallet.models.Cartera;
 import gt.cunoc.proyecto2.wallet.models.MovimientoCartera;
 import gt.cunoc.proyecto2.wallet.repositories.CarteraRepository;
 import gt.cunoc.proyecto2.wallet.repositories.MovimientoRepository;
+import gt.cunoc.proyecto2.wallet.services.CarteraSistemaService;
 import gt.cunoc.proyecto2.wallet.services.DebitoCarteraService;
 import gt.cunoc.proyecto2.wallet.services.ReembolsoCarteraService;
 import gt.cunoc.proyecto2.wallet.services.WalletService;
@@ -63,6 +64,7 @@ class WalletMessagingTest {
     private final CarteraRepository carteras = mock(CarteraRepository.class);
     private final MovimientoRepository movimientos = mock(MovimientoRepository.class);
     private final WalletService wallet = mock(WalletService.class);
+    private final CarteraSistemaService sistema = mock(CarteraSistemaService.class);
     private final Connection connection = mock(Connection.class);
     private final JsonMapper json = JsonMapper.builder().build();
     private final UUID usuarioId = UUID.randomUUID();
@@ -94,6 +96,7 @@ class WalletMessagingTest {
         contexto.registerBean(CarteraRepository.class, () -> carteras);
         contexto.registerBean(MovimientoRepository.class, () -> movimientos);
         contexto.registerBean(WalletService.class, () -> wallet);
+        contexto.registerBean(CarteraSistemaService.class, () -> sistema);
         contexto.registerBean("transactionManager", DataSourceTransactionManager.class,
                 () -> new DataSourceTransactionManager(dataSource));
         contexto.register(Transacciones.class, PublicadorEventos.class, ProcesadorIdempotente.class,
@@ -133,6 +136,9 @@ class WalletMessagingTest {
         assertThat(sobre.path("payload").path("movimientoId").asText()).isEqualTo(movimiento.getId().toString());
         assertThat(sobre.path("payload").path("monto").decimalValue()).isEqualByComparingTo(monto);
         assertThat(sobre.path("payload").path("fechaMovimiento").asText()).isEqualTo(fechaPayload.toString());
+        // El pago entra a la billetera del sistema en la misma transacción
+        verify(sistema).registrarCobro(argThat(valor -> valor != null && valor.compareTo(monto) == 0),
+                eq("VENTA"), eq(referenciaId), eq(fechaPayload));
         verify(connection, times(1)).commit();
         verify(connection, never()).rollback();
     }
@@ -167,6 +173,7 @@ class WalletMessagingTest {
 
         assertThat(salida("DebitoCarteraRechazado").path("payload").path("motivo").asText())
                 .isEqualTo("SALDO_INSUFICIENTE");
+        verifyNoInteractions(sistema);
         verify(connection).commit();
         verify(connection, never()).rollback();
     }
@@ -181,7 +188,7 @@ class WalletMessagingTest {
 
         assertThat(salida("CarteraDebitada").path("payload").path("monto").decimalValue())
                 .isEqualByComparingTo(monto);
-        verifyNoInteractions(wallet);
+        verifyNoInteractions(wallet, sistema);
     }
 
     @Test
@@ -191,7 +198,7 @@ class WalletMessagingTest {
 
         recibirDebito();
 
-        verifyNoInteractions(identity, carteras, movimientos, wallet);
+        verifyNoInteractions(identity, carteras, movimientos, wallet, sistema);
         sinSalida();
     }
 
@@ -231,7 +238,7 @@ class WalletMessagingTest {
     void reembolsoSinDebitoNoAcreditaNiPublica() {
         recibirReembolso();
 
-        verifyNoInteractions(wallet);
+        verifyNoInteractions(wallet, sistema);
         sinSalida();
     }
 
@@ -246,7 +253,7 @@ class WalletMessagingTest {
 
         assertThat(salida("CarteraReembolsada").path("payload").path("monto").decimalValue())
                 .isEqualByComparingTo(BigDecimal.TEN);
-        verifyNoInteractions(wallet);
+        verifyNoInteractions(wallet, sistema);
     }
 
     @Test
@@ -261,6 +268,9 @@ class WalletMessagingTest {
         recibirReembolso();
 
         salida("CarteraReembolsada");
+        // El reembolso sale de la billetera del sistema en la misma transacción
+        verify(sistema).registrarDevolucion(argThat(valor -> valor != null && valor.compareTo(monto) == 0),
+                eq("VENTA"), eq(referenciaId), eq(fechaPayload));
     }
 
     @Test

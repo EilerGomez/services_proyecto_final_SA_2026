@@ -27,6 +27,16 @@ class SolicitudCuentaPersonalTest {
         assertThat(solicitud.choferId()).isNull();
         assertThat(solicitud.correo()).isEqualTo(datos.correo());
         assertThat(solicitud.dpi()).isEqualTo(datos.dpi());
+        assertThat(solicitud.sucursalNombre()).isNull();
+    }
+
+    @Test
+    void cuentaDePersonalConNombreDeSucursal() {
+        SolicitudCuentaPersonal solicitud = SolicitudCuentaPersonal.paraPersonal(UUID.randomUUID(), sucursalId,
+                "Xela Central", RolPersonal.ADMIN_SUCURSAL, datos);
+
+        assertThat(solicitud.rol()).isEqualTo("ADMIN_SUCURSAL");
+        assertThat(solicitud.sucursalNombre()).isEqualTo("Xela Central");
     }
 
     @Test

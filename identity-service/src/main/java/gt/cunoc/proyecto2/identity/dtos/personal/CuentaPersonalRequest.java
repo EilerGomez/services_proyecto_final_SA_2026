@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.identity.dtos.personal;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -57,6 +58,22 @@ public record CuentaPersonalRequest(
         String direccion,
 
         @Size(max = 500)
-        String fotoUrl
+        String fotoUrl,
+
+        /** Solo para el correo de bienvenida (opcional). */
+        @Size(max = 100)
+        String sucursalNombre
 ) {
+
+    /** El JSON usa el constructor canónico (hay otro de conveniencia). */
+    @JsonCreator
+    public CuentaPersonalRequest {
+    }
+
+    public CuentaPersonalRequest(UUID solicitudId, String rol, UUID sucursalId, UUID choferId, String correo,
+                                 String nombres, String apellidos, String nit, String dpi, String telefono,
+                                 String direccion, String fotoUrl) {
+        this(solicitudId, rol, sucursalId, choferId, correo, nombres, apellidos, nit, dpi, telefono,
+                direccion, fotoUrl, null);
+    }
 }

@@ -40,9 +40,10 @@ public class PublicadorEventosFleet {
 
     // ----- Personal de sucursal -----
 
-    public void personalAsignado(PersonalSucursalEntidad personal, LocalDate fecha) {
+    /** sucursalNombre: para el correo de aviso que manda Identity/Notification. */
+    public void personalAsignado(PersonalSucursalEntidad personal, String sucursalNombre, LocalDate fecha) {
         publicar(TipoAgregado.PERSONAL_SUCURSAL, personal.getId(), personal.getVersion(),
-                TipoEvento.PERSONAL_SUCURSAL_ASIGNADO, PersonalSucursalAsignado.desde(personal), fecha);
+                TipoEvento.PERSONAL_SUCURSAL_ASIGNADO, PersonalSucursalAsignado.desde(personal, sucursalNombre), fecha);
     }
 
     public void personalDesactivado(PersonalSucursalEntidad personal, LocalDate fecha) {

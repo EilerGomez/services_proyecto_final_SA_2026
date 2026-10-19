@@ -18,6 +18,8 @@ import java.util.UUID;
 
 /**
  * Cartera digital del usuario (una por usuario). usuarioId es el id de la cuenta en Identity.
+ * La billetera del sistema (tipo SISTEMA, una sola) no tiene usuario: recibe las compras en línea
+ * y paga los reembolsos.
  */
 @Getter
 @Setter
@@ -30,8 +32,14 @@ public class Cartera {
     @Column(name = "id")
     private UUID id;
 
-    @Column(name = "usuario_id", nullable = false, unique = true)
+    public static final String USUARIO = "USUARIO";
+    public static final String SISTEMA = "SISTEMA";
+
+    @Column(name = "usuario_id", unique = true)
     private UUID usuarioId;
+
+    @Column(name = "tipo", length = 10, nullable = false)
+    private String tipo = USUARIO;
 
     @Column(name = "saldo", nullable = false)
     private BigDecimal saldo = BigDecimal.ZERO;

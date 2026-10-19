@@ -57,6 +57,7 @@ public class SucursalServicioImpl implements SucursalServicio {
     @Override
     @Transactional
     public SucursalCreadaRespuesta crear(NuevaSucursalSolicitud solicitud) {
+        boolean adminExistente = solicitud.conAdminExistente();     // 400 si no viene exactamente uno
         if (repositorio.existsByCodigo(solicitud.codigo())) {
             throw ErrorSucursal.SUCURSAL_DUPLICADA.excepcion("código", solicitud.codigo());
         }
@@ -69,10 +70,13 @@ public class SucursalServicioImpl implements SucursalServicio {
 
         eventos.sucursalCreada(sucursal, solicitud.fechaAsignacion());
 
-        // R5 + INSERT del admin (también publica PersonalSucursalAsignado).
-        // Si R5 falla, se revierte toda la transacción y la sucursal no queda guardada.
-        PersonalSucursalEntidad admin = personal.registrarAlta(sucursal, RolPersonal.ADMIN_SUCURSAL,
-                solicitud.fechaAsignacion(), solicitud.adminInicial());
+        // R5 (cuenta nueva) o R5b (cuenta existente) + INSERT del admin (también publica PersonalSucursalAsignado).
+        // Si Identity rechaza, se revierte toda la transacción y la sucursal no queda guardada.
+        PersonalSucursalEntidad admin = adminExistente
+                ? personal.registrarAltaExistente(sucursal, RolPersonal.ADMIN_SUCURSAL,
+                        solicitud.fechaAsignacion(), solicitud.adminExistente())
+                : personal.registrarAlta(sucursal, RolPersonal.ADMIN_SUCURSAL,
+                        solicitud.fechaAsignacion(), solicitud.adminInicial());
 
         return new SucursalCreadaRespuesta(new SucursalRespuesta(sucursal), new PersonalSucursalRespuesta(admin));
     }

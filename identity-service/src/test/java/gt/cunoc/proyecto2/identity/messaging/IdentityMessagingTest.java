@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.identity.evento.recibido.PersonalSucursalDesactivado;
 import gt.cunoc.proyecto2.identity.models.Rol;
 import gt.cunoc.proyecto2.identity.models.TokenRefresco;
 import gt.cunoc.proyecto2.identity.models.Usuario;
+import gt.cunoc.proyecto2.identity.repositories.PerfilRepository;
 import gt.cunoc.proyecto2.identity.repositories.RolRepository;
 import gt.cunoc.proyecto2.identity.repositories.TokenRefrescoRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
@@ -51,6 +52,7 @@ class IdentityMessagingTest {
     private final UsuarioRepository usuarios = mock(UsuarioRepository.class);
     private final RolRepository roles = mock(RolRepository.class);
     private final TokenRefrescoRepository refrescos = mock(TokenRefrescoRepository.class);
+    private final PerfilRepository perfiles = mock(PerfilRepository.class);
     private final Connection connection = mock(Connection.class);
     private final JsonMapper json = JsonMapper.builder().build();
     private final UUID usuarioId = UUID.randomUUID();
@@ -80,6 +82,7 @@ class IdentityMessagingTest {
         contexto.registerBean(UsuarioRepository.class, () -> usuarios);
         contexto.registerBean(RolRepository.class, () -> roles);
         contexto.registerBean(TokenRefrescoRepository.class, () -> refrescos);
+        contexto.registerBean(PerfilRepository.class, () -> perfiles);
         contexto.registerBean("transactionManager", DataSourceTransactionManager.class,
                 () -> new DataSourceTransactionManager(dataSource));
         contexto.register(Transacciones.class, PublicadorEventos.class, ProcesadorIdempotente.class,
@@ -118,6 +121,39 @@ class IdentityMessagingTest {
             assertThat(usuario.getRoles()).isEmpty();
         }
         verify(usuarios).save(usuario);
+        // Rol de personal nuevo para la cuenta: se publica RolAsignado (aviso por correo)
+        boolean avisa = codigo.equals(Roles.CAJERO) || codigo.equals(Roles.ADMIN_SUCURSAL);
+        verify(jdbc, avisa ? times(1) : never()).update(contains("INSERT INTO eventos_salida"), any(Object[].class));
+    }
+
+    @Test
+    void asignacionConElRolYaPuestoNoVuelveAAvisar() {
+        // Alta por R5 (cuenta nueva): Identity ya puso el rol antes de que llegue el evento de Fleet
+        Usuario usuario = usuario();
+        Rol cajero = rol(Roles.CAJERO);
+        usuario.getRoles().add(rol(Roles.CAJERO));
+        when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
+        when(roles.findById(Roles.CAJERO)).thenReturn(Optional.of(cajero));
+        recibir("PersonalSucursalAsignado", new PersonalSucursalAsignado(
+                UUID.randomUUID(), usuarioId, sucursalId, Roles.CAJERO, fechaPayload, "Xela Central"));
+        assertThat(usuario.getSucursalId()).isEqualTo(sucursalId);
+        verify(usuarios).save(usuario);
+        sinSalida();
+    }
+
+    @Test
+    void unAdminDelSistemaNoRecibeRolDePersonal() {
+        // Lo promovieron entre la validación de R5b y la llegada del evento
+        Usuario usuario = usuario();
+        usuario.getRoles().add(rol(Roles.ADMIN_SISTEMA));
+        when(usuarios.findById(usuarioId)).thenReturn(Optional.of(usuario));
+        recibir("PersonalSucursalAsignado", new PersonalSucursalAsignado(
+                UUID.randomUUID(), usuarioId, sucursalId, Roles.CAJERO, fechaPayload, "Xela Central"));
+        assertThat(usuario.getSucursalId()).isNull();
+        assertThat(usuario.getRoles()).extracting(Rol::getCodigo).containsExactly(Roles.ADMIN_SISTEMA);
+        verify(usuarios, never()).save(any());
+        verifyNoInteractions(roles);
+        sinSalida();
     }
 
     @Test

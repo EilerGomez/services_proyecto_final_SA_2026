@@ -154,7 +154,8 @@ class PersonalSucursalServicioImplTest {
         assertThat(respuesta.rol()).isEqualTo(RolPersonal.CAJERO);
         assertThat(respuesta.activo()).isTrue();
         assertThat(respuesta.fechaAsignacion()).isEqualTo(FECHA);
-        verify(eventos).personalAsignado(any(PersonalSucursalEntidad.class), eq(FECHA));
+        assertThat(r5.getValue().sucursalNombre()).isEqualTo("Xela Central");
+        verify(eventos).personalAsignado(any(PersonalSucursalEntidad.class), eq("Xela Central"), eq(FECHA));
     }
 
     @Test
@@ -433,7 +434,8 @@ class PersonalSucursalServicioImplTest {
         assertThat(respuesta.usuarioId()).isEqualTo(cajero.getUsuarioId());
         assertThat(respuesta.rol()).isEqualTo(RolPersonal.ADMIN_SUCURSAL);
         assertThat(cajero.isActivo()).isFalse();
-        verify(eventos).personalAsignado(any(PersonalSucursalEntidad.class), eq(FECHA.plusDays(3)));
+        verify(eventos).personalAsignado(any(PersonalSucursalEntidad.class), eq(guate.getNombre()),
+                eq(FECHA.plusDays(3)));
         verify(identity, never()).crearCuentaPersonal(any(SolicitudCuentaPersonal.class));   // sin R5
     }
 }

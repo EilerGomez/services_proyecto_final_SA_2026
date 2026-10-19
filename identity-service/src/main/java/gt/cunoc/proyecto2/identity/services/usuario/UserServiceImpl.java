@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.identity.services.usuario;
 
 import gt.cunoc.proyecto2.comun.errores.ConflictoException;
+import gt.cunoc.proyecto2.comun.errores.NegocioException;
 import gt.cunoc.proyecto2.comun.errores.NoEncontradoException;
 import gt.cunoc.proyecto2.comun.errores.ReglaNegocioException;
 import gt.cunoc.proyecto2.comun.errores.SolicitudInvalidaException;
@@ -12,6 +13,7 @@ import gt.cunoc.proyecto2.identity.dtos.usuario.EstadoCuentaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.AdminContactoResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.PerfilResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UpdateProfileRequest;
+import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioBusquedaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioDetalleResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UsuarioListaResponse;
 import gt.cunoc.proyecto2.identity.dtos.usuario.UserStatusRequest;
@@ -26,6 +28,7 @@ import gt.cunoc.proyecto2.identity.repositories.TokenRecuperacionRepository;
 import gt.cunoc.proyecto2.identity.repositories.TokenRefrescoRepository;
 import gt.cunoc.proyecto2.identity.repositories.UsuarioRepository;
 import gt.cunoc.proyecto2.identity.services.comun.TokenOpacoService;
+import gt.cunoc.proyecto2.identity.services.personal.ReglasAsignacionRol;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +40,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -168,6 +172,41 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public UsuarioBusquedaResponse buscarPorCorreo(String correo, boolean motivoDetallado) {
+        if (correo == null || correo.isBlank()) {
+            throw new SolicitudInvalidaException("CORREO_REQUERIDO", "Escriba el correo de la cuenta");
+        }
+        Usuario usuario = usuarios.findByCorreo(correo.trim().toLowerCase())
+                .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE",
+                        "No hay ninguna cuenta con ese correo"));
+        Perfil perfil = perfiles.findById(usuario.getId()).orElse(null);
+        Optional<String> motivo = ReglasAsignacionRol.impedimentoParaPersonal(usuario, Instant.now())
+                .map(impedimento -> motivoVisible(impedimento, motivoDetallado));
+        return new UsuarioBusquedaResponse(
+                usuario.getId(), usuario.getCorreo(), nombreDe(usuario, perfil),
+                perfil == null ? null : perfil.getFotoUrl(),
+                motivo.isEmpty(), motivo.orElse(null));
+    }
+
+    @Override
+    @Transactional
+    public UsuarioDetalleResponse hacerAdministradorSistema(UUID usuarioId) {
+        Usuario usuario = buscar(usuarioId);
+        ReglasAsignacionRol.impedimentoParaAdminSistema(usuario, Instant.now()).ifPresent(impedimento -> {
+            throw impedimento;
+        });
+        Rol rol = roles.findById(Roles.ADMIN_SISTEMA)
+                .orElseThrow(() -> new ReglaNegocioException("ROL_FALTANTE", "No existen los roles solicitados"));
+        usuario.getRoles().add(rol);
+        usuarios.save(usuario);
+        Perfil perfil = perfiles.findById(usuarioId).orElse(null);
+        publicador.publicarRolAsignado(usuario.getId(), usuario.getCorreo(), nombreDe(usuario, perfil),
+                Roles.ADMIN_SISTEMA, null, null, LocalDate.now());
+        return aDetalle(usuario, perfil);
+    }
+
+    @Override
     @Transactional
     public PerfilResponse actualizarPerfil(UUID usuarioId, UpdateProfileRequest solicitud) {
         Usuario usuario = buscar(usuarioId);
@@ -273,12 +312,28 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public EstadoCuentaResponse estadoCuentaDe(UUID usuarioId) {
         Usuario usuario = buscar(usuarioId);
-        return new EstadoCuentaResponse(usuario.getId(), usuario.getEstado(), usuario.getBloqueadoHasta());
+        String impedimento = ReglasAsignacionRol.impedimentoPorTipoDeCuenta(usuario)
+                .map(RuntimeException::getMessage).orElse(null);
+        return new EstadoCuentaResponse(usuario.getId(), usuario.getEstado(), usuario.getBloqueadoHasta(),
+                impedimento);
     }
 
     private Usuario buscar(UUID usuarioId) {
         return usuarios.findById(usuarioId)
                 .orElseThrow(() -> new NoEncontradoException("USUARIO_NO_EXISTE", "El usuario no existe"));
+    }
+
+    /** Un admin de sucursal no necesita saber si la cuenta es de un admin del sistema o de un chofer. */
+    private static String motivoVisible(NegocioException impedimento, boolean detallado) {
+        boolean tipoDeCuenta = "ES_ADMIN_SISTEMA".equals(impedimento.getCodigo())
+                || "ES_CHOFER".equals(impedimento.getCodigo());
+        return detallado || !tipoDeCuenta
+                ? impedimento.getMessage()
+                : "Esta cuenta no se puede asignar como personal de sucursal";
+    }
+
+    private String nombreDe(Usuario usuario, Perfil perfil) {
+        return perfil == null ? usuario.getCorreo() : perfil.getNombres() + " " + perfil.getApellidos();
     }
 
     private String vacio(String valor) {
