@@ -52,14 +52,32 @@ class VincularCuentaControllerTest extends BaseControladorTest {
     }
 
     @Test
-    void choferNoSePuedeVincularDa400() throws Exception {
+    void choferSePuedeVincular() throws Exception {
+        // Arrange: ahora un chofer también puede darse de alta con una cuenta existente
+        sesion("token", usuario(Set.of(Roles.SERVICIO), null));
+        UUID usuarioId = UUID.randomUUID();
+        when(servicio.vincular(any())).thenReturn(
+                new CuentaPersonalResponse(usuarioId, "ana@correo.com", "Ana López", false));
+
+        // Act + Assert
+        mvc.perform(post(RUTA).header("Authorization", "Bearer token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("CHOFER")))
+                .andExpect(status().isOk());
+        ArgumentCaptor<VincularCuentaRequest> solicitud = ArgumentCaptor.forClass(VincularCuentaRequest.class);
+        verify(servicio).vincular(solicitud.capture());
+        assertThat(solicitud.getValue().rol()).isEqualTo(Roles.CHOFER);
+    }
+
+    @Test
+    void rolQueNoEsDePersonalNiChoferDa400() throws Exception {
         // Arrange
         sesion("token", usuario(Set.of(Roles.SERVICIO), null));
 
         // Act + Assert
         mvc.perform(post(RUTA).header("Authorization", "Bearer token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("CHOFER")))
+                        .content(body("ADMIN_SISTEMA")))
                 .andExpect(status().isBadRequest());
         verify(servicio, never()).vincular(any());
     }
