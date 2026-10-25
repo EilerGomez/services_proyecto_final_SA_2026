@@ -44,13 +44,15 @@ public class CorreoVentasService {
 
     private final EnvioCorreoService correos;
     private final JsonMapper json;
+    private final BoletoPdfService boletos;
 
-    public CorreoVentasService(EnvioCorreoService correos, JsonMapper json) {
+    public CorreoVentasService(EnvioCorreoService correos, JsonMapper json, BoletoPdfService boletos) {
         this.correos = correos;
         this.json = json;
+        this.boletos = boletos;
     }
 
-    /* BoletoVendido: comprobante de la compra con viaje, asientos y total. */
+    /* BoletoVendido: comprobante de la compra con viaje, asientos y total, más el PDF del boleto. */
     public void compraBoleto(UUID eventoId, BoletoVendido compra) {
         String asunto = "Tu compra " + compra.origenNombre() + " → " + compra.destinoNombre();
         Map<String, Object> datos = new LinkedHashMap<>();
@@ -74,13 +76,22 @@ public class CorreoVentasService {
                 Fecha de pago: %s
                 Número de venta: %s
 
-                Presenta este correo al abordar. ¡Buen viaje!""".formatted(
+                Adjuntamos tu boleto en PDF. Preséntalo al abordar. ¡Buen viaje!""".formatted(
                 compra.clienteNombre(), compra.origenNombre(), compra.destinoNombre(),
                 fechaHora(compra.fechaSalida()), valor(compra.busPlaca()), asientos(compra.asientos()),
                 quetzales(compra.montoTotal()), metodo(compra.metodoPago()), fecha(compra.fechaPago()),
                 compra.ventaId());
         correos.enviarPlantilla(eventoId, compra.clienteCorreo(), COMPRA_BOLETO, recortar(asunto),
-                json.writeValueAsString(datos), cuerpo);
+                json.writeValueAsString(datos), cuerpo, adjuntoBoleto(compra));
+    }
+
+    /** El PDF solo se arma si de verdad hay a quién enviarlo (mostrador sin correo no lo necesita). */
+    private AdjuntoCorreo adjuntoBoleto(BoletoVendido compra) {
+        if (compra.clienteCorreo() == null || compra.clienteCorreo().isBlank()) {
+            return null;
+        }
+        String nombre = "boleto-" + compra.ventaId().toString().substring(0, 8) + ".pdf";
+        return new AdjuntoCorreo(nombre, boletos.generar(compra), "application/pdf");
     }
 
     /* VentaCancelada: avisa la anulación y, si pagó con cartera, que el monto vuelve a su cartera. */
