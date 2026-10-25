@@ -38,6 +38,7 @@ class CorreosVentasIT extends PruebaIntegracion {
         String texto = textoPara(ANA);
         assertThat(texto).contains("Hola Ana López", "Asientos: 3, 4", "Total: Q 150.00, pagado con cartera digital",
                 "Salida: 05/11/2026 08:00", "Bus: P-123ABC");
+        assertThat(detallePara(ANA)).contains("\"FileName\":\"boleto-", "application/pdf");
 
         List<Map<String, Object>> filas = notificaciones(eventId);
         assertThat(filas).hasSize(1);
