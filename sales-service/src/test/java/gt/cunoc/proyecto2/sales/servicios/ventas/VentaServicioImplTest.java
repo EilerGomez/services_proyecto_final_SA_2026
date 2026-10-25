@@ -625,14 +625,15 @@ class VentaServicioImplTest {
     }
 
     @Test
-    void mostradorConNitDeClienteRegistradoCompletaNombreYCorreo() {
+    void mostradorConNitDeClienteRegistradoLigaLaCuentaYCompletaDatos() {
         viajeALaVenta();
         tripsDiceVendible(true, null);
         guardarDevuelveElMismo();
 
+        UUID clienteUsuarioId = UUID.randomUUID();
         when(clientes.findFirstByNit("1234567-K")).thenReturn(Optional.of(
                 DatosPrueba.vistaCliente(
-                        UUID.randomUUID(),
+                        clienteUsuarioId,
                         "1234567-K",
                         "Ana Lopez",
                         "ana@correo.com")));
@@ -656,7 +657,7 @@ class VentaServicioImplTest {
         assertThat(respuesta.clienteNit()).isEqualTo("1234567-K");
         assertThat(respuesta.clienteNombre()).isEqualTo("Ana Lopez");
         assertThat(venta.getClienteCorreo()).isEqualTo("ana@correo.com");
-        assertThat(venta.getClienteUsuarioId()).isNull();
+        assertThat(venta.getClienteUsuarioId()).isEqualTo(clienteUsuarioId);
 
         verify(clientes).findFirstByNit("1234567-K");
     }

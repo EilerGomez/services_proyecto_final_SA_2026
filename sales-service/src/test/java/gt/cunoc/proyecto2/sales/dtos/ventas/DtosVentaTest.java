@@ -144,11 +144,12 @@ class DtosVentaTest {
 
     @Test
     void clienteRegistradoCompletaNombreYCorreoQueFaltan() {
-        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(UUID.randomUUID());
+        UUID usuarioId = UUID.randomUUID();
+        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(usuarioId);
 
         ClienteVenta cliente = mostrador("1234567-8", null, null).cliente(Optional.of(registrado));
 
-        assertThat(cliente.usuarioId()).isNull();
+        assertThat(cliente.usuarioId()).isEqualTo(usuarioId);
         assertThat(cliente.nit()).isEqualTo("1234567-8");
         assertThat(cliente.nombre()).isEqualTo("Ana López");
         assertThat(cliente.correo()).isEqualTo("ana@correo.com");
