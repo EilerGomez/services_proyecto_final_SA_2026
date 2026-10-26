@@ -173,11 +173,16 @@ public abstract class PruebaIntegracion {
 
     /** Texto del correo más reciente para ese destinatario. */
     protected String textoPara(String correo) {
+        return JsonPath.read(detallePara(correo), "$.Text");
+    }
+
+    /** JSON completo del correo más reciente para ese destinatario (incluye adjuntos). */
+    protected String detallePara(String correo) {
         List<String> ids = JsonPath.read(buzon(), "$.messages[?(@.To[0].Address == '" + correo + "')].ID");
         if (ids.isEmpty()) {
             throw new AssertionError("No llegó ningún correo para " + correo);
         }
-        return JsonPath.read(llamar("GET", "/api/v1/message/" + ids.get(0)), "$.Text");
+        return llamar("GET", "/api/v1/message/" + ids.get(0));
     }
 
     private void borrarCorreos() {

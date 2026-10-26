@@ -69,7 +69,7 @@ class ManejadoresVentasTest {
     @Test
     void boletoVendidoDelegaConElEventId() {
         // Arrange
-        BoletoVendido compra = new BoletoVendido(UUID.randomUUID(), "Ana", "ana@correo.com", List.of(1, 2),
+        BoletoVendido compra = new BoletoVendido(UUID.randomUUID(), "1234567-8", "Ana", "ana@correo.com", List.of(1, 2),
                 new BigDecimal("150.00"), "CARTERA", FECHA, "Quetzaltenango", "Guatemala", SALIDA, "P-123ABC");
         EventoRecibido<BoletoVendido> evento = evento("BoletoVendido", compra);
 

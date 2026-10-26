@@ -2,7 +2,12 @@ package gt.cunoc.proyecto2.notification.services.correo;
 
 import gt.cunoc.proyecto2.notification.models.Notificacion;
 import gt.cunoc.proyecto2.notification.repositories.NotificacionRepository;
+import jakarta.mail.Multipart;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,12 +15,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -102,5 +111,47 @@ class EnvioCorreoServicePlantillaTest {
         verify(correos).send(any(SimpleMailMessage.class));
         assertEquals("ENVIADA", previa.getEstado());
         assertEquals(2, previa.getIntentos());
+    }
+
+    @Test
+    void conAdjuntoArmaUnCorreoMultiparte() throws Exception {
+        // Arrange
+        when(notificaciones.findByEventoIdAndDestinatarioAndPlantilla(EVENTO_ID, "ana@correo.com", "COMPRA_BOLETO"))
+                .thenReturn(Optional.empty());
+        MimeMessage mensaje = new MimeMessage(Session.getInstance(new Properties()));
+        when(correos.createMimeMessage()).thenReturn(mensaje);
+        byte[] pdf = "%PDF-1.4 boleto".getBytes(StandardCharsets.UTF_8);
+
+        // Act
+        servicio.enviarPlantilla(EVENTO_ID, "ana@correo.com", "COMPRA_BOLETO", "Tu compra", "{}", "Hola Ana",
+                new AdjuntoCorreo("boleto-1234.pdf", pdf, "application/pdf"));
+        mensaje.saveChanges();
+
+        // Assert
+        verify(correos).send(mensaje);
+        Multipart partes = (Multipart) mensaje.getContent();
+        assertAll(
+                () -> assertEquals("Tu compra", mensaje.getSubject()),
+                () -> assertTrue(mensaje.getContentType().startsWith("multipart/mixed")),
+                () -> assertEquals(2, partes.getCount()),
+                () -> assertEquals("boleto-1234.pdf", partes.getBodyPart(1).getFileName()),
+                () -> assertTrue(partes.getBodyPart(1).getContentType().startsWith("application/pdf")));
+    }
+
+    @Test
+    void falloSmtpConAdjuntoMarcaFallidaYPropaga() {
+        // Arrange
+        when(notificaciones.findByEventoIdAndDestinatarioAndPlantilla(EVENTO_ID, "ana@correo.com", "COMPRA_BOLETO"))
+                .thenReturn(Optional.empty());
+        when(correos.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));
+        doThrow(new MailSendException("sin red")).when(correos).send(any(MimeMessage.class));
+
+        // Act + Assert
+        assertThrows(MailSendException.class, () -> servicio.enviarPlantilla(EVENTO_ID, "ana@correo.com",
+                "COMPRA_BOLETO", "Tu compra", "{}", "Hola Ana",
+                new AdjuntoCorreo("boleto.pdf", new byte[] { 1, 2, 3 }, "application/pdf")));
+        ArgumentCaptor<Notificacion> guardada = ArgumentCaptor.forClass(Notificacion.class);
+        verify(notificaciones).save(guardada.capture());
+        assertEquals("FALLIDA", guardada.getValue().getEstado());
     }
 }

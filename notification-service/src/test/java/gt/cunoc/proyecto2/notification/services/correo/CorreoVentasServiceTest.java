@@ -22,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -41,10 +42,11 @@ class CorreoVentasServiceTest {
     private final ArgumentCaptor<String> asunto = ArgumentCaptor.forClass(String.class);
     private final ArgumentCaptor<String> datos = ArgumentCaptor.forClass(String.class);
     private final ArgumentCaptor<String> cuerpo = ArgumentCaptor.forClass(String.class);
+    private final ArgumentCaptor<AdjuntoCorreo> adjunto = ArgumentCaptor.forClass(AdjuntoCorreo.class);
 
     @BeforeEach
     void preparar() {
-        servicio = new CorreoVentasService(envio, JsonMapper.builder().build());
+        servicio = new CorreoVentasService(envio, JsonMapper.builder().build(), new BoletoPdfService());
     }
 
     private void capturar(String correo, String plantilla) {
@@ -52,18 +54,23 @@ class CorreoVentasServiceTest {
                 cuerpo.capture());
     }
 
+    private void capturarCompra(String correo) {
+        verify(envio).enviarPlantilla(eq(EVENTO_ID), eq(correo), eq(CorreoVentasService.COMPRA_BOLETO),
+                asunto.capture(), datos.capture(), cuerpo.capture(), adjunto.capture());
+    }
+
     @Test
-    void compraBoletoArmaComprobante() {
+    void compraBoletoArmaComprobanteConElPdfAdjunto() {
         // Arrange
         UUID ventaId = UUID.randomUUID();
-        BoletoVendido compra = new BoletoVendido(ventaId, "Ana López", "ana@correo.com", List.of(3, 4),
+        BoletoVendido compra = new BoletoVendido(ventaId, "1234567-8", "Ana López", "ana@correo.com", List.of(3, 4),
                 new BigDecimal("150"), "CARTERA", FECHA, "Quetzaltenango", "Guatemala", SALIDA, "P-123ABC");
 
         // Act
         servicio.compraBoleto(EVENTO_ID, compra);
 
         // Assert
-        capturar("ana@correo.com", CorreoVentasService.COMPRA_BOLETO);
+        capturarCompra("ana@correo.com");
         assertAll(
                 () -> assertEquals("Tu compra Quetzaltenango → Guatemala", asunto.getValue()),
                 () -> assertTrue(cuerpo.getValue().startsWith("Hola Ana López,")),
@@ -74,22 +81,29 @@ class CorreoVentasServiceTest {
                 () -> assertTrue(cuerpo.getValue().contains(ventaId.toString())),
                 () -> assertTrue(datos.getValue().contains("\"asientos\":[3,4]")),
                 () -> assertTrue(datos.getValue().contains("\"metodoPago\":\"CARTERA\"")));
+        AdjuntoCorreo pdf = adjunto.getValue();
+        assertAll(
+                () -> assertEquals("boleto-" + ventaId.toString().substring(0, 8) + ".pdf", pdf.nombre()),
+                () -> assertEquals("application/pdf", pdf.tipoContenido()),
+                () -> assertTrue(pdf.contenido().length > 500),
+                () -> assertEquals("%PDF", new String(pdf.contenido(), 0, 4)));
     }
 
     @Test
-    void compraEnMostradorSinCorreoIgualDelegaYEnvioLaIgnora() {
+    void compraEnMostradorSinCorreoIgualDelegaSinAdjunto() {
         // Arrange: EnvioCorreoService decide no registrar nada cuando no hay correo
-        BoletoVendido compra = new BoletoVendido(UUID.randomUUID(), "Consumidor final", null, List.of(1),
+        BoletoVendido compra = new BoletoVendido(UUID.randomUUID(), "CF", "Consumidor final", null, List.of(1),
                 new BigDecimal("75.00"), "EFECTIVO", FECHA, "Quetzaltenango", "Guatemala", SALIDA, null);
 
         // Act
         servicio.compraBoleto(EVENTO_ID, compra);
 
         // Assert
-        capturar(null, CorreoVentasService.COMPRA_BOLETO);
+        capturarCompra(null);
         assertAll(
                 () -> assertTrue(cuerpo.getValue().contains("Bus: -")),
-                () -> assertTrue(cuerpo.getValue().contains("pagado con efectivo")));
+                () -> assertTrue(cuerpo.getValue().contains("pagado con efectivo")),
+                () -> assertNull(adjunto.getValue()));
     }
 
     @Test

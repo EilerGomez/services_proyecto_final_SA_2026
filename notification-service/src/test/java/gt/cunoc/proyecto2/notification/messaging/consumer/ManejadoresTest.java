@@ -5,8 +5,11 @@ import gt.cunoc.proyecto2.notification.evento.recibido.CodigoDobleFactorSolicita
 import gt.cunoc.proyecto2.notification.evento.recibido.CuentaCreada;
 import gt.cunoc.proyecto2.notification.evento.recibido.RecuperacionContrasenaSolicitada;
 import gt.cunoc.proyecto2.notification.evento.recibido.RolAsignado;
+import gt.cunoc.proyecto2.notification.evento.recibido.RutaActualizada;
 import gt.cunoc.proyecto2.notification.services.correo.CorreoCuentasService;
+import gt.cunoc.proyecto2.notification.services.correo.CorreoRutasService;
 import gt.cunoc.proyecto2.notification.services.correo.EnvioCorreoService;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +32,8 @@ class ManejadoresTest {
 
     @Mock private CorreoCuentasService cuentas;
 
+    @Mock private CorreoRutasService rutas;
+
     @InjectMocks
     private ManejadorRecuperacionContrasena manejadorRecuperacion;
 
@@ -41,6 +46,9 @@ class ManejadoresTest {
     @InjectMocks
     private ManejadorRolAsignado manejadorRol;
 
+    @InjectMocks
+    private ManejadorRutaActualizada manejadorRuta;
+
     @Test
     void tiposDeEvento() {
         // Act + Assert
@@ -48,8 +56,10 @@ class ManejadoresTest {
         assertEquals("CuentaCreada", manejadorCuenta.tipoEvento());
         assertEquals("CodigoDobleFactorSolicitado", manejadorCodigo.tipoEvento());
         assertEquals("RolAsignado", manejadorRol.tipoEvento());
+        assertEquals("RutaActualizada", manejadorRuta.tipoEvento());
         assertEquals(RolAsignado.class, manejadorRol.tipoPayload());
         assertEquals(CuentaCreada.class, manejadorCuenta.tipoPayload());
+        assertEquals(RutaActualizada.class, manejadorRuta.tipoPayload());
     }
 
     @Test
@@ -109,5 +119,20 @@ class ManejadoresTest {
 
         // Assert
         verify(correos).enviarCodigoDobleFactor(any(), eq("ana@correo.com"), eq("Ana"), eq("123456"), any());
+    }
+
+    @Test
+    void rutaActualizadaDelegaEnCorreosDeRutas() {
+        // Arrange
+        RutaActualizada ruta = new RutaActualizada(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "Quetzaltenango", "Guatemala", new BigDecimal("205.5"), new BigDecimal("75.00"), true);
+        var evento = new EventoRecibido<>(UUID.randomUUID(), "RutaActualizada",
+                1, UUID.randomUUID(), null, Instant.now(), LocalDate.now(), UUID.randomUUID(), ruta);
+
+        // Act
+        manejadorRuta.manejar(evento);
+
+        // Assert
+        verify(rutas).rutaActualizada(evento.eventId(), ruta);
     }
 }

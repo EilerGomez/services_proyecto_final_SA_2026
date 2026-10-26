@@ -3,14 +3,25 @@ package gt.cunoc.proyecto2.notification.services.correo;
 
 import gt.cunoc.proyecto2.notification.models.Notificacion;
 import gt.cunoc.proyecto2.notification.repositories.NotificacionRepository;
+import jakarta.activation.DataHandler;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.Multipart;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
+import jakarta.mail.util.ByteArrayDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -57,7 +68,7 @@ public class EnvioCorreoService {
         String cuerpo = "Hola " + nombre + ",\n\nSolicitaste recuperar tu contraseña.\n\n"
                 + "Usa este enlace antes del " + FORMATO_FECHA.format(expiraEn) + " (hora de Guatemala):\n" + url + "\n\n"
                 + "Si no fuiste tú, ignora este correo.";
-        enviar(previa.get(), correo, "Recupera tu contraseña", cuerpo);
+        enviar(previa.get(), correo, "Recupera tu contraseña", cuerpo, null);
     }
 
     @Transactional
@@ -72,7 +83,7 @@ public class EnvioCorreoService {
                 + (urlActivacion == null
                         ? "\nYa puedes iniciar sesión."
                         : "\nActívala aquí:\n" + urlActivacion + "\n");
-        enviar(previa.get(), correo, "Bienvenido a la plataforma", cuerpo);
+        enviar(previa.get(), correo, "Bienvenido a la plataforma", cuerpo, null);
     }
 
     @Transactional
@@ -87,7 +98,7 @@ public class EnvioCorreoService {
         String cuerpo = "Hola " + nombre + ",\n\nTu código de verificación es:\n\n"
                 + codigo + "\n\nVence el " + FORMATO_FECHA.format(expiraEn) + " (hora de Guatemala).\n"
                 + "Si no fuiste tú, ignora este correo.";
-        enviar(previa.get(), correo, "Tu código de verificación", cuerpo);
+        enviar(previa.get(), correo, "Tu código de verificación", cuerpo, null);
     }
 
     /*
@@ -97,6 +108,16 @@ public class EnvioCorreoService {
     @Transactional
     public void enviarPlantilla(
             UUID eventoId, String correo, String plantilla, String asunto, String datos, String cuerpo) {
+        enviarPlantilla(eventoId, correo, plantilla, asunto, datos, cuerpo, null);
+    }
+
+    /*
+     * Igual que el anterior, pero con un archivo adjunto (el PDF del boleto en las compras).
+     * Si no hay adjunto se manda texto plano, como siempre.
+     */
+    @Transactional
+    public void enviarPlantilla(UUID eventoId, String correo, String plantilla, String asunto, String datos,
+                                String cuerpo, AdjuntoCorreo adjunto) {
         if (correo == null || correo.isBlank()) {
             return;
         }
@@ -104,7 +125,7 @@ public class EnvioCorreoService {
         if (previa.isEmpty()) {
             return;
         }
-        enviar(previa.get(), correo, asunto, cuerpo);
+        enviar(previa.get(), correo, asunto, cuerpo, adjunto);
     }
 
     private Optional<Notificacion> registrada(
@@ -128,23 +149,59 @@ public class EnvioCorreoService {
         return Optional.of(notificacion);
     }
 
-    private void enviar(Notificacion notificacion, String destino, String asunto, String cuerpo) {
+    private void enviar(Notificacion notificacion, String destino, String asunto, String cuerpo,
+                        AdjuntoCorreo adjunto) {
         notificacion.setIntentos(notificacion.getIntentos() + 1);
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setFrom(remitente);
-            mensaje.setTo(destino);
-            mensaje.setSubject(asunto);
-            mensaje.setText(cuerpo);
-            correos.send(mensaje);
+            if (adjunto == null) {
+                SimpleMailMessage mensaje = new SimpleMailMessage();
+                mensaje.setFrom(remitente);
+                mensaje.setTo(destino);
+                mensaje.setSubject(asunto);
+                mensaje.setText(cuerpo);
+                correos.send(mensaje);
+            } else {
+                correos.send(conAdjunto(destino, asunto, cuerpo, adjunto));
+            }
         } catch (MailException falla) {
-            notificacion.setEstado("FALLIDA");
-            notificacion.setUltimoError(falla.getMessage());
-            notificaciones.save(notificacion);
+            marcarFallida(notificacion, falla);
             throw falla;
+        } catch (MessagingException falla) {
+            MailSendException error = new MailSendException("No se pudo armar el correo con adjunto", falla);
+            marcarFallida(notificacion, error);
+            throw error;
         }
         notificacion.setEstado("ENVIADA");
         notificacion.setFechaEnvio(Instant.now());
+        notificaciones.save(notificacion);
+    }
+
+    /** Correo multiparte: el cuerpo de siempre más el archivo adjunto. */
+    private MimeMessage conAdjunto(String destino, String asunto, String cuerpo, AdjuntoCorreo adjunto)
+            throws MessagingException {
+        MimeMessage mensaje = correos.createMimeMessage();
+        mensaje.setFrom(new InternetAddress(remitente));
+        mensaje.setRecipients(Message.RecipientType.TO, InternetAddress.parse(destino));
+        mensaje.setSubject(asunto, StandardCharsets.UTF_8.name());
+
+        MimeBodyPart texto = new MimeBodyPart();
+        texto.setText(cuerpo, StandardCharsets.UTF_8.name());
+
+        MimeBodyPart archivo = new MimeBodyPart();
+        archivo.setDataHandler(new DataHandler(
+                new ByteArrayDataSource(adjunto.contenido(), adjunto.tipoContenido())));
+        archivo.setFileName(adjunto.nombre());
+
+        Multipart partes = new MimeMultipart();
+        partes.addBodyPart(texto);
+        partes.addBodyPart(archivo);
+        mensaje.setContent(partes);
+        return mensaje;
+    }
+
+    private void marcarFallida(Notificacion notificacion, Exception falla) {
+        notificacion.setEstado("FALLIDA");
+        notificacion.setUltimoError(falla.getMessage());
         notificaciones.save(notificacion);
     }
 }

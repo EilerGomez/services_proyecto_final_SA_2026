@@ -15,6 +15,7 @@ import java.util.UUID;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoletoVendido(
         UUID ventaId,
+        String clienteNit,
         String clienteNombre,
         String clienteCorreo,
         List<Integer> asientos,
