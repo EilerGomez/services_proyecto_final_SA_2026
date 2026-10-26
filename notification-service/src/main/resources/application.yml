@@ -58,7 +58,7 @@ comun:
       "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada, CodigoDobleFactorSolicitado, RolAsignado]
       "[fleet.eventos]": [LicenciaChoferActualizada]
       "[trips.eventos]": [CotizacionAlquilerConfirmada, AlquilerAsignado]
-      "[sales.eventos]": [BoletoVendido, VentaCancelada, AlquilerPagado]
+      "[sales.eventos]": [BoletoVendido, VentaCancelada, VentaReembolsada, AlquilerPagado]
 
 app:
   jwt:

@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.ReembolsoVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import gt.cunoc.proyecto2.sales.modelos.ventas.CanalVenta;
@@ -63,6 +64,26 @@ public class VentaControlador {
                                                    @RequestBody @Valid CancelarVentaSolicitud solicitud,
                                                    @Parameter(hidden = true) UsuarioActual usuario) {
         return ResponseEntity.ok(servicio.cancelar(id, solicitud, usuario));
+    }
+
+    @PostMapping("/{id}/reembolsar")
+    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL})
+    @Operation(summary = "S14 · Devuelve el dinero de una venta cancelada (efectivo en la sucursal o,"
+            + " si se pagó con cartera, vuelve a pedirle el reembolso a Wallet)")
+    public ResponseEntity<VentaRespuesta> reembolsar(@PathVariable UUID id,
+                                                     @RequestBody @Valid ReembolsoVentaSolicitud solicitud,
+                                                     @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.reembolsar(id, solicitud, usuario));
+    }
+
+    @GetMapping("/boleto")
+    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL, Roles.ADMIN_SISTEMA})
+    @Operation(summary = "S14 · Busca la venta por el código de barras del boleto impreso")
+    public ResponseEntity<List<VentaRespuesta>> buscarPorCodigo(
+            @Parameter(description = "Código del talón (12 caracteres, con o sin guiones) o el id completo de la venta")
+            @RequestParam String codigo,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.buscarPorCodigo(codigo, usuario));
     }
 
     @GetMapping("/{id}")

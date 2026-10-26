@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.DebitoCarteraSolicita
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.ReembolsoCarteraSolicitado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoVendido;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaCancelada;
+import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaReembolsada;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.BoletoEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.VentaEntidad;
@@ -16,7 +17,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Los 5 eventos que publica Sales, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
+ * Los 6 eventos que publica Sales, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
  * Los servicios llaman a estos métodos en lugar de escribir nombres de eventos a mano.
  *
  * <p>Reglas (comun): se llama dentro de la transacción del cambio y después de saveAndFlush,
@@ -24,7 +25,8 @@ import org.springframework.stereotype.Component;
  * y RelayOutbox lo envía a sales.eventos: si la transacción se revierte, el evento tampoco sale.</p>
  *
  * <p>businessDate (04_sales.md): débito, boleto vendido y alquiler pagado = fecha de pago;
- * venta cancelada = fecha de cancelación; reembolso = la fecha que indique quien lo pide.</p>
+ * venta cancelada = fecha de cancelación; venta reembolsada = fecha del reembolso;
+ * reembolso = la fecha que indique quien lo pide.</p>
  */
 @Component
 public class PublicadorEventosSales {
@@ -72,6 +74,12 @@ public class PublicadorEventosSales {
     public void ventaCancelada(VentaEntidad venta, List<BoletoEntidad> boletos, VistaViajeEntidad viaje) {
         publicar(TipoAgregado.VENTA, venta.getId(), venta.getVersion(), TipoEvento.VENTA_CANCELADA,
                 VentaCancelada.desde(venta, boletos, viaje), venta.getFechaCancelacion());
+    }
+
+    /** S14: la sucursal devolvió el efectivo de una venta cancelada. viaje puede ser null. */
+    public void ventaReembolsada(VentaEntidad venta, List<BoletoEntidad> boletos, VistaViajeEntidad viaje) {
+        publicar(TipoAgregado.VENTA, venta.getId(), venta.getVersion(), TipoEvento.VENTA_REEMBOLSADA,
+                VentaReembolsada.desde(venta, boletos, viaje), venta.getFechaReembolso());
     }
 
     // ----- Alquileres -----

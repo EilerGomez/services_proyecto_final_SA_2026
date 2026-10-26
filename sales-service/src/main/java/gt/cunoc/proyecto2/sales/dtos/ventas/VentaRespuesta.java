@@ -13,13 +13,19 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** fechaRegistro: momento en que se registró la venta (hora de Guatemala); null justo al crearla. */
+/**
+ * fechaRegistro: momento en que se registró la venta (hora de Guatemala); null justo al crearla.
+ * codigo: lo que lleva el código de barras del boleto impreso (los primeros 12 caracteres del id).
+ * fechaReembolso: cuándo volvió el dinero, por la cartera o en efectivo en la sucursal.
+ */
 public record VentaRespuesta(
         UUID ventaId,
+        String codigo,
         UUID viajeId,
         CanalVenta canal,
         String clienteNit,
         String clienteNombre,
+        String clienteCorreo,
         UUID sucursalId,
         MetodoPago metodoPago,
         BigDecimal montoTotal,
@@ -29,16 +35,19 @@ public record VentaRespuesta(
         String motivoRechazo,
         String motivoCancelacion,
         LocalDate fechaCancelacion,
+        LocalDate fechaReembolso,
         List<BoletoRespuesta> boletos,
         @JsonInclude(JsonInclude.Include.NON_NULL) ViajeResumenRespuesta viaje,
         Integer version) {
 
     public VentaRespuesta(VentaEntidad venta, List<BoletoEntidad> boletos, ViajeResumenRespuesta viaje) {
         this(venta.getId(),
+                venta.codigo(),
                 venta.getViajeId(),
                 venta.getCanal(),
                 venta.getClienteNit(),
                 venta.getClienteNombre(),
+                venta.getClienteCorreo(),
                 venta.getSucursalId(),
                 venta.getMetodoPago(),
                 venta.getMontoTotal(),
@@ -48,6 +57,7 @@ public record VentaRespuesta(
                 venta.getMotivoRechazo(),
                 venta.getMotivoCancelacion(),
                 venta.getFechaCancelacion(),
+                venta.getFechaReembolso(),
                 boletos.stream().map(BoletoRespuesta::new).toList(),
                 viaje,
                 venta.getVersion());
