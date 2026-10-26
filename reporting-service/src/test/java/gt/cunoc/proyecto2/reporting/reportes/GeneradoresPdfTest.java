@@ -68,7 +68,7 @@ class GeneradoresPdfTest {
         when(choferes.findAll()).thenReturn(List.of());
         when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of());
         when(ingresos.sumarPorSucursal(any(), any())).thenReturn(List.of());
-        when(ingresos.demandaPorRuta(any(), any(), any())).thenReturn(List.of());
+        when(ingresos.demandaPorRuta(any(), any(), any(), any())).thenReturn(List.of());
         when(gastos.sumarPorSucursal(any(), any())).thenReturn(List.of());
         when(gastos.sumarPorSucursalYTipo(any(), any(), any())).thenReturn(List.of());
         when(gastos.tallerDetalleCategoria(any(), any(), any(), any())).thenReturn(List.of());

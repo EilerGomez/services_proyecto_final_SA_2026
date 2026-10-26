@@ -3,6 +3,8 @@ package gt.cunoc.proyecto2.reporting.integracion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gt.cunoc.proyecto2.comun.seguridad.service.ServicioJwt;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
@@ -62,6 +64,8 @@ class ReportesIT {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private RabbitTemplate rabbit;
@@ -128,6 +132,52 @@ class ReportesIT {
         assertThat(getJson("/reports/rutas-demandadas", token).getStatusCode().value()).isEqualTo(200);
         assertThat(getJson("/reports/taller-por-categoria", token).getStatusCode().value()).isEqualTo(200);
         assertThat(getJson("/reports/mapa-rutas", token).getStatusCode().value()).isEqualTo(200);
+    }
+
+    @Test
+    void rutasDemandadasDistingueAlcanceGlobalYSucursal() throws Exception {
+        UUID rutaId = UUID.randomUUID();
+        jdbc.update("INSERT INTO rutas (id, sucursal_origen_id, sucursal_destino_id, origen_nombre, "
+                        + "destino_nombre, distancia_km, precio_boleto, activa) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                rutaId, sucursalPropia, sucursalAjena, "Norte", "Sur", new BigDecimal("100"),
+                new BigDecimal("75"), true);
+        UUID ventaId = UUID.randomUUID();
+        insertarIngreso(rutaId, sucursalPropia, ventaId, 3, new BigDecimal("225"));
+        insertarIngreso(rutaId, sucursalPropia, ventaId, -1, new BigDecimal("-75"));
+        insertarIngreso(rutaId, sucursalAjena, UUID.randomUUID(), 4, new BigDecimal("300"));
+
+        String token = tokenAdminSistema();
+        JsonNode global = objectMapper.readTree(getJson("/reports/rutas-demandadas", token).getBody());
+        JsonNode sucursal = objectMapper.readTree(getJson(
+                "/reports/rutas-demandadas?sucursalId=" + sucursalPropia, token).getBody());
+
+        assertThat(global).hasSize(1);
+        assertThat(global.get(0).get("boletosVendidos").asLong()).isEqualTo(7);
+        assertThat(global.get(0).get("boletosCancelados").asLong()).isEqualTo(1);
+        assertThat(global.get(0).get("boletos").asLong()).isEqualTo(6);
+        assertThat(sucursal).hasSize(1);
+        assertThat(sucursal.get(0).get("boletosVendidos").asLong()).isEqualTo(3);
+        assertThat(sucursal.get(0).get("boletosCancelados").asLong()).isEqualTo(1);
+        assertThat(sucursal.get(0).get("boletos").asLong()).isEqualTo(2);
+
+        JsonNode ingresosSucursal = objectMapper.readTree(getJson(
+                "/reports/sucursales/" + sucursalPropia + "/ingresos-boletos"
+                        + "?rutaId=" + rutaId, token).getBody());
+        assertThat(ingresosSucursal.get("boletosVendidos").asInt()).isEqualTo(3);
+        assertThat(ingresosSucursal.get("boletosCancelados").asInt()).isEqualTo(1);
+        assertThat(ingresosSucursal.get("totalBoletos").asInt())
+                .isEqualTo(sucursal.get(0).get("boletos").asInt());
+        assertThat(ingresosSucursal.get("total").decimalValue())
+                .isEqualByComparingTo(global.get(0).get("ingresos").decimalValue()
+                        .subtract(new BigDecimal("300.00")));
+    }
+
+    private void insertarIngreso(
+            UUID rutaId, UUID sucursalId, UUID referenciaId, int boletos, BigDecimal monto) {
+        jdbc.update("INSERT INTO ingresos (evento_origen_id, sucursal_id, tipo, referencia_id, ruta_id, "
+                        + "cantidad_boletos, monto, fecha_negocio) VALUES (?, ?, 'BOLETO', ?, ?, ?, ?, DATE '2026-10-20')",
+                UUID.randomUUID(), sucursalId, referenciaId, rutaId, boletos, monto);
     }
 
     @Test

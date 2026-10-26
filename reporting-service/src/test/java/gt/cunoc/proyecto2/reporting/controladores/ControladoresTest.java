@@ -66,7 +66,8 @@ class ControladoresTest {
         assertThat(sistema.ingresos(null, null, null, "json").getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(sistema.gastos(null, null, null, "json").getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(sistema.ganancias(null, null, null, "json").getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(sistema.rutasDemandadas(null, null, 5, "json").getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(sistema.rutasDemandadas(null, null, null, 5, "json").getStatusCode())
+                .isEqualTo(HttpStatus.OK);
         assertThat(sistema.tallerPorCategoria(null, null, null, null, "json").getStatusCode())
                 .isEqualTo(HttpStatus.OK);
         assertThat(sistema.mapaRutas(null, "json").getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -84,7 +85,7 @@ class ControladoresTest {
                 .isEqualTo("ganancias_2026-10-01_2026-10-31.pdf");
         assertThat(sistema.gastos(null, null, null, "otro").getHeaders().getContentType())
                 .isEqualTo(MediaType.APPLICATION_PDF);
-        assertThat(sistema.rutasDemandadas(null, null, 5, "pdf").getStatusCode())
+        assertThat(sistema.rutasDemandadas(null, null, null, 5, "pdf").getStatusCode())
                 .isEqualTo(HttpStatus.OK);
         assertThat(sistema.tallerPorCategoria(null, null, null, null, "pdf").getStatusCode())
                 .isEqualTo(HttpStatus.OK);

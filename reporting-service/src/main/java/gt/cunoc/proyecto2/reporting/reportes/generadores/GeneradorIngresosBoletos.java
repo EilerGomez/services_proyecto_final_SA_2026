@@ -54,6 +54,10 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
         parametros.put("FROM_DATE", Formatos.texto(params.getDesde()));
         parametros.put("TO_DATE", Formatos.texto(params.getHasta()));
         parametros.put("TOTAL", Formatos.quetzales(total));
+        int vendidos = filas.stream().mapToInt(f -> Math.max(f.getBoletos(), 0)).sum();
+        int cancelados = filas.stream().mapToInt(f -> Math.max(-f.getBoletos(), 0)).sum();
+        parametros.put("BOLETOS_SUMMARY", "Vendidos: " + vendidos + " · cancelados: " + cancelados
+                + " · netos: " + (vendidos - cancelados));
 
         JasperPrint print = JasperFillManager.fillReport(
                 reporte, parametros, new JRBeanCollectionDataSource(filas));
@@ -70,6 +74,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
             fila.put("ruta", f.getRuta());
             fila.put("busPlaca", f.getBusPlaca());
             fila.put("clienteNit", f.getClienteNit());
+            fila.put("movimiento", f.getMovimiento());
             fila.put("boletos", f.getBoletos());
             fila.put("monto", f.getMonto());
             return fila;
@@ -78,6 +83,8 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
         resultado.put("filas", json);
         resultado.put("totalBoletos", filas.stream().map(BoletoFila::getBoletos)
                 .reduce(0, Integer::sum));
+        resultado.put("boletosVendidos", filas.stream().mapToInt(f -> Math.max(f.getBoletos(), 0)).sum());
+        resultado.put("boletosCancelados", filas.stream().mapToInt(f -> Math.max(-f.getBoletos(), 0)).sum());
         resultado.put("total", filas.stream().map(BoletoFila::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         return resultado;
@@ -98,6 +105,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
                         .busPlaca(i.getBusId() != null
                                 ? placas.getOrDefault(i.getBusId().toString(), "-") : "-")
                         .clienteNit(i.getClienteNit())
+                        .movimiento(i.getCantidadBoletos() < 0 ? "CANCELACION" : "VENTA")
                         .boletos(i.getCantidadBoletos())
                         .monto(i.getMonto())
                         .build())

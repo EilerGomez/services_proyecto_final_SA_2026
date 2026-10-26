@@ -48,6 +48,10 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         List<IngresoGlobalFila> filas = filas(params);
         BigDecimal total = filas.stream().map(IngresoGlobalFila::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        int vendidos = filas.stream().filter(f -> "BOLETO".equals(f.getTipo()))
+                .mapToInt(f -> Math.max(f.getBoletos(), 0)).sum();
+        int cancelados = filas.stream().filter(f -> "BOLETO".equals(f.getTipo()))
+                .mapToInt(f -> Math.max(-f.getBoletos(), 0)).sum();
 
         JasperReport reporte = compilador.obtener("ingresos");
         Map<String, Object> parametros = new HashMap<>();
@@ -55,6 +59,8 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         parametros.put("FROM_DATE", Formatos.texto(params.getDesde()));
         parametros.put("TO_DATE", Formatos.texto(params.getHasta()));
         parametros.put("TOTAL_GLOBAL", Formatos.quetzales(total));
+        parametros.put("BOLETOS_SUMMARY", "Boletos vendidos: " + vendidos
+                + " · cancelados: " + cancelados + " · netos: " + (vendidos - cancelados));
 
         JasperPrint print = JasperFillManager.fillReport(
                 reporte, parametros, new JRBeanCollectionDataSource(filas));
@@ -87,11 +93,15 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
             BigDecimal subtotal = filasGrupo.stream()
                     .map(f -> (BigDecimal) f.get("monto")).reduce(BigDecimal.ZERO, BigDecimal::add);
             totalGlobal = totalGlobal.add(subtotal);
+            List<IngresoEntidad> ingresosGrupo = entidades.stream()
+                    .filter(i -> grupo.getId().equals(i.getSucursalId()))
+                    .toList();
             Map<String, Object> g = new LinkedHashMap<>();
             g.put("sucursalId", grupo.getId());
             g.put("sucursal", grupo.getNombre());
             g.put("filas", filasGrupo);
             g.put("subtotal", subtotal);
+            g.putAll(resumenBoletos(ingresosGrupo));
             grupos.add(g);
         }
 
@@ -100,6 +110,7 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         resultado.put("hasta", params.getHasta());
         resultado.put("sucursales", grupos);
         resultado.put("totalGlobal", totalGlobal);
+        resultado.putAll(resumenBoletos(entidades));
         return resultado;
     }
 
@@ -112,9 +123,11 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
                         .fecha(Formatos.fecha(i.getFechaNegocio()))
                         .sucursal(nombres.getOrDefault(String.valueOf(i.getSucursalId()), "-"))
                         .tipo(i.getTipo())
+                        .movimiento(movimiento(i))
                         .referenciaId(i.getReferenciaId())
                         .detalle(detalle(i))
                         .clienteNit(i.getClienteNit())
+                        .boletos(i.getCantidadBoletos())
                         .monto(i.getMonto())
                         .build())
                 .toList();
@@ -124,11 +137,36 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         Map<String, Object> f = new LinkedHashMap<>();
         f.put("fecha", i.getFechaNegocio() != null ? i.getFechaNegocio().toString() : null);
         f.put("tipo", i.getTipo());
+        f.put("movimiento", movimiento(i));
         f.put("referenciaId", i.getReferenciaId());
         f.put("detalle", detalle(i));
         f.put("clienteNit", i.getClienteNit());
+        f.put("boletos", i.getCantidadBoletos());
         f.put("monto", i.getMonto());
         return f;
+    }
+
+    private Map<String, Object> resumenBoletos(List<IngresoEntidad> entidades) {
+        int vendidos = entidades.stream()
+                .filter(i -> "BOLETO".equals(i.getTipo()))
+                .mapToInt(i -> Math.max(i.getCantidadBoletos(), 0))
+                .sum();
+        int cancelados = entidades.stream()
+                .filter(i -> "BOLETO".equals(i.getTipo()))
+                .mapToInt(i -> Math.max(-i.getCantidadBoletos(), 0))
+                .sum();
+        Map<String, Object> resumen = new LinkedHashMap<>();
+        resumen.put("boletosVendidos", vendidos);
+        resumen.put("boletosCancelados", cancelados);
+        resumen.put("boletosNetos", vendidos - cancelados);
+        return resumen;
+    }
+
+    private String movimiento(IngresoEntidad i) {
+        if ("BOLETO".equals(i.getTipo())) {
+            return i.getCantidadBoletos() < 0 ? "CANCELACION" : "VENTA";
+        }
+        return "ALQUILER_PAGADO";
     }
 
     private String detalle(IngresoEntidad i) {

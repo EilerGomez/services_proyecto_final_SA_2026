@@ -51,6 +51,8 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
         parametros.put("REPORT_TITLE", "Rutas Más Demandadas");
         parametros.put("FROM_DATE", Formatos.texto(params.getDesde()));
         parametros.put("TO_DATE", Formatos.texto(params.getHasta()));
+        parametros.put("SUCURSAL", params.getSucursalId() == null
+                ? "Todas las sucursales" : "Sucursal " + params.getSucursalId());
 
         JasperPrint print = JasperFillManager.fillReport(
                 reporte, parametros, new JRBeanCollectionDataSource(filas));
@@ -64,6 +66,8 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
             fila.put("rutaId", f.getRutaId());
             fila.put("origen", f.getOrigen());
             fila.put("destino", f.getDestino());
+            fila.put("boletosVendidos", f.getBoletosVendidos());
+            fila.put("boletosCancelados", f.getBoletosCancelados());
             fila.put("boletos", f.getBoletos());
             fila.put("ingresos", f.getIngresos());
             return fila;
@@ -77,15 +81,17 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
         int limite = params.getLimite() != null && params.getLimite() > 0 ? params.getLimite() : 10;
         List<RutaDemandaFila> filas = new ArrayList<>();
         for (Object[] grupo : ingresos.demandaPorRuta(
-                params.getDesde(), params.getHasta(), PageRequest.of(0, limite))) {
+                params.getSucursalId(), params.getDesde(), params.getHasta(), PageRequest.of(0, limite))) {
             UUID rutaId = (UUID) grupo[0];
             String[] nombre = nombres.getOrDefault(rutaId.toString(), new String[]{"-", "-"});
             filas.add(RutaDemandaFila.builder()
                     .rutaId(rutaId)
                     .origen(nombre[0])
                     .destino(nombre[1])
-                    .boletos(grupo[1] != null ? ((Number) grupo[1]).longValue() : 0L)
-                    .ingresos(grupo[2] != null ? (BigDecimal) grupo[2] : BigDecimal.ZERO)
+                    .boletosVendidos(grupo[1] != null ? ((Number) grupo[1]).longValue() : 0L)
+                    .boletosCancelados(grupo[2] != null ? ((Number) grupo[2]).longValue() : 0L)
+                    .boletos(grupo[3] != null ? ((Number) grupo[3]).longValue() : 0L)
+                    .ingresos(grupo[4] != null ? (BigDecimal) grupo[4] : BigDecimal.ZERO)
                     .build());
         }
         return filas;

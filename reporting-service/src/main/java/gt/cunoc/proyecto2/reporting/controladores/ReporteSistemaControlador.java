@@ -88,11 +88,13 @@ public class ReporteSistemaControlador {
     public ResponseEntity<?> rutasDemandadas(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @Parameter(description = "Filtra por sucursal; si se omite, incluye todas")
+            @RequestParam(required = false) UUID sucursalId,
             @RequestParam(defaultValue = "10") int limite,
             @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
             throws Exception {
         ParametrosReporte params = ParametrosReporte.builder()
-                .desde(desde).hasta(hasta).limite(limite).build();
+                .desde(desde).hasta(hasta).sucursalId(sucursalId).limite(limite).build();
         if ("json".equalsIgnoreCase(format)) {
             return ResponseEntity.ok(fabrica.obtener(TipoReporte.RUTAS_DEMANDADAS).datos(params));
         }

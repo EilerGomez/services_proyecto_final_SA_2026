@@ -10,43 +10,54 @@
     <parameter name="FROM_DATE" class="java.lang.String"/>
     <parameter name="TO_DATE" class="java.lang.String"/>
     <parameter name="TOTAL_GLOBAL" class="java.lang.String"/>
+    <parameter name="BOLETOS_SUMMARY" class="java.lang.String"/>
     <field name="fecha" class="java.lang.String"/>
     <field name="sucursal" class="java.lang.String"/>
     <field name="tipo" class="java.lang.String"/>
+    <field name="movimiento" class="java.lang.String"/>
+    <field name="referenciaId" class="java.util.UUID"/>
     <field name="detalle" class="java.lang.String"/>
     <field name="clienteNit" class="java.lang.String"/>
+    <field name="boletos" class="java.lang.Integer"/>
     <field name="monto" class="java.math.BigDecimal"/>
     <title>
-        <band height="80">
-            <rectangle><reportElement x="0" y="0" width="555" height="55" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+        <band height="96">
+            <rectangle><reportElement x="0" y="0" width="555" height="72" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
             <textField><reportElement x="0" y="6" width="555" height="30" forecolor="#FFFFFF"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"><font size="16" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression></textField>
             <textField><reportElement x="0" y="36" width="555" height="16" forecolor="#CCCCCC"/>
                 <textElement textAlignment="Center"><font size="9"/></textElement>
                 <textFieldExpression><![CDATA["Período: " + $P{FROM_DATE} + "  al  " + $P{TO_DATE} + "    ·    Total: " + $P{TOTAL_GLOBAL}]]></textFieldExpression></textField>
+            <textField><reportElement x="0" y="54" width="555" height="14" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{BOLETOS_SUMMARY}]]></textFieldExpression></textField>
         </band>
     </title>
     <columnHeader>
-        <band height="22">
-            <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
-            <staticText><reportElement x="5" y="3" width="65" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Fecha]]></text></staticText>
-            <staticText><reportElement x="73" y="3" width="85" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Sucursal]]></text></staticText>
-            <staticText><reportElement x="161" y="3" width="60" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Tipo]]></text></staticText>
-            <staticText><reportElement x="224" y="3" width="150" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Detalle]]></text></staticText>
-            <staticText><reportElement x="377" y="3" width="60" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[NIT]]></text></staticText>
-            <staticText><reportElement x="440" y="3" width="110" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Monto]]></text></staticText>
+        <band height="24">
+            <rectangle><reportElement x="0" y="0" width="555" height="24" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
+            <staticText><reportElement x="5" y="3" width="50" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Fecha]]></text></staticText>
+            <staticText><reportElement x="58" y="3" width="75" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Sucursal]]></text></staticText>
+            <staticText><reportElement x="136" y="3" width="50" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Tipo]]></text></staticText>
+            <staticText><reportElement x="189" y="3" width="88" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Movimiento]]></text></staticText>
+            <staticText><reportElement x="280" y="3" width="48" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Boletos]]></text></staticText>
+            <staticText><reportElement x="331" y="3" width="72" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[NIT]]></text></staticText>
+            <staticText><reportElement x="406" y="3" width="144" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Monto]]></text></staticText>
         </band>
     </columnHeader>
     <detail>
-        <band height="20">
-            <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
-            <textField><reportElement x="5" y="2" width="65" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="73" y="2" width="85" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{sucursal}]]></textFieldExpression></textField>
-            <textField><reportElement x="161" y="2" width="60" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="224" y="2" width="150" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{detalle}]]></textFieldExpression></textField>
-            <textField><reportElement x="377" y="2" width="60" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{clienteNit}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="440" y="2" width="110" height="16"/><textElement textAlignment="Right"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression></textField>
+        <band height="32">
+            <rectangle><reportElement x="0" y="0" width="555" height="32" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
+            <textField><reportElement x="5" y="2" width="50" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="58" y="2" width="75" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{sucursal}]]></textFieldExpression></textField>
+            <textField><reportElement x="136" y="2" width="50" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression></textField>
+            <textField><reportElement x="189" y="2" width="88" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{movimiento}]]></textFieldExpression></textField>
+            <textField><reportElement x="280" y="2" width="48" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA[$F{boletos}]]></textFieldExpression></textField>
+            <textField><reportElement x="331" y="2" width="72" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{clienteNit}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="406" y="2" width="144" height="12"/><textElement textAlignment="Right"><font size="6" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="5" y="17" width="310" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{detalle}]]></textFieldExpression></textField>
+            <textField><reportElement x="320" y="17" width="230" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA["Referencia de venta: " + $F{referenciaId}]]></textFieldExpression></textField>
         </band>
     </detail>
     <pageFooter><band height="20">
