@@ -110,10 +110,11 @@ class AlquileresIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.sucursalId")).isEqualTo(guate.toString());
 
         // Y por eso le aparece al cliente en "Mis alquileres", aunque lo pidió la ventanilla
+        String alquilerId = PruebaIntegracion.json(respuesta, "$.alquilerId");
         ResponseEntity<String> mios = get(ALQUILERES + "/mios", tokenCliente(cliente));
         esStatus(mios, 200);
         assertThat(PruebaIntegracion.<List<String>>json(mios, "$[*].alquilerId"))
-                .containsExactly(json(respuesta, "$.alquilerId"));
+                .containsExactly(alquilerId);
     }
 
     @Test
