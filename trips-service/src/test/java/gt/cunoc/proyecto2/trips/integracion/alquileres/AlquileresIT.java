@@ -58,6 +58,15 @@ class AlquileresIT extends PruebaIntegracion {
                 .formatted(busId, choferId, LLEGADA_ALQUILER, version);
     }
 
+    /** Marca en el mapa el origen y el destino de un alquiler, como lo hace el cliente al pedirlo. */
+    private void marcarRecorrido(UUID alquilerId) {
+        jdbc.update("""
+                UPDATE alquileres_privados
+                   SET origen_latitud = 14.834700, origen_longitud = -91.518400,
+                       destino_latitud = 14.558600, destino_longitud = -90.729500
+                 WHERE id = ?""", alquilerId);
+    }
+
     // ----- T16 -----
 
     @Test
@@ -197,7 +206,7 @@ class AlquileresIT extends PruebaIntegracion {
         ResponseEntity<String> soloGuate = get(ALQUILERES + "?sucursalId=" + guate, tokenAdminSistema());
 
         esStatus(deXela, 200);
-        assertThat(PruebaIntegracion.<List<String>>json(deXela, "$[*].alquilerId"))      // por fecha de salida
+        assertThat(PruebaIntegracion.<List<String>>json(deXela, "$[*].alquilerId"))      // el último pedido o tocado, primero
                 .containsExactly(cotizado.toString(), solicitado.toString());
         assertThat(PruebaIntegracion.<List<String>>json(cotizados, "$[*].alquilerId")).containsExactly(cotizado.toString());
         assertThat(PruebaIntegracion.<List<String>>json(delDia, "$[*].alquilerId")).containsExactly(solicitado.toString());
@@ -224,7 +233,7 @@ class AlquileresIT extends PruebaIntegracion {
         ResponseEntity<String> sinAlquileres = get(ALQUILERES + "/mios", tokenCliente(UUID.randomUUID()));
 
         esStatus(respuesta, 200);
-        assertThat(PruebaIntegracion.<List<String>>json(respuesta, "$[*].alquilerId"))   // la salida más lejana primero
+        assertThat(PruebaIntegracion.<List<String>>json(respuesta, "$[*].alquilerId"))   // el último pedido o tocado, primero
                 .containsExactly(segundo.toString(), primero.toString());
         assertThat(PruebaIntegracion.<String>json(respuesta, "$[0].motivoCancelacion"))
                 .isEqualTo("Cambio de planes");
@@ -350,6 +359,7 @@ class AlquileresIT extends PruebaIntegracion {
     @Test
     void asignarBusYChoferCreaElViajePrivadoYPublicaViajeProgramado() {
         UUID alquiler = insertarAlquiler(xela, UUID.randomUUID(), "PAGADO");
+        marcarRecorrido(alquiler);
         UUID bus = insertarBus(xela, "P-111AAA");
         UUID chofer = insertarChofer(xela, "Juan Perez");
         fleetDisponible(xela, bus, 40, chofer);
@@ -364,6 +374,11 @@ class AlquileresIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.origenNombre")).isEqualTo("Xela");
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.destinoNombre")).isEqualTo("Antigua");
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.estado")).isEqualTo("PROGRAMADO");
+        // El viaje PRIVADO lleva los puntos del alquiler: con ellos el detalle dibuja su recorrido
+        assertThat(decimal(respuesta, "$.origenLatitud")).isEqualByComparingTo("14.8347");
+        assertThat(decimal(respuesta, "$.origenLongitud")).isEqualByComparingTo("-91.5184");
+        assertThat(decimal(respuesta, "$.destinoLatitud")).isEqualByComparingTo("14.5586");
+        assertThat(decimal(respuesta, "$.destinoLongitud")).isEqualByComparingTo("-90.7295");
         assertThat(fecha(respuesta, "$.fechaSalidaProgramada")).isEqualTo(SALIDA_ALQUILER);
         assertThat(fecha(respuesta, "$.fechaLlegadaEstimada")).isEqualTo(LLEGADA_ALQUILER);
         assertThat(estadoDelAlquiler(alquiler)).isEqualTo("ASIGNADO");

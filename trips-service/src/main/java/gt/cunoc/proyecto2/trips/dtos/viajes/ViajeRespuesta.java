@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.trips.dtos.viajes;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
@@ -17,6 +18,14 @@ public record ViajeRespuesta(
         UUID sucursalId,
         String origenNombre,
         String destinoNombre,
+        /*
+         * Solo en un viaje PRIVADO: los puntos que el cliente marcó al pedir el alquiler, para
+         * dibujar su recorrido en el detalle. En un REGULAR no van (la ruta trae sus sucursales).
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal origenLatitud,
+        @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal origenLongitud,
+        @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal destinoLatitud,
+        @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal destinoLongitud,
         UUID busId,
         String busPlaca,
         /** Foto del bus (de vista_buses): el pasajero la ve al comprar, sin necesitar sesión. */
@@ -38,6 +47,10 @@ public record ViajeRespuesta(
                 viaje.getSucursalId(),
                 nombres.origenNombre(viaje),
                 nombres.destinoNombre(viaje),
+                nombres.origenLatitud(viaje),
+                nombres.origenLongitud(viaje),
+                nombres.destinoLatitud(viaje),
+                nombres.destinoLongitud(viaje),
                 viaje.getBusId(),
                 nombres.placa(viaje),
                 nombres.fotoBus(viaje),

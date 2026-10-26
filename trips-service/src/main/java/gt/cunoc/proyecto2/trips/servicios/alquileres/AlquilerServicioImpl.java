@@ -42,7 +42,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class AlquilerServicioImpl implements AlquilerServicio {
 
     private static final Logger log = LoggerFactory.getLogger(AlquilerServicioImpl.class);
-    private static final Sort POR_SALIDA = Sort.by("fechaSalida");
+    /**
+     * Listados de gestión y los del cliente: primero lo último pedido o modificado. La fecha de
+     * salida desempata, para que dos alquileres tocados en el mismo instante no cambien de orden.
+     */
+    private static final Sort RECIENTES = Sort.by(Sort.Direction.DESC, "fechaActualizacion", "fechaSalida");
 
     private final AlquilerPrivadoRepositorio repositorio;
     private final ConfiguracionAlquilerServicio precios;
@@ -109,7 +113,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
     @Override
     @Transactional(readOnly = true)
     public List<AlquilerRespuesta> listar(FiltroAlquileres filtro) {
-        return respuestas(repositorio.findAll(EspecificacionesAlquiler.filtrar(filtro), POR_SALIDA));
+        return respuestas(repositorio.findAll(EspecificacionesAlquiler.filtrar(filtro), RECIENTES));
     }
 
     @Override
