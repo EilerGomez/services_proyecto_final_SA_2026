@@ -27,8 +27,12 @@ public interface VentaRepositorio extends JpaRepository<VentaEntidad, UUID>, Jpa
     Sort RECIENTES_PRIMERO = Sort.by(
             Sort.Order.desc("fechaPago"), Sort.Order.desc("fechaCreacion"), Sort.Order.desc("id"));
 
-    /** Historial por NIT (S7, S8): incluye las compras en mostrador hechas con el mismo NIT. */
-    List<VentaEntidad> findByClienteNit(String nit, Sort orden);
+    /**
+     * Historial por NIT (S7, S8): incluye las compras en mostrador hechas con el mismo NIT, aunque
+     * se hayan hecho antes de que el pasajero creara su cuenta. Sin distinguir mayúsculas, porque el
+     * NIT del perfil y el que tecleó el cajero pueden venir escritos distinto.
+     */
+    List<VentaEntidad> findByClienteNitIgnoreCase(String nit, Sort orden);
 
     /**
      * Tarea programada: ventas en línea que llevan más de los minutos de reserva sin pagarse y que ya no

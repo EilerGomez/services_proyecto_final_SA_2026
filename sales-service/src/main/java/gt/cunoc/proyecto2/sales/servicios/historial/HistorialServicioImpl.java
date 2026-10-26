@@ -60,13 +60,13 @@ public class HistorialServicioImpl implements HistorialServicio {
         if (ClienteVenta.CONSUMIDOR_FINAL_NIT.equals(limpio)) {
             throw ErrorHistorial.NIT_CONSUMIDOR_FINAL.excepcion();
         }
-        return armar(limpio, clientes.findFirstByNit(limpio));
+        return armar(limpio, clientes.findFirstByNitIgnoreCase(limpio));
     }
 
     /** Carga ventas, boletos, viajes y órdenes del NIT con una consulta por tabla. */
     private HistorialRespuesta armar(String nit, Optional<VistaClienteEntidad> perfil) {
-        List<VentaEntidad> suyas = ventas.findByClienteNit(nit, VentaRepositorio.RECIENTES_PRIMERO);
-        List<OrdenAlquilerEntidad> alquileres = ordenes.findByClienteNitOrderByFechaCreacionDesc(nit);
+        List<VentaEntidad> suyas = ventas.findByClienteNitIgnoreCase(nit, VentaRepositorio.RECIENTES_PRIMERO);
+        List<OrdenAlquilerEntidad> alquileres = ordenes.findByClienteNitIgnoreCaseOrderByFechaCreacionDesc(nit);
 
         List<UUID> ventaIds = suyas.stream().map(VentaEntidad::getId).toList();
         Map<UUID, List<BoletoEntidad>> boletosPorVenta = ventaIds.isEmpty() ? Map.of()

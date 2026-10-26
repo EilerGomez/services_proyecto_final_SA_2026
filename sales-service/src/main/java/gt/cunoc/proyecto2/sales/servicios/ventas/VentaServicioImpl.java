@@ -95,7 +95,7 @@ public class VentaServicioImpl implements VentaServicio {
                 || ClienteVenta.CONSUMIDOR_FINAL_NIT.equals(solicitud.clienteNit());
         ClienteVenta cliente = solicitud.cliente(sinNit
                 ? Optional.empty()
-                : clientes.findFirstByNit(solicitud.clienteNit()));          // completa nombre y correo
+                : clientes.findFirstByNitIgnoreCase(solicitud.clienteNit()));   // liga la cuenta y completa datos
         VentaEntidad venta = repositorio.saveAndFlush(VentaEntidad.registrarEnMostrador(
                 viaje, cliente, numeros.size(), solicitud.fechaPago(), usuario.usuarioId()));
         if (asientos.vender(viaje.getViajeId(), numeros, venta.getId()) != numeros.size()) {
