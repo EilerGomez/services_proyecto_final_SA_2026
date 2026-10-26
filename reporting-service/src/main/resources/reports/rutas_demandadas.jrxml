@@ -9,8 +9,11 @@
     <parameter name="REPORT_TITLE" class="java.lang.String"/>
     <parameter name="FROM_DATE" class="java.lang.String"/>
     <parameter name="TO_DATE" class="java.lang.String"/>
+    <parameter name="SUCURSAL" class="java.lang.String"/>
     <field name="origen" class="java.lang.String"/>
     <field name="destino" class="java.lang.String"/>
+    <field name="boletosVendidos" class="java.lang.Long"/>
+    <field name="boletosCancelados" class="java.lang.Long"/>
     <field name="boletos" class="java.lang.Long"/>
     <field name="ingresos" class="java.math.BigDecimal"/>
     <title>
@@ -21,25 +24,29 @@
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression></textField>
             <textField><reportElement x="0" y="36" width="555" height="16" forecolor="#CCCCCC"/>
                 <textElement textAlignment="Center"><font size="9"/></textElement>
-                <textFieldExpression><![CDATA["Período: " + $P{FROM_DATE} + "  al  " + $P{TO_DATE}]]></textFieldExpression></textField>
+                <textFieldExpression><![CDATA["Período: " + $P{FROM_DATE} + "  al  " + $P{TO_DATE} + "    ·    " + $P{SUCURSAL}]]></textFieldExpression></textField>
         </band>
     </title>
     <columnHeader>
         <band height="22">
             <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
-            <staticText><reportElement x="5" y="3" width="175" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Origen]]></text></staticText>
-            <staticText><reportElement x="183" y="3" width="175" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="8"/></textElement><text><![CDATA[Destino]]></text></staticText>
-            <staticText><reportElement x="361" y="3" width="80" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Boletos]]></text></staticText>
-            <staticText><reportElement x="444" y="3" width="106" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="8"/></textElement><text><![CDATA[Ingresos]]></text></staticText>
+            <staticText><reportElement x="5" y="3" width="130" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Origen]]></text></staticText>
+            <staticText><reportElement x="138" y="3" width="130" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Destino]]></text></staticText>
+            <staticText><reportElement x="271" y="3" width="65" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Vendidos]]></text></staticText>
+            <staticText><reportElement x="339" y="3" width="75" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Cancelados]]></text></staticText>
+            <staticText><reportElement x="417" y="3" width="55" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Netos]]></text></staticText>
+            <staticText><reportElement x="475" y="3" width="75" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Ingresos]]></text></staticText>
         </band>
     </columnHeader>
     <detail>
         <band height="20">
             <rectangle><reportElement x="0" y="0" width="555" height="20" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
-            <textField isStretchWithOverflow="true"><reportElement x="5" y="2" width="175" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{origen}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="183" y="2" width="175" height="16"/><textElement><font size="8"/></textElement><textFieldExpression><![CDATA[$F{destino}]]></textFieldExpression></textField>
-            <textField><reportElement x="361" y="2" width="80" height="16"/><textElement textAlignment="Right"><font size="8" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{boletos}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="444" y="2" width="106" height="16"/><textElement textAlignment="Right"><font size="8"/></textElement><textFieldExpression><![CDATA[$F{ingresos}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="5" y="2" width="130" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{origen}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="138" y="2" width="130" height="16"/><textElement><font size="7"/></textElement><textFieldExpression><![CDATA[$F{destino}]]></textFieldExpression></textField>
+            <textField><reportElement x="271" y="2" width="65" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{boletosVendidos}]]></textFieldExpression></textField>
+            <textField><reportElement x="339" y="2" width="75" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{boletosCancelados}]]></textFieldExpression></textField>
+            <textField><reportElement x="417" y="2" width="55" height="16"/><textElement textAlignment="Right"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{boletos}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="475" y="2" width="75" height="16"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{ingresos}]]></textFieldExpression></textField>
         </band>
     </detail>
     <pageFooter><band height="20">

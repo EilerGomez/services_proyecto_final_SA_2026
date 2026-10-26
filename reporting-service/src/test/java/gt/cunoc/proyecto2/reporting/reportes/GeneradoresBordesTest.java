@@ -218,8 +218,8 @@ class GeneradoresBordesTest {
     @Test
     void rutasDemandadasConLimiteYNulos() {
         when(rutas.findAll()).thenReturn(List.of());
-        when(ingresos.demandaPorRuta(any(), any(), any())).thenReturn(List.<Object[]>of(
-                new Object[]{UUID.randomUUID(), null, null}));
+        when(ingresos.demandaPorRuta(any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{UUID.randomUUID(), null, null, null, null}));
 
         List<Map<String, Object>> datos = (List<Map<String, Object>>) new GeneradorRutasDemandadas(
                 ingresos, rutas, compilador).datos(

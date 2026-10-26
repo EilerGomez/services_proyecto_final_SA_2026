@@ -56,15 +56,21 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
 
     /** RG4: boletos (las cancelaciones restan) e ingresos por ruta, orden descendente. */
     @Query("""
-            SELECT i.rutaId, COALESCE(SUM(i.cantidadBoletos), 0), COALESCE(SUM(i.monto), 0)
+            SELECT i.rutaId,
+                   COALESCE(SUM(CASE WHEN i.cantidadBoletos > 0 THEN i.cantidadBoletos ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN i.cantidadBoletos < 0 THEN -i.cantidadBoletos ELSE 0 END), 0),
+                   COALESCE(SUM(i.cantidadBoletos), 0),
+                   COALESCE(SUM(i.monto), 0)
             FROM ReporteIngreso i
             WHERE i.tipo = 'BOLETO' AND i.rutaId IS NOT NULL
+              AND (:sucursalId IS NULL OR i.sucursalId = :sucursalId)
               AND i.fechaNegocio >= COALESCE(:desde, i.fechaNegocio)
               AND i.fechaNegocio <= COALESCE(:hasta, i.fechaNegocio)
             GROUP BY i.rutaId
             ORDER BY SUM(i.cantidadBoletos) DESC
             """)
-    List<Object[]> demandaPorRuta(@Param("desde") LocalDate desde,
+    List<Object[]> demandaPorRuta(@Param("sucursalId") UUID sucursalId,
+                                 @Param("desde") LocalDate desde,
                                  @Param("hasta") LocalDate hasta,
                                  org.springframework.data.domain.Pageable limite);
 }

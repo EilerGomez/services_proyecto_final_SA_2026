@@ -15,6 +15,7 @@ public class BoletoFila {
     String ruta;
     String busPlaca;
     String clienteNit;
+    String movimiento;
     Integer boletos;
     BigDecimal monto;
 }
