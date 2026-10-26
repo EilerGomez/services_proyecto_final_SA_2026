@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 /** Correos de Trips: aviso a los administradores cuando cambia una ruta. */
 class CorreosRutasIT extends PruebaIntegracion {
 
-    private static final Duration ESPERA = Duration.ofSeconds(45);
+    private static final Duration ESPERA = Duration.ofSeconds(15);
 
     @Test
     void rutaActualizadaAvisaALosAdministradoresSinRepetir() {
