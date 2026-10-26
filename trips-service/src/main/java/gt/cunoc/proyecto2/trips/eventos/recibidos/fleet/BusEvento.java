@@ -10,5 +10,6 @@ public record BusEvento(
         UUID sucursalId,
         String placa,
         int capacidadPasajeros,
-        String estado) {
+        String estado,
+        String fotoUrl) {
 }

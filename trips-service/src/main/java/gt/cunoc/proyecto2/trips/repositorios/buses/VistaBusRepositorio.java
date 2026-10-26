@@ -15,14 +15,15 @@ public interface VistaBusRepositorio extends JpaRepository<VistaBusEntidad, UUID
     /** BusCreado / BusActualizado: upsert con el estado completo; ignora versiones viejas y nos (devuelve 0). */
     @Modifying
     @Query(value = """
-            INSERT INTO vista_buses (id, sucursal_id, placa, capacidad_pasajeros, estado, version)
-            VALUES (:id, :sucursalId, :placa, :capacidad, :estado, :version)
+            INSERT INTO vista_buses (id, sucursal_id, placa, capacidad_pasajeros, estado, foto_url, version)
+            VALUES (:id, :sucursalId, :placa, :capacidad, :estado, :fotoUrl, :version)
             ON CONFLICT (id) DO UPDATE SET sucursal_id = EXCLUDED.sucursal_id, placa = EXCLUDED.placa,
                 capacidad_pasajeros = EXCLUDED.capacidad_pasajeros, estado = EXCLUDED.estado,
-                version = EXCLUDED.version
+                foto_url = EXCLUDED.foto_url, version = EXCLUDED.version
             WHERE vista_buses.version <= EXCLUDED.version""", nativeQuery = true)
     int guardar(@Param("id") UUID id, @Param("sucursalId") UUID sucursalId, @Param("placa") String placa,
-                @Param("capacidad") int capacidad, @Param("estado") String estado, @Param("version") long version);
+                @Param("capacidad") int capacidad, @Param("estado") String estado,
+                @Param("fotoUrl") String fotoUrl, @Param("version") long version);
 
     /** BusDesactivado: estado INACTIVO si el evento no es viejo (devuelve 0 si no cambió). */
     @Modifying

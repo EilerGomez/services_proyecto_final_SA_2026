@@ -92,8 +92,10 @@ class PublicadorEventosFleetTest {
         eventos.busDesactivado(bus, FECHA);
         Object desactivado = publicado("Bus", bus.getId(), 0L, "BusDesactivado");
 
-        assertThat(creado).isInstanceOfSatisfying(BusEvento.class,
-                e -> assertThat(e.placa()).isEqualTo("P-123ABC"));
+        assertThat(creado).isInstanceOfSatisfying(BusEvento.class, e -> {
+            assertThat(e.placa()).isEqualTo("P-123ABC");
+            assertThat(e.fotoUrl()).isEqualTo(bus.getFotoUrl());
+        });
         assertThat(actualizado).isInstanceOf(BusEvento.class);
         assertThat(desactivado).isEqualTo(new BusDesactivado(bus.getId(), sucursalId, "P-123ABC"));
     }

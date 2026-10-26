@@ -13,10 +13,13 @@ import gt.cunoc.proyecto2.trips.errores.alquileres.ErrorAlquiler;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.CanalAlquiler;
+import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
+import gt.cunoc.proyecto2.trips.modelos.clientes.VistaClienteEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.EspecificacionesAlquiler;
+import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.AsignacionViajeServicio;
@@ -47,28 +50,30 @@ public class AlquilerServicioImpl implements AlquilerServicio {
     private final AsignacionViajeServicio asignaciones;
     private final ViajeServicio viajes;
     private final ViajeRepositorio viajeRepositorio;
+    private final VistaClienteRepositorio clientes;
     private final PublicadorEventosTrips eventos;
 
     public AlquilerServicioImpl(AlquilerPrivadoRepositorio repositorio, ConfiguracionAlquilerServicio precios,
                                 VistaSucursalServicio sucursales, AsignacionViajeServicio asignaciones,
                                 ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
-                                PublicadorEventosTrips eventos) {
+                                VistaClienteRepositorio clientes, PublicadorEventosTrips eventos) {
         this.repositorio = repositorio;
         this.precios = precios;
         this.sucursales = sucursales;
         this.asignaciones = asignaciones;
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
+        this.clientes = clientes;
         this.eventos = eventos;
     }
 
     @Override
     @Transactional
     public AlquilerRespuesta solicitar(NuevoAlquilerSolicitud solicitud, UsuarioActual usuario) {
-        boolean enMostrador = usuario.tieneRol(Roles.CAJERO);
-        if (enMostrador) {
-            usuario.verificarAccesoSucursal(solicitud.sucursalId());
-        }
+        // La ventanilla (cajero y administrador de sucursal) pide a nombre de quien llega al mostrador,
+        // que puede ser cualquiera, incluso el propio empleado. Puede pedirlo en cualquier sucursal:
+        // el alquiler no se atiende donde trabaja, sino donde sale el bus.
+        boolean enMostrador = usuario.tieneAlgunRol(Roles.CAJERO, Roles.ADMIN_SUCURSAL);
         sucursales.verificarActiva(solicitud.sucursalId());
         solicitud.recorrido();                                                   // 400 si el retorno es antes
         LocalDate hoy = Fechas.hoy();
@@ -80,10 +85,25 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         // En un entorno real la fecha la pone el sistema:
         // BigDecimal precioEstimado = precios.vigenteEn(hoy).precioPara(solicitud.kmEstimados());
         AlquilerPrivadoEntidad alquiler = enMostrador
-                ? solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, null, null, precioEstimado, usuario.usuarioId())
+                ? solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, cuentaDelNit(solicitud.clienteNit()), null,
+                        precioEstimado, usuario.usuarioId())
                 : solicitud.crearEntidad(CanalAlquiler.EN_LINEA, usuario.usuarioId(), usuario.correo(),
                         precioEstimado, usuario.usuarioId());
         return new AlquilerRespuesta(repositorio.saveAndFlush(alquiler), null);
+    }
+
+    /**
+     * Cuenta a la que pertenece el NIT que tecleó la ventanilla, o null si no es de nadie. Con ella
+     * el alquiler le aparece al cliente en "Mis alquileres" y lo puede pagar con su billetera, aunque
+     * lo haya pedido en el mostrador; sin ella solo se puede cobrar en efectivo.
+     */
+    private UUID cuentaDelNit(String nit) {
+        if (nit == null || nit.isBlank() || ClienteAlquiler.CONSUMIDOR_FINAL.equalsIgnoreCase(nit)) {
+            return null;
+        }
+        return clientes.findFirstByNitIgnoreCase(nit)
+                .map(VistaClienteEntidad::getUsuarioId)
+                .orElse(null);
     }
 
     @Override

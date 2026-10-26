@@ -170,7 +170,7 @@ class ManejadoresTripsTest {
         ManejadorCotizacionAlquilerConfirmada manejador = new ManejadorCotizacionAlquilerConfirmada(ordenes);
         CotizacionAlquilerConfirmada cotizacion = new CotizacionAlquilerConfirmada(UUID.randomUUID(), XELA,
                 UUID.randomUUID(), "1234567-8", "Colegio San José", "colegio@correo.com", "Quetzaltenango",
-                "Antigua Guatemala", null, null, new BigDecimal("2600.00"));
+                "Antigua Guatemala", null, null, null, null, null, null, new BigDecimal("2600.00"));
 
         manejador.manejar(evento("CotizacionAlquilerConfirmada", cotizacion.alquilerId(), cotizacion));
 

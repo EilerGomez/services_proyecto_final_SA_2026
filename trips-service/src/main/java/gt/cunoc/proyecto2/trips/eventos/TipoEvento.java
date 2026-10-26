@@ -27,6 +27,8 @@ public enum TipoEvento {
     CHOFER_ACTUALIZADO("ChoferActualizado"),
     CHOFER_DESACTIVADO("ChoferDesactivado"),
     TARIFA_DEPRECIACION_CAMBIADA("TarifaDepreciacionCambiada"),
+    CLIENTE_REGISTRADO("ClienteRegistrado"),
+    PERFIL_ACTUALIZADO("PerfilActualizado"),
     ALQUILER_PAGADO("AlquilerPagado");
 
     private final String nombre;

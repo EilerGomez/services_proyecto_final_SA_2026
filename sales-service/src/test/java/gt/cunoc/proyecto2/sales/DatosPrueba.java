@@ -3,6 +3,7 @@ package gt.cunoc.proyecto2.sales;
 import gt.cunoc.proyecto2.comun.seguridad.users.Roles;
 import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
+import gt.cunoc.proyecto2.sales.modelos.alquileres.RecorridoOrden;
 import gt.cunoc.proyecto2.sales.modelos.asientos.AsientoViajeEntidad;
 import gt.cunoc.proyecto2.sales.modelos.asientos.EstadoAsiento;
 import gt.cunoc.proyecto2.sales.modelos.clientes.VistaClienteEntidad;
@@ -37,6 +38,9 @@ public final class DatosPrueba {
     /** 8-nov 18:00 en Guatemala (retorno del alquiler). */
     public static final OffsetDateTime RETORNO = OffsetDateTime.parse("2026-11-08T18:00:00-06:00");
     public static final BigDecimal PRECIO_BOLETO = new BigDecimal("75.00");
+    /** Puntos del mapa del alquiler: Xela → Antigua. */
+    public static final RecorridoOrden RECORRIDO = new RecorridoOrden(new BigDecimal("14.845200"),
+            new BigDecimal("-91.518100"), new BigDecimal("14.561400"), new BigDecimal("-90.734400"));
 
     private DatosPrueba() {
     }
@@ -161,7 +165,7 @@ public final class DatosPrueba {
         ClienteVenta cliente = new ClienteVenta(clienteUsuarioId, "1234567-8", "Colegio San José",
                 "colegio@correo.com");
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(UUID.randomUUID(), XELA, cliente,
-                "Quetzaltenango", "Antigua Guatemala", SALIDA, RETORNO, new BigDecimal("2600.00"));
+                "Quetzaltenango", "Antigua Guatemala", RECORRIDO, SALIDA, RETORNO, new BigDecimal("2600.00"));
         return conVersion(orden, 0);
     }
 

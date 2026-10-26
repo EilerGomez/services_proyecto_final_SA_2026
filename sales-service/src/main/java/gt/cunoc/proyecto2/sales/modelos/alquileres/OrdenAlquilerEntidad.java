@@ -51,6 +51,19 @@ public class OrdenAlquilerEntidad {
     @Column(nullable = false, updatable = false)
     private String destino;
 
+    /** V12: puntos del mapa que marcó el cliente, para dibujar el recorrido al cobrar. */
+    @Column(name = "origen_latitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal origenLatitud;
+
+    @Column(name = "origen_longitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal origenLongitud;
+
+    @Column(name = "destino_latitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal destinoLatitud;
+
+    @Column(name = "destino_longitud", precision = 9, scale = 6, updatable = false)
+    private BigDecimal destinoLongitud;
+
     @Column(name = "fecha_salida", updatable = false)
     private OffsetDateTime fechaSalida;
 
@@ -81,8 +94,9 @@ public class OrdenAlquilerEntidad {
     private Integer version;
 
     public static OrdenAlquilerEntidad registrar(UUID alquilerId, UUID sucursalId, ClienteVenta cliente,
-                                                 String origen, String destino, OffsetDateTime fechaSalida,
-                                                 OffsetDateTime fechaRetorno, BigDecimal monto) {
+                                                 String origen, String destino, RecorridoOrden recorrido,
+                                                 OffsetDateTime fechaSalida, OffsetDateTime fechaRetorno,
+                                                 BigDecimal monto) {
         OrdenAlquilerEntidad orden = new OrdenAlquilerEntidad();
         orden.id = UUID.randomUUID();
         orden.alquilerId = alquilerId;
@@ -93,6 +107,10 @@ public class OrdenAlquilerEntidad {
         orden.clienteCorreo = cliente.correo();
         orden.origen = origen;
         orden.destino = destino;
+        orden.origenLatitud = recorrido.origenLatitud();
+        orden.origenLongitud = recorrido.origenLongitud();
+        orden.destinoLatitud = recorrido.destinoLatitud();
+        orden.destinoLongitud = recorrido.destinoLongitud();
         orden.fechaSalida = fechaSalida;
         orden.fechaRetorno = fechaRetorno;
         orden.monto = monto;

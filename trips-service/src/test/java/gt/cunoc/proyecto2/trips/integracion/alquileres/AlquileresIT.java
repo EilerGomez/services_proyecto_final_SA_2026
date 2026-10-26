@@ -82,7 +82,7 @@ class AlquileresIT extends PruebaIntegracion {
     }
 
     @Test
-    void unCajeroSolicitaEnMostradorSinCuentaDeCliente() {
+    void unCajeroSolicitaEnMostradorConUnNitQueNoEsDeNadie() {
         ResponseEntity<String> respuesta = post(ALQUILERES, tokenCajero(xela),
                 nuevoAlquiler(xela, " 1234567-k ", "Maria@Correo.GT", null, hoy().plusDays(1)));
 
@@ -96,11 +96,34 @@ class AlquileresIT extends PruebaIntegracion {
     }
 
     @Test
-    void unCajeroNoSolicitaParaOtraSucursal() {
-        esError(post(ALQUILERES, tokenCajero(guate), nuevoAlquiler(xela, null, null, null, hoy())),
-                403, "SUCURSAL_AJENA");
-        esError(post(ALQUILERES, tokenAdminSucursal(xela), nuevoAlquiler(xela, null, null, null, hoy())),
-                403, "ROL_INSUFICIENTE");
+    void laVentanillaLigaElAlquilerALaCuentaDelNitYLoVeEnMisAlquileres() {
+        UUID cliente = UUID.randomUUID();
+        insertarCliente(cliente, "1234567-K", "María López", "maria@correo.gt");
+
+        // El cajero lo pide en Guate aunque trabaje en Xela: el alquiler sale de donde elija el cliente
+        ResponseEntity<String> respuesta = post(ALQUILERES, tokenCajero(xela),
+                nuevoAlquiler(guate, "1234567-k", null, null, hoy()));
+
+        esStatus(respuesta, 201);
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.canal")).isEqualTo("PRESENCIAL");
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.clienteUsuarioId")).isEqualTo(cliente.toString());
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.sucursalId")).isEqualTo(guate.toString());
+
+        // Y por eso le aparece al cliente en "Mis alquileres", aunque lo pidió la ventanilla
+        ResponseEntity<String> mios = get(ALQUILERES + "/mios", tokenCliente(cliente));
+        esStatus(mios, 200);
+        assertThat(PruebaIntegracion.<List<String>>json(mios, "$[*].alquilerId"))
+                .containsExactly(json(respuesta, "$.alquilerId"));
+    }
+
+    @Test
+    void elAdministradorDeSucursalTambienSolicitaEnVentanilla() {
+        ResponseEntity<String> respuesta = post(ALQUILERES, tokenAdminSucursal(xela),
+                nuevoAlquiler(guate, null, null, null, hoy()));
+
+        esStatus(respuesta, 201);
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.canal")).isEqualTo("PRESENCIAL");
+        assertThat(PruebaIntegracion.<String>json(respuesta, "$.sucursalId")).isEqualTo(guate.toString());
     }
 
     @Test

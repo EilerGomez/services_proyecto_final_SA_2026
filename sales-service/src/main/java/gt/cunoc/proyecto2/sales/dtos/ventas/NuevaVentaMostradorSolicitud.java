@@ -32,8 +32,10 @@ public record NuevaVentaMostradorSolicitud(
     }
 
     /**
-     * El NIT identifica la cuenta que se liga a la venta. Los datos que el cajero escribe tienen
-     * prioridad; los campos que deje vacíos se completan desde el perfil registrado.
+     * Cliente de la venta. El NIT es la llave: si es el de una cuenta del sistema, la venta queda
+     * ligada a esa cuenta (cliente_usuario_id) aunque se haya pagado en efectivo en la ventanilla,
+     * y así el boleto le aparece al pasajero en "Mis boletos". Lo que el cajero escriba a mano
+     * manda sobre los datos de la cuenta: puede viajar otra persona con el mismo NIT de factura.
      */
     public ClienteVenta cliente(Optional<VistaClienteEntidad> registrado) {
         String nombre = clienteNombre != null ? clienteNombre : registrado.map(VistaClienteEntidad::getNombre).orElse(null);

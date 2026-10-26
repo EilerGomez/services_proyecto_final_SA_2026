@@ -37,6 +37,7 @@ import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.AsignacionViajeServicio;
@@ -72,6 +73,7 @@ class AlquilerServicioImplTest {
     private final AsignacionViajeServicio asignaciones = mock(AsignacionViajeServicio.class);
     private final ViajeServicio viajes = mock(ViajeServicio.class);
     private final ViajeRepositorio viajeRepositorio = mock(ViajeRepositorio.class);
+    private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
     private final PublicadorEventosTrips eventos = mock(PublicadorEventosTrips.class);
 
     private AlquilerServicioImpl servicio;
@@ -79,7 +81,7 @@ class AlquilerServicioImplTest {
     @BeforeEach
     void preparar() {
         servicio = new AlquilerServicioImpl(repositorio, precios, sucursales, asignaciones, viajes,
-                viajeRepositorio, eventos);
+                viajeRepositorio, clientes, eventos);
     }
 
     private void guardarDevuelveElMismo() {
@@ -88,7 +90,12 @@ class AlquilerServicioImplTest {
 
     private static NuevoAlquilerSolicitud nuevoAlquiler(UUID sucursalId, String correo, OffsetDateTime retorno,
                                                         LocalDate fechaSolicitud) {
-        return new NuevoAlquilerSolicitud(sucursalId, null, "Ana López", correo, "Quetzaltenango",
+        return conNit(sucursalId, null, correo, retorno, fechaSolicitud);
+    }
+
+    private static NuevoAlquilerSolicitud conNit(UUID sucursalId, String nit, String correo,
+                                                 OffsetDateTime retorno, LocalDate fechaSolicitud) {
+        return new NuevoAlquilerSolicitud(sucursalId, nit, "Ana López", correo, "Quetzaltenango",
                 "Antigua Guatemala", SALIDA, retorno, 30, new BigDecimal("123.45"), fechaSolicitud,
                 null, null, null, null);
     }
@@ -130,6 +137,81 @@ class AlquilerServicioImplTest {
         assertThat(respuesta.viajeId()).isNull();
         assertThat(respuesta.precioEstimado()).isEqualByComparingTo("1234.50");
         verifyNoInteractions(viajeRepositorio, eventos);
+    }
+
+    @Test
+    void laVentanillaLigaElAlquilerALaCuentaDelNit() {
+        UUID cuenta = UUID.randomUUID();
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        when(precios.vigenteEn(MANANA)).thenReturn(DatosPrueba.configuracion("10.00", AYER));
+        when(clientes.findFirstByNitIgnoreCase("1234567-K"))
+                .thenReturn(Optional.of(DatosPrueba.vistaCliente(cuenta, "1234567-K")));
+        guardarDevuelveElMismo();
+
+        AlquilerRespuesta respuesta = servicio.solicitar(
+                conNit(XELA, "1234567-k", null, RETORNO, MANANA), cajero);
+
+        // Presencial (se paga en ventanilla) pero ligado: le aparece al cliente en "Mis alquileres"
+        assertThat(respuesta.canal()).isEqualTo(CanalAlquiler.PRESENCIAL);
+        assertThat(respuesta.clienteUsuarioId()).isEqualTo(cuenta);
+        assertThat(respuesta.clienteNit()).isEqualTo("1234567-K");
+    }
+
+    @Test
+    void unNitQueNoEsDeNadieDejaElAlquilerSinCuenta() {
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        when(precios.vigenteEn(MANANA)).thenReturn(DatosPrueba.configuracion("10.00", AYER));
+        when(clientes.findFirstByNitIgnoreCase("9999999-9")).thenReturn(Optional.empty());
+        guardarDevuelveElMismo();
+
+        AlquilerRespuesta respuesta = servicio.solicitar(
+                conNit(XELA, "9999999-9", null, RETORNO, MANANA), cajero);
+
+        assertThat(respuesta.clienteUsuarioId()).isNull();
+    }
+
+    @Test
+    void sinNitLaVentanillaNiSiquieraBuscaLaCuenta() {
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        when(precios.vigenteEn(MANANA)).thenReturn(DatosPrueba.configuracion("10.00", AYER));
+        guardarDevuelveElMismo();
+
+        AlquilerRespuesta respuesta = servicio.solicitar(conNit(XELA, "cf", null, RETORNO, MANANA), cajero);
+
+        assertThat(respuesta.clienteUsuarioId()).isNull();
+        assertThat(respuesta.clienteNit()).isEqualTo(ClienteAlquiler.CONSUMIDOR_FINAL);
+        verifyNoInteractions(clientes);
+    }
+
+    @Test
+    void laVentanillaPuedeSolicitarEnCualquierSucursal() {
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        when(precios.vigenteEn(MANANA)).thenReturn(DatosPrueba.configuracion("10.00", AYER));
+        guardarDevuelveElMismo();
+
+        // El alquiler sale de Guate aunque el cajero trabaje en Xela: lo atiende la sucursal del viaje
+        AlquilerRespuesta respuesta = servicio.solicitar(nuevoAlquiler(GUATE, null, RETORNO, MANANA), cajero);
+
+        verify(sucursales).verificarActiva(GUATE);
+        assertThat(respuesta.sucursalId()).isEqualTo(GUATE);
+        assertThat(respuesta.canal()).isEqualTo(CanalAlquiler.PRESENCIAL);
+    }
+
+    @Test
+    void elAdministradorDeSucursalTambienPideEnVentanilla() {
+        UUID cuenta = UUID.randomUUID();
+        UsuarioActual admin = DatosPrueba.adminSucursal(XELA);
+        when(precios.vigenteEn(MANANA)).thenReturn(DatosPrueba.configuracion("10.00", AYER));
+        when(clientes.findFirstByNitIgnoreCase("1234567-K"))
+                .thenReturn(Optional.of(DatosPrueba.vistaCliente(cuenta, "1234567-K")));
+        guardarDevuelveElMismo();
+
+        AlquilerRespuesta respuesta = servicio.solicitar(
+                conNit(GUATE, "1234567-K", null, RETORNO, MANANA), admin);
+
+        assertThat(respuesta.canal()).isEqualTo(CanalAlquiler.PRESENCIAL);
+        assertThat(respuesta.clienteUsuarioId()).isEqualTo(cuenta);
+        assertThat(respuesta.sucursalId()).isEqualTo(GUATE);
     }
 
     @Test

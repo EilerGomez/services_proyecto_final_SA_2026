@@ -119,7 +119,7 @@ public abstract class PruebaIntegracion {
         jdbc.execute("""
                 TRUNCATE TABLE llegadas_viaje, salidas_viaje, viajes, alquileres_privados, rutas,
                                configuracion_alquiler, vista_tarifas_depreciacion, vista_choferes, vista_buses,
-                               vista_sucursales, eventos_salida, eventos_procesados CASCADE""");
+                               vista_sucursales, vista_clientes, eventos_salida, eventos_procesados CASCADE""");
 
         Queue espia = new Queue(COLA_ESPIA, true, false, false);      // durable: RabbitMQ 4 desaconseja colas transitorias
         amqp.declareQueue(espia);
@@ -326,6 +326,12 @@ public abstract class PruebaIntegracion {
     }
 
     // ----- Datos de prueba directos en la BD -----
+
+    /** Cliente con cuenta en vista_clientes (copia de Identity): lo usa la ventanilla al buscar por NIT. */
+    protected void insertarCliente(UUID usuarioId, String nit, String nombre, String correo) {
+        jdbc.update("INSERT INTO vista_clientes (usuario_id, nit, nombre, correo) VALUES (?, ?, ?, ?)",
+                usuarioId, nit, nombre, correo);
+    }
 
     protected UUID insertarSucursal(String nombre, boolean activa) {
         UUID id = UUID.randomUUID();

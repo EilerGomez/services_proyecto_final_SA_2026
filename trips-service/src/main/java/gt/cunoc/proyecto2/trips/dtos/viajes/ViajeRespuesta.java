@@ -19,6 +19,8 @@ public record ViajeRespuesta(
         String destinoNombre,
         UUID busId,
         String busPlaca,
+        /** Foto del bus (de vista_buses): el pasajero la ve al comprar, sin necesitar sesión. */
+        String busFotoUrl,
         UUID choferId,
         String choferNombre,
         int capacidad,
@@ -38,6 +40,7 @@ public record ViajeRespuesta(
                 nombres.destinoNombre(viaje),
                 viaje.getBusId(),
                 nombres.placa(viaje),
+                nombres.fotoBus(viaje),
                 viaje.getChoferId(),
                 nombres.chofer(viaje),
                 viaje.getCapacidadBus(),

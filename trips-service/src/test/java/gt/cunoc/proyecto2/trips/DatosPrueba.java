@@ -9,6 +9,7 @@ import gt.cunoc.proyecto2.trips.modelos.alquileres.ConfiguracionAlquilerEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.RecorridoAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
+import gt.cunoc.proyecto2.trips.modelos.clientes.VistaClienteEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
@@ -40,6 +41,8 @@ public final class DatosPrueba {
 
     public static final BigDecimal SALARIO = new BigDecimal("350.00");
     public static final BigDecimal PRECIO_BOLETO = new BigDecimal("75.00");
+    /** Foto del bus copiada de Fleet: el pasajero la ve al comprar el boleto. */
+    public static final String FOTO_BUS = "https://almacen.local/buses/p-123abc.jpg";
 
     private DatosPrueba() {
     }
@@ -169,6 +172,16 @@ public final class DatosPrueba {
         return sucursal;
     }
 
+    /** Cliente con cuenta copiado de Identity (vista_clientes). */
+    public static VistaClienteEntidad vistaCliente(UUID usuarioId, String nit) {
+        VistaClienteEntidad cliente = BeanUtils.instantiateClass(VistaClienteEntidad.class);
+        ReflectionTestUtils.setField(cliente, "usuarioId", usuarioId);
+        ReflectionTestUtils.setField(cliente, "nit", nit);
+        ReflectionTestUtils.setField(cliente, "nombre", "Ana López");
+        ReflectionTestUtils.setField(cliente, "correo", "ana@correo.com");
+        return cliente;
+    }
+
     public static VistaBusEntidad vistaBus(UUID id, String placa) {
         VistaBusEntidad bus = BeanUtils.instantiateClass(VistaBusEntidad.class);
         ReflectionTestUtils.setField(bus, "id", id);
@@ -176,6 +189,7 @@ public final class DatosPrueba {
         ReflectionTestUtils.setField(bus, "placa", placa);
         ReflectionTestUtils.setField(bus, "capacidadPasajeros", 45);
         ReflectionTestUtils.setField(bus, "estado", "ACTIVO");
+        ReflectionTestUtils.setField(bus, "fotoUrl", FOTO_BUS);
         return bus;
     }
 

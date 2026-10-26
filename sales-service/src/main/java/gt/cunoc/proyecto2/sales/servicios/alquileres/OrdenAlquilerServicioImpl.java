@@ -100,8 +100,8 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
         ClienteVenta cliente = new ClienteVenta(cotizacion.clienteUsuarioId(), nitDelCliente(cotizacion),
                 cotizacion.clienteNombre(), cotizacion.clienteCorreo());
         repositorio.save(OrdenAlquilerEntidad.registrar(cotizacion.alquilerId(), cotizacion.sucursalId(), cliente,
-                cotizacion.origen(), cotizacion.destino(), cotizacion.fechaSalida(), cotizacion.fechaRetorno(),
-                cotizacion.precioConfirmado()));
+                cotizacion.origen(), cotizacion.destino(), cotizacion.recorrido(), cotizacion.fechaSalida(),
+                cotizacion.fechaRetorno(), cotizacion.precioConfirmado()));
     }
 
     /**

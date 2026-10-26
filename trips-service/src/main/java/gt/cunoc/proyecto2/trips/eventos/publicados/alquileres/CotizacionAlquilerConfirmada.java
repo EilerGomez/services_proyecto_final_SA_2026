@@ -22,6 +22,12 @@ public record CotizacionAlquilerConfirmada(
         String clienteCorreo,
         String origen,
         String destino,
+        // Puntos que el cliente marcó en el mapa: van en el evento para que la ventanilla pueda ver
+        // el recorrido al cobrar la orden. Null en las solicitudes que no se marcaron en el mapa.
+        BigDecimal origenLatitud,
+        BigDecimal origenLongitud,
+        BigDecimal destinoLatitud,
+        BigDecimal destinoLongitud,
         OffsetDateTime fechaSalida,
         OffsetDateTime fechaRetorno,
         int cantidadPasajeros,
@@ -31,6 +37,8 @@ public record CotizacionAlquilerConfirmada(
         return new CotizacionAlquilerConfirmada(alquiler.getId(), alquiler.getSucursalId(), alquiler.getCanal(),
                 alquiler.getClienteUsuarioId(), alquiler.getClienteNit(), alquiler.getClienteNombre(),
                 alquiler.getClienteCorreo(), alquiler.getOrigen(), alquiler.getDestino(),
+                alquiler.getOrigenLatitud(), alquiler.getOrigenLongitud(),
+                alquiler.getDestinoLatitud(), alquiler.getDestinoLongitud(),
                 Fechas.enGuatemala(alquiler.getFechaSalida()), Fechas.enGuatemala(alquiler.getFechaRetorno()),
                 alquiler.getCantidadPasajeros(), alquiler.getPrecioConfirmado());
     }
