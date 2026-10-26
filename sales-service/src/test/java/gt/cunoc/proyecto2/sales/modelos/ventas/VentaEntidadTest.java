@@ -235,7 +235,7 @@ class VentaEntidadTest {
         assertThat(venta.getMotivoRechazo()).isNull();
     }
 
-    // ----- marcarReembolsada -----
+    // ----- marcarReembolsada y reembolsarEnEfectivo -----
 
     @Test
     void unaCanceladaSeMarcaReembolsada() {
@@ -243,10 +243,22 @@ class VentaEntidadTest {
         venta.cancelar("Motivo", FECHA_PAGO);
 
         assertThat(venta.puedeMarcarseReembolsada()).isTrue();
-        venta.marcarReembolsada();
+        venta.marcarReembolsada(FECHA_PAGO.plusDays(1));
 
         assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
+        assertThat(venta.getFechaReembolso()).isEqualTo(FECHA_PAGO.plusDays(1));
+        assertThat(venta.estaReembolsada()).isTrue();
         assertThat(venta.puedeMarcarseReembolsada()).isFalse();
+    }
+
+    @Test
+    void elReembolsoNuncaQuedaAntesDelPago() {
+        VentaEntidad venta = DatosPrueba.ventaEnLineaConfirmada(viaje, clienteId, 1);
+        venta.cancelar("Motivo", FECHA_PAGO);
+
+        venta.marcarReembolsada(FECHA_PAGO.minusDays(3));
+
+        assertThat(venta.getFechaReembolso()).isEqualTo(FECHA_PAGO);
     }
 
     @Test
@@ -255,7 +267,7 @@ class VentaEntidadTest {
         venta.rechazar("TIEMPO_AGOTADO");
 
         assertThat(venta.puedeMarcarseReembolsada()).isTrue();
-        venta.marcarReembolsada();
+        venta.marcarReembolsada(FECHA_PAGO);
 
         assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
     }
@@ -265,7 +277,7 @@ class VentaEntidadTest {
         VentaEntidad venta = DatosPrueba.ventaEnLineaConfirmada(viaje, clienteId, 1);
 
         assertThat(venta.puedeMarcarseReembolsada()).isFalse();
-        assertThatThrownBy(venta::marcarReembolsada)
+        assertThatThrownBy(() -> venta.marcarReembolsada(FECHA_PAGO))
                 .isInstanceOfSatisfying(NegocioException.class, e -> {
                     assertThat(e.getCodigo()).isEqualTo(ErrorVenta.ESTADO_INVALIDO.codigo());
                     assertThat(e.getMessage()).isEqualTo(
@@ -275,15 +287,77 @@ class VentaEntidadTest {
     }
 
     @Test
-    void unaPendienteOYaReembolsadaNoSeMarcaReembolsada() {
+    void unaPendienteNoSeMarcaReembolsadaYUnaYaReembolsadaTampoco() {
         VentaEntidad pendiente = DatosPrueba.ventaEnLinea(viaje, clienteId, 1);
         VentaEntidad reembolsada = DatosPrueba.ventaEnLinea(viaje, clienteId, 1);
         reembolsada.rechazar("SALDO_INSUFICIENTE");
-        reembolsada.marcarReembolsada();
+        reembolsada.marcarReembolsada(FECHA_PAGO);
 
         assertThat(pendiente.puedeMarcarseReembolsada()).isFalse();
-        VerificarError.lanza(pendiente::marcarReembolsada, ErrorVenta.ESTADO_INVALIDO);
-        VerificarError.lanza(reembolsada::marcarReembolsada, ErrorVenta.ESTADO_INVALIDO);
+        VerificarError.lanza(() -> pendiente.marcarReembolsada(FECHA_PAGO), ErrorVenta.ESTADO_INVALIDO);
+        VerificarError.lanza(() -> reembolsada.marcarReembolsada(FECHA_PAGO), ErrorVenta.VENTA_YA_REEMBOLSADA);
+    }
+
+    @Test
+    void elEfectivoDeUnaCanceladaSeDevuelveYQuedaQuienLoEntrego() {
+        UUID cajeroId = UUID.randomUUID();
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 2);
+        venta.cancelarPorViajeEliminado("Viaje eliminado · Xela → Guate", FECHA_PAGO.plusDays(1));
+
+        venta.reembolsarEnEfectivo(FECHA_PAGO.plusDays(2), cajeroId);
+
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
+        assertThat(venta.getFechaReembolso()).isEqualTo(FECHA_PAGO.plusDays(2));
+        assertThat(venta.getReembolsadoPor()).isEqualTo(cajeroId);
+    }
+
+    @Test
+    void loPagadoConCarteraNoSeDevuelveEnEfectivo() {
+        UUID cajeroId = UUID.randomUUID();
+        VentaEntidad venta = DatosPrueba.ventaEnLineaConfirmada(viaje, clienteId, 1);
+        venta.cancelar("Motivo", FECHA_PAGO);
+
+        VerificarError.lanza(() -> venta.reembolsarEnEfectivo(FECHA_PAGO, cajeroId),
+                ErrorVenta.REEMBOLSO_NO_EN_EFECTIVO);
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CANCELADA);
+    }
+
+    @Test
+    void unaConfirmadaNoSeReembolsaEnEfectivo() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 1);
+
+        VerificarError.lanza(() -> venta.reembolsarEnEfectivo(FECHA_PAGO, UUID.randomUUID()),
+                ErrorVenta.ESTADO_INVALIDO);
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CONFIRMADA);
+    }
+
+    // ----- Código del boleto impreso -----
+
+    @Test
+    void elCodigoSonLosDocePrimerosCaracteresDelIdEnMayusculas() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 1);
+
+        String esperado = venta.getId().toString().replace("-", "").substring(0, 12).toUpperCase();
+        assertThat(venta.codigo()).isEqualTo(esperado).hasSize(12).isUpperCase();
+    }
+
+    @Test
+    void normalizarCodigoAceptaGuionesMinusculasYElIdCompleto() {
+        UUID id = UUID.fromString("a1b2c3d4-e5f6-4789-8abc-def012345678");
+
+        assertThat(VentaEntidad.codigoDe(id)).isEqualTo("A1B2C3D4E5F6");
+        assertThat(VentaEntidad.normalizarCodigo("a1b2c3d4e5f6")).isEqualTo("A1B2C3D4E5F6");
+        assertThat(VentaEntidad.normalizarCodigo("A1B2-C3D4-E5F6")).isEqualTo("A1B2C3D4E5F6");
+        assertThat(VentaEntidad.normalizarCodigo(id.toString())).isEqualTo("A1B2C3D4E5F6");
+    }
+
+    @Test
+    void normalizarCodigoDevuelveNuloSiNoLleganDoceCaracteres() {
+        assertThat(VentaEntidad.normalizarCodigo(null)).isNull();
+        assertThat(VentaEntidad.normalizarCodigo("   ")).isNull();
+        assertThat(VentaEntidad.normalizarCodigo("A1B2-C3D4")).isNull();
+        assertThat(VentaEntidad.normalizarCodigo("ZZZZ-ZZZZ-ZZZZ")).isNull();
+        assertThat(VentaEntidad.codigoDe(null)).isNull();
     }
 
     // ----- Consultas -----

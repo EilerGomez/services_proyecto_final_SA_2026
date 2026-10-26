@@ -22,6 +22,12 @@ import org.springframework.http.ResponseEntity;
 class ViajeEliminadoIT extends PruebaIntegracion {
 
     private static final Duration ESPERA = Duration.ofSeconds(15);
+    /**
+     * Motivo que arma Sales al eliminarse el viaje: lleva el viaje escrito porque la fila de
+     * vista_viajes se borra en la misma transacción y después ya no hay de dónde sacarlo.
+     */
+    private static final String DEL_VIAJE = "Viaje eliminado · Quetzaltenango → Guatemala"
+            + " · 20/11/2026 06:00 · Bus P-123ABC";
 
     private UUID xela;
     private UUID cliente;
@@ -133,12 +139,12 @@ class ViajeEliminadoIT extends PruebaIntegracion {
         // mostrador: CANCELADA con el motivo de Trips
         Map<String, Object> deMostrador = venta(mostrador);
         assertThat(deMostrador.get("estado")).isEqualTo("CANCELADA");
-        assertThat(deMostrador.get("motivo_cancelacion")).isEqualTo("Bus averiado");
+        assertThat(deMostrador.get("motivo_cancelacion")).isEqualTo(DEL_VIAJE + " · Bus averiado");
         assertThat(deMostrador.get("fecha_cancelacion").toString()).isEqualTo(fechaCancelacion);
         // en línea confirmada: CANCELADA (y se pide el reembolso)
         Map<String, Object> enLinea = venta(lineaConfirmada);
         assertThat(enLinea.get("estado")).isEqualTo("CANCELADA");
-        assertThat(enLinea.get("motivo_cancelacion")).isEqualTo("Bus averiado");
+        assertThat(enLinea.get("motivo_cancelacion")).isEqualTo(DEL_VIAJE + " · Bus averiado");
         // en línea pendiente: RECHAZADA
         assertThat(estadoVenta(lineaPendiente)).isEqualTo("RECHAZADA");
         assertThat(venta(lineaPendiente).get("motivo_rechazo")).isEqualTo("VIAJE_ELIMINADO");
@@ -160,7 +166,8 @@ class ViajeEliminadoIT extends PruebaIntegracion {
         assertThat(JsonPath.<String>read(canceladaMostrador, "$.businessDate")).isEqualTo(fechaCancelacion);
         assertThat(JsonPath.<String>read(canceladaMostrador, "$.payload.viajeId")).isEqualTo(viaje.toString());
         assertThat(JsonPath.<String>read(canceladaMostrador, "$.payload.metodoPago")).isEqualTo("EFECTIVO");
-        assertThat(JsonPath.<String>read(canceladaMostrador, "$.payload.motivo")).isEqualTo("Bus averiado");
+        assertThat(JsonPath.<String>read(canceladaMostrador, "$.payload.motivo"))
+                .isEqualTo(DEL_VIAJE + " · Bus averiado");
         assertThat(JsonPath.<List<Integer>>read(canceladaMostrador, "$.payload.asientos")).containsExactly(1, 2);
         assertThat(JsonPath.<Integer>read(canceladaMostrador, "$.payload.cantidadBoletos")).isEqualTo(2);
         assertThat(decimal(canceladaMostrador, "$.payload.montoAnulado")).isEqualByComparingTo("150.00");
@@ -192,7 +199,7 @@ class ViajeEliminadoIT extends PruebaIntegracion {
     }
 
     @Test
-    void sinMotivoSeUsaViajeEliminadoYUnDebitoQueLlegaDespuesSeDevuelve() {
+    void sinMotivoElDeLaCancelacionDiceElViajeYUnDebitoQueLlegaDespuesSeDevuelve() {
         UUID mostrador = venderEnMostrador(5);
         UUID pendiente = comprarEnLinea(6);
 
@@ -200,7 +207,7 @@ class ViajeEliminadoIT extends PruebaIntegracion {
 
         await().atMost(ESPERA).untilAsserted(() ->
                 assertThat(contarDonde("vista_viajes", "viaje_id = ?", viaje)).isZero());
-        assertThat(venta(mostrador).get("motivo_cancelacion")).isEqualTo("VIAJE_ELIMINADO");
+        assertThat(venta(mostrador).get("motivo_cancelacion")).isEqualTo(DEL_VIAJE);
         assertThat(estadoVenta(pendiente)).isEqualTo("RECHAZADA");
         assertThat(enOutbox("VentaCancelada")).hasSize(1);                   // solo la de mostrador
         assertThat(enOutbox("ReembolsoCarteraSolicitado")).isEmpty();        // efectivo y aún sin cobro

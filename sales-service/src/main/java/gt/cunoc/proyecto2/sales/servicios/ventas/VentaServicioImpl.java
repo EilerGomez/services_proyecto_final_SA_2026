@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.ReembolsoVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.ViajeResumenRespuesta;
@@ -32,6 +33,7 @@ import gt.cunoc.proyecto2.sales.utilidades.Fechas;
 import gt.cunoc.proyecto2.sales.utilidades.VerificadorVersion;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +50,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class VentaServicioImpl implements VentaServicio {
 
     private static final Logger log = LoggerFactory.getLogger(VentaServicioImpl.class);
-    private static final int LARGO_MOTIVO = 255;
+    /** motivo_cancelacion (V11). Lo que no quepa se recorta. */
+    private static final int LARGO_MOTIVO = 500;
+    private static final String MOTIVO_VIAJE_ELIMINADO = "Viaje eliminado";
+    private static final String SEPARADOR = " · ";
+    private static final DateTimeFormatter SALIDA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private final VentaRepositorio repositorio;
     private final BoletoRepositorio boletos;
     private final AsientoViajeRepositorio asientos;
@@ -141,10 +147,54 @@ public class VentaServicioImpl implements VentaServicio {
 
     @Override
     @Transactional
+    public VentaRespuesta reembolsar(UUID id, ReembolsoVentaSolicitud solicitud, UsuarioActual usuario) {
+        VentaEntidad venta = obtenerPorId(id);
+        usuario.verificarAccesoSucursal(venta.getSucursalId());                              // 403 SUCURSAL_AJENA
+        VerificadorVersion.verificar(venta.getVersion(), solicitud.version());               // 409
+        if (venta.estaReembolsada()) {
+            throw ErrorVenta.VENTA_YA_REEMBOLSADA.excepcion();                               // 422
+        }
+        if (!venta.puedeMarcarseReembolsada()) {
+            throw ErrorVenta.ESTADO_INVALIDO.excepcion(venta.getEstado(), "CANCELADA o RECHAZADA");
+        }
+        if (venta.pagadaConCartera()) {
+            // En línea: el dinero lo devuelve Wallet. Esto solo vuelve a pedirlo (Wallet no repite el
+            // reembolso de la misma venta), y el estado cambia cuando llegue CarteraReembolsada.
+            eventos.reembolsoVenta(venta, MotivoSaga.VENTA_CANCELADA, venta.fechaNoAnteriorAlPago(Fechas.hoy()));
+            log.info("Venta {} pagada con cartera: se volvió a pedir el reembolso a Wallet", id);
+            return conViaje(venta);
+        }
+        venta.reembolsarEnEfectivo(Fechas.hoy(), usuario.usuarioId());
+        VentaEntidad reembolsada = repositorio.saveAndFlush(venta);
+        List<BoletoEntidad> suyos = boletos.findByVentaIdOrderByNumeroAsientoAsc(id);
+        VistaViajeEntidad viaje = viajeRepositorio.findById(reembolsada.getViajeId()).orElse(null);
+        eventos.ventaReembolsada(reembolsada, suyos, viaje);          // Notification avisa al cliente
+        log.info("Venta {} reembolsada en efectivo por {}", id, usuario.usuarioId());
+        return new VentaRespuesta(reembolsada, suyos,
+                viaje == null ? null : new ViajeResumenRespuesta(viaje));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<VentaRespuesta> buscarPorCodigo(String codigo, UsuarioActual usuario) {
+        String normalizado = VentaEntidad.normalizarCodigo(codigo);
+        if (normalizado == null) {
+            throw ErrorVenta.CODIGO_INVALIDO.excepcion();                                    // 400
+        }
+        List<VentaEntidad> encontradas = repositorio.buscarPorCodigo(normalizado).stream()
+                .filter(venta -> puedeVer(venta, usuario))
+                .toList();
+        if (encontradas.isEmpty()) {
+            throw ErrorVenta.VENTA_NO_EXISTE.excepcion();                                    // 404
+        }
+        return encontradas.stream().map(this::conViaje).toList();
+    }
+
+    @Override
+    @Transactional
     public void compensarViajeEliminado(UUID viajeId, String motivo) {
         VistaViajeEntidad viaje = viajeRepositorio.findById(viajeId).orElse(null);
-        String motivoCancelacion = motivo == null || motivo.isBlank() ? MotivoSaga.VIAJE_ELIMINADO.name()
-                : motivo.substring(0, Math.min(motivo.length(), LARGO_MOTIVO));      // motivo_cancelacion (255)
+        String motivoCancelacion = motivoViajeEliminado(viaje, motivo);
         LocalDate hoy = Fechas.hoy();
         List<VentaEntidad> afectadas = repositorio.findByViajeIdAndEstadoIn(viajeId,
                 List.of(EstadoVenta.PENDIENTE_PAGO, EstadoVenta.CONFIRMADA));
@@ -182,10 +232,7 @@ public class VentaServicioImpl implements VentaServicio {
         if (!puedeVer(venta, usuario)) {
             throw ErrorVenta.VENTA_AJENA.excepcion();
         }
-        ViajeResumenRespuesta viaje = viajeRepositorio.findById(venta.getViajeId())
-                .map(ViajeResumenRespuesta::new)
-                .orElse(null);                                    // el viaje se eliminó: la venta se conserva
-        return new VentaRespuesta(venta, boletos.findByVentaIdOrderByNumeroAsientoAsc(id), viaje);
+        return conViaje(venta);
     }
 
     @Override
@@ -219,6 +266,35 @@ public class VentaServicioImpl implements VentaServicio {
             eventos.reembolsoVenta(venta, motivoReembolso, venta.getFechaCancelacion());
         }
         return suyos;
+    }
+
+    /** Venta con sus boletos y el resumen del viaje, o sin viaje si ya se eliminó (la venta se conserva). */
+    private VentaRespuesta conViaje(VentaEntidad venta) {
+        ViajeResumenRespuesta viaje = viajeRepositorio.findById(venta.getViajeId())
+                .map(ViajeResumenRespuesta::new)
+                .orElse(null);
+        return new VentaRespuesta(venta, boletos.findByVentaIdOrderByNumeroAsientoAsc(venta.getId()), viaje);
+    }
+
+    /**
+     * Motivo de cancelación cuando Trips elimina el viaje. La fila del viaje se borra de vista_viajes
+     * en la misma transacción, así que el origen, el destino, la salida y la placa se copian aquí: en la
+     * pantalla de reembolsos es lo único que dice de qué viaje era el boleto que trae el cliente.
+     * Ejemplo: "Viaje eliminado · Xela → Guatemala · 25/10/2026 08:00 · Bus P123ABC · bus en taller".
+     */
+    private static String motivoViajeEliminado(VistaViajeEntidad viaje, String motivo) {
+        StringBuilder texto = new StringBuilder(MOTIVO_VIAJE_ELIMINADO);
+        if (viaje != null) {
+            texto.append(SEPARADOR).append(viaje.getOrigenNombre()).append(" → ").append(viaje.getDestinoNombre())
+                    .append(SEPARADOR).append(SALIDA.format(Fechas.enGuatemala(viaje.getFechaSalida())));
+            if (viaje.getBusPlaca() != null && !viaje.getBusPlaca().isBlank()) {
+                texto.append(SEPARADOR).append("Bus ").append(viaje.getBusPlaca());
+            }
+        }
+        if (motivo != null && !motivo.isBlank()) {
+            texto.append(SEPARADOR).append(motivo.strip());
+        }
+        return texto.length() <= LARGO_MOTIVO ? texto.toString() : texto.substring(0, LARGO_MOTIVO);
     }
 
     private VentaEntidad obtenerPorId(UUID id) {

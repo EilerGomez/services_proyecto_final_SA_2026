@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerPagado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.notification.evento.recibido.VentaCancelada;
+import gt.cunoc.proyecto2.notification.evento.recibido.VentaReembolsada;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -29,6 +30,7 @@ public class CorreoVentasService {
 
     public static final String COMPRA_BOLETO = "COMPRA_BOLETO";
     public static final String VENTA_CANCELADA = "VENTA_CANCELADA";
+    public static final String VENTA_REEMBOLSADA = "VENTA_REEMBOLSADA";
     public static final String ALQUILER_PAGADO = "ALQUILER_PAGADO";
     public static final String ALQUILER_ASIGNADO = "ALQUILER_ASIGNADO";
     public static final String COTIZACION_ALQUILER = "COTIZACION_ALQUILER";
@@ -124,6 +126,38 @@ public class CorreoVentasService {
                 asientos(venta.asientos()), quetzales(venta.montoAnulado()), valor(venta.motivo()), devolucion);
         correos.enviarPlantilla(eventoId, venta.clienteCorreo(), VENTA_CANCELADA, "Tu compra fue cancelada",
                 json.writeValueAsString(datos), cuerpo);
+    }
+
+    /* VentaReembolsada: la sucursal ya devolvió el efectivo de una compra cancelada. */
+    public void ventaReembolsada(UUID eventoId, VentaReembolsada venta) {
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("ventaId", venta.ventaId());
+        datos.put("codigo", venta.codigo());
+        datos.put("asientos", venta.asientos());
+        datos.put("monto", venta.montoReembolsado());
+        datos.put("motivo", venta.motivo());
+        datos.put("fechaReembolso", texto(venta.fechaReembolso()));
+        String viaje = venta.origenNombre() == null
+                ? ""
+                : "Viaje: %s → %s, salida %s (hora de Guatemala)%n".formatted(
+                        venta.origenNombre(), venta.destinoNombre(), fechaHora(venta.fechaSalida()));
+        String cuerpo = """
+                Hola %s,
+
+                Ya te devolvimos el dinero de tu compra %s, cancelada antes de viajar.
+
+                %sAsientos: %s
+                Monto devuelto: %s, en %s
+                Fecha de la devolución: %s
+                Motivo de la cancelación: %s
+
+                Con esto la compra queda cerrada. Si algo no cuadra, acércate a la sucursal
+                con tu boleto impreso y el código %s.""".formatted(
+                venta.clienteNombre(), venta.ventaId(), viaje, asientos(venta.asientos()),
+                quetzales(venta.montoReembolsado()), metodo(venta.metodoPago()),
+                fecha(venta.fechaReembolso()), valor(venta.motivo()), valor(venta.codigo()));
+        correos.enviarPlantilla(eventoId, venta.clienteCorreo(), VENTA_REEMBOLSADA,
+                "Devolución de tu compra cancelada", json.writeValueAsString(datos), cuerpo);
     }
 
     /* AlquilerPagado: confirma el pago del viaje privado al cliente. La sucursal no recibe correo:

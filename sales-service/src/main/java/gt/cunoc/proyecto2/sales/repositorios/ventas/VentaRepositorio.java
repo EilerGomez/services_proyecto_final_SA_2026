@@ -58,4 +58,16 @@ public interface VentaRepositorio extends JpaRepository<VentaEntidad, UUID>, Jpa
 
     /** ViajeEliminado: ventas del viaje que hay que rechazar (pendientes) o cancelar (confirmadas). */
     List<VentaEntidad> findByViajeIdAndEstadoIn(UUID viajeId, Collection<EstadoVenta> estados);
+
+    /**
+     * S14: venta cuyo boleto impreso lleva este código de barras (los primeros 12 caracteres del id,
+     * en mayúsculas). Usa el índice funcional ix_ventas_codigo de V11, que no es único: devuelve una
+     * lista porque dos ids podrían empezar igual, y es mejor mostrar las dos que esconder una.
+     */
+    @Query(value = """
+            SELECT * FROM ventas
+             WHERE upper(substr(replace(id::text, '-', ''), 1, 12)) = :codigo
+             ORDER BY fecha_creacion DESC""",
+            nativeQuery = true)
+    List<VentaEntidad> buscarPorCodigo(@Param("codigo") String codigo);
 }

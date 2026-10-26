@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.notification.evento.recibido.LicenciaChoferActualizada;
 import gt.cunoc.proyecto2.notification.evento.recibido.VentaCancelada;
+import gt.cunoc.proyecto2.notification.evento.recibido.VentaReembolsada;
 import gt.cunoc.proyecto2.notification.services.correo.CorreoVentasService;
 import gt.cunoc.proyecto2.notification.services.recordatorios.RecordatorioLicenciaService;
 import java.math.BigDecimal;
@@ -35,6 +36,7 @@ class ManejadoresVentasTest {
 
     @InjectMocks private ManejadorBoletoVendido manejadorBoleto;
     @InjectMocks private ManejadorVentaCancelada manejadorCancelada;
+    @InjectMocks private ManejadorVentaReembolsada manejadorReembolsada;
     @InjectMocks private ManejadorAlquilerPagado manejadorAlquiler;
     @InjectMocks private ManejadorAlquilerAsignado manejadorAsignado;
     @InjectMocks private ManejadorCotizacionAlquilerConfirmada manejadorCotizacion;
@@ -50,12 +52,14 @@ class ManejadoresVentasTest {
         // Act + Assert
         assertEquals("BoletoVendido", manejadorBoleto.tipoEvento());
         assertEquals("VentaCancelada", manejadorCancelada.tipoEvento());
+        assertEquals("VentaReembolsada", manejadorReembolsada.tipoEvento());
         assertEquals("AlquilerPagado", manejadorAlquiler.tipoEvento());
         assertEquals("AlquilerAsignado", manejadorAsignado.tipoEvento());
         assertEquals("CotizacionAlquilerConfirmada", manejadorCotizacion.tipoEvento());
         assertEquals("LicenciaChoferActualizada", manejadorLicencia.tipoEvento());
         assertEquals(BoletoVendido.class, manejadorBoleto.tipoPayload());
         assertEquals(VentaCancelada.class, manejadorCancelada.tipoPayload());
+        assertEquals(VentaReembolsada.class, manejadorReembolsada.tipoPayload());
         assertEquals(AlquilerPagado.class, manejadorAlquiler.tipoPayload());
         assertEquals(AlquilerAsignado.class, manejadorAsignado.tipoPayload());
         assertEquals(CotizacionAlquilerConfirmada.class, manejadorCotizacion.tipoPayload());
@@ -88,6 +92,21 @@ class ManejadoresVentasTest {
 
         // Assert
         verify(correos).ventaCancelada(evento.eventId(), venta);
+    }
+
+    @Test
+    void ventaReembolsadaDelegaConElEventId() {
+        // Arrange
+        VentaReembolsada venta = new VentaReembolsada(UUID.randomUUID(), "A1B2C3D4E5F6", "Ana", "ana@correo.com",
+                List.of(1), new BigDecimal("75.00"), "EFECTIVO", "Viaje eliminado · Xela → Guate", FECHA,
+                null, null, null);
+        EventoRecibido<VentaReembolsada> evento = evento("VentaReembolsada", venta);
+
+        // Act
+        manejadorReembolsada.manejar(evento);
+
+        // Assert
+        verify(correos).ventaReembolsada(evento.eventId(), venta);
     }
 
     @Test

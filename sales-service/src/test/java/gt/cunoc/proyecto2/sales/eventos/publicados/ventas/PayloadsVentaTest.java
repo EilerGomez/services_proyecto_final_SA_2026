@@ -144,4 +144,47 @@ class PayloadsVentaTest {
         assertThat(evento.cantidadBoletos()).isZero();
         assertThat(evento.montoAnulado()).isEqualByComparingTo("150.00");
     }
+
+    // ----- VentaReembolsada -----
+
+    @Test
+    void ventaReembolsadaDeUnBoletoDevueltoEnLaSucursal() {
+        UUID cajeroId = UUID.randomUUID();
+        VistaViajeEntidad viaje = viajeConSalidaEnUtc();
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 2);
+        venta.cancelar("Viaje eliminado · Quetzaltenango → Guatemala", FECHA_PAGO);
+        venta.reembolsarEnEfectivo(FECHA_PAGO.plusDays(1), cajeroId);
+        List<BoletoEntidad> boletos = DatosPrueba.boletos(venta, 11, 4);
+
+        VentaReembolsada evento = VentaReembolsada.desde(venta, boletos, viaje);
+
+        assertThat(evento.ventaId()).isEqualTo(venta.getId());
+        assertThat(evento.codigo()).isEqualTo(venta.codigo());
+        assertThat(evento.viajeId()).isEqualTo(viaje.getViajeId());
+        assertThat(evento.asientos()).containsExactly(4, 11);
+        assertThat(evento.cantidadBoletos()).isEqualTo(2);
+        assertThat(evento.montoReembolsado()).isEqualByComparingTo("150.00");
+        assertThat(evento.metodoPago()).isEqualTo(MetodoPago.EFECTIVO);
+        assertThat(evento.motivo()).isEqualTo("Viaje eliminado · Quetzaltenango → Guatemala");
+        assertThat(evento.fechaReembolso()).isEqualTo(FECHA_PAGO.plusDays(1));
+        assertThat(evento.reembolsadoPor()).isEqualTo(cajeroId);
+        assertThat(evento.origenNombre()).isEqualTo("Quetzaltenango");
+        assertThat(evento.fechaSalida()).isEqualTo(OffsetDateTime.of(2026, 11, 5, 8, 0, 0, 0, GUATEMALA));
+    }
+
+    @Test
+    void ventaReembolsadaDeUnViajeQueYaNoEstaEnLaVista() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(DatosPrueba.vistaViaje(), 1);
+        venta.cancelarPorViajeEliminado("Viaje eliminado · Bus averiado", FECHA_PAGO);
+        venta.reembolsarEnEfectivo(FECHA_PAGO, UUID.randomUUID());
+
+        VentaReembolsada evento = VentaReembolsada.desde(venta, DatosPrueba.boletos(venta, 6), null);
+
+        assertThat(evento.clienteUsuarioId()).isNull();
+        assertThat(evento.clienteNit()).isEqualTo("CF");
+        assertThat(evento.motivo()).isEqualTo("Viaje eliminado · Bus averiado");
+        assertThat(evento.origenNombre()).isNull();
+        assertThat(evento.destinoNombre()).isNull();
+        assertThat(evento.fechaSalida()).isNull();
+    }
 }
