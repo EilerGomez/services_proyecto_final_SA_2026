@@ -13,6 +13,8 @@ public class RutaDemandaFila {
     UUID rutaId;
     String origen;
     String destino;
+    Long boletosVendidos;
+    Long boletosCancelados;
     Long boletos;
     BigDecimal ingresos;
 }

@@ -13,8 +13,10 @@ public class IngresoGlobalFila {
     String fecha;
     String sucursal;
     String tipo;
+    String movimiento;
     UUID referenciaId;
     String detalle;
     String clienteNit;
+    Integer boletos;
     BigDecimal monto;
 }

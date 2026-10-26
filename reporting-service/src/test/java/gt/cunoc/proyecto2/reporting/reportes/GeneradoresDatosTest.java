@@ -2,7 +2,9 @@ package gt.cunoc.proyecto2.reporting.reportes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import gt.cunoc.proyecto2.reporting.modelos.BusEntidad;
 import gt.cunoc.proyecto2.reporting.modelos.ChoferEntidad;
@@ -95,10 +97,13 @@ class GeneradoresDatosTest {
         UUID norte = UUID.randomUUID();
         when(sucursales.findAll()).thenReturn(List.of(sucursal(norte, "Norte")));
         when(sucursales.findAllByOrderByNombreAsc()).thenReturn(List.of(sucursal(norte, "Norte")));
+        UUID ventaId = UUID.randomUUID();
+        IngresoEntidad venta = ingreso(norte, "BOLETO", "150.00", 2);
+        venta.setReferenciaId(ventaId);
         IngresoEntidad cancelacion = ingreso(norte, "BOLETO", "-150.00", -2);
+        cancelacion.setReferenciaId(ventaId);
         when(ingresos.buscar(any(), any(), any(), any())).thenReturn(
-                List.of(ingreso(norte, "BOLETO", "150.00", 2), ingreso(norte, "ALQUILER", "4300.00", 0),
-                        cancelacion));
+                List.of(venta, ingreso(norte, "ALQUILER", "4300.00", 0), cancelacion));
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorIngresosGlobales(
                 ingresos, sucursales, compilador).datos(ParametrosReporte.builder().build());
@@ -107,8 +112,18 @@ class GeneradoresDatosTest {
         assertThat(datos.get("totalGlobal")).isEqualTo(new BigDecimal("4300.00"));
         List<Map<String, Object>> filas =
                 (List<Map<String, Object>>) ((List<Map<String, Object>>) datos.get("sucursales")).get(0).get("filas");
-        assertThat(filas.stream().map(f -> f.get("detalle")).toList())
-                .contains("Cancelación", "Xela → Guate");
+        Map<String, Object> filaVenta = filas.stream()
+                .filter(f -> "VENTA".equals(f.get("movimiento"))).findFirst().orElseThrow();
+        Map<String, Object> filaCancelacion = filas.stream()
+                .filter(f -> "CANCELACION".equals(f.get("movimiento"))).findFirst().orElseThrow();
+        assertThat(filaVenta).containsEntry("referenciaId", ventaId).containsEntry("boletos", 2);
+        assertThat(filaCancelacion).containsEntry("referenciaId", ventaId).containsEntry("boletos", -2)
+                .containsEntry("detalle", "Cancelación");
+        Map<String, Object> sucursal = (Map<String, Object>) ((List<?>) datos.get("sucursales")).get(0);
+        assertThat(sucursal).containsEntry("boletosVendidos", 2)
+                .containsEntry("boletosCancelados", 2).containsEntry("boletosNetos", 0);
+        assertThat(datos).containsEntry("boletosVendidos", 2)
+                .containsEntry("boletosCancelados", 2).containsEntry("boletosNetos", 0);
     }
 
     @Test
@@ -156,15 +171,28 @@ class GeneradoresDatosTest {
         ruta.setOrigenNombre("Xela");
         ruta.setDestinoNombre("Guate");
         when(rutas.findAll()).thenReturn(List.of(ruta));
-        when(ingresos.demandaPorRuta(any(), any(), any())).thenReturn(
-                List.<Object[]>of(new Object[]{rutaId, 10L, new BigDecimal("750.00")}));
+        when(ingresos.demandaPorRuta(any(), any(), any(), any())).thenReturn(
+                List.<Object[]>of(new Object[]{rutaId, 12L, 2L, 10L, new BigDecimal("750.00")}));
 
         List<Map<String, Object>> datos = (List<Map<String, Object>>) new GeneradorRutasDemandadas(
                 ingresos, rutas, compilador).datos(ParametrosReporte.builder().build());
 
         assertThat(datos).hasSize(1);
+        assertThat(datos.get(0).get("boletosVendidos")).isEqualTo(12L);
+        assertThat(datos.get(0).get("boletosCancelados")).isEqualTo(2L);
         assertThat(datos.get(0).get("boletos")).isEqualTo(10L);
         assertThat(datos.get(0).get("origen")).isEqualTo("Xela");
+    }
+
+    @Test
+    void rutasDemandadasFiltraPorSucursal() {
+        UUID sucursalId = UUID.randomUUID();
+        when(rutas.findAll()).thenReturn(List.of());
+
+        new GeneradorRutasDemandadas(ingresos, rutas, compilador).datos(
+                ParametrosReporte.builder().sucursalId(sucursalId).build());
+
+        verify(ingresos).demandaPorRuta(eq(sucursalId), any(), any(), any());
     }
 
     @Test
@@ -286,13 +314,19 @@ class GeneradoresDatosTest {
         UUID sucursalId = UUID.randomUUID();
         UUID rutaId = UUID.randomUUID();
         UUID busId = UUID.randomUUID();
+        UUID ventaId = UUID.randomUUID();
         IngresoEntidad uno = ingreso(sucursalId, "BOLETO", "150.00", 2);
+        uno.setReferenciaId(ventaId);
         uno.setRutaId(rutaId);
         uno.setBusId(busId);
+        IngresoEntidad cancelacion = ingreso(sucursalId, "BOLETO", "-75.00", -1);
+        cancelacion.setReferenciaId(ventaId);
+        cancelacion.setRutaId(rutaId);
+        cancelacion.setBusId(busId);
         IngresoEntidad dos = ingreso(sucursalId, "BOLETO", "75.00", 1);
         dos.setRutaId(UUID.randomUUID());
         dos.setBusId(busId);
-        when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(uno, dos));
+        when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(uno, cancelacion, dos));
         BusEntidad bus = new BusEntidad();
         bus.setId(busId);
         bus.setPlaca("C123ABC");
@@ -302,9 +336,13 @@ class GeneradoresDatosTest {
                 ingresos, buses, compilador).datos(ParametrosReporte.builder()
                 .sucursalId(sucursalId).rutaId(rutaId).build());
 
-        assertThat((List<?>) datos.get("filas")).hasSize(1);
-        assertThat(datos.get("totalBoletos")).isEqualTo(2);
-        assertThat(datos.get("total")).isEqualTo(new BigDecimal("150.00"));
+        List<Map<String, Object>> filas = (List<Map<String, Object>>) datos.get("filas");
+        assertThat(filas).hasSize(2);
+        assertThat(filas).extracting(f -> f.get("ventaId")).containsOnly(ventaId);
+        assertThat(filas).extracting(f -> f.get("movimiento")).containsExactly("VENTA", "CANCELACION");
+        assertThat(datos).containsEntry("boletosVendidos", 2)
+                .containsEntry("boletosCancelados", 1).containsEntry("totalBoletos", 1);
+        assertThat(datos.get("total")).isEqualTo(new BigDecimal("75.00"));
     }
 
     @Test
