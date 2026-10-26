@@ -18,7 +18,12 @@ public enum ErrorVenta implements CodigoError {
     ESTADO_INVALIDO(TipoError.REGLA_NEGOCIO, "La venta está %s; esta acción solo aplica a ventas %s"),
     VIAJE_YA_INICIO(TipoError.REGLA_NEGOCIO, "El viaje ya salió o ya no existe; la venta no se puede cancelar"),
     FECHA_CANCELACION_INVALIDA(TipoError.SOLICITUD_INVALIDA,
-            "La fecha de cancelación (%s) no puede ser anterior a la fecha de pago (%s)");
+            "La fecha de cancelación (%s) no puede ser anterior a la fecha de pago (%s)"),
+    VENTA_YA_REEMBOLSADA(TipoError.REGLA_NEGOCIO, "Esta venta ya fue reembolsada"),
+    REEMBOLSO_NO_EN_EFECTIVO(TipoError.REGLA_NEGOCIO,
+            "La venta se pagó con la cartera digital: el reembolso lo hace la cartera, no la sucursal"),
+    CODIGO_INVALIDO(TipoError.SOLICITUD_INVALIDA,
+            "El código del boleto debe tener al menos 12 caracteres; revise el código o escanéelo de nuevo");
 
     private final TipoError tipo;
     private final String mensaje;

@@ -16,6 +16,7 @@ import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.DebitoCarteraSolicita
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.ReembolsoCarteraSolicitado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoVendido;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaCancelada;
+import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaReembolsada;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.BoletoEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.CanalVenta;
@@ -202,6 +203,31 @@ class PublicadorEventosSalesTest {
             assertThat(e.destinoNombre()).isNull();
             assertThat(e.fechaSalida()).isNull();
             assertThat(e.cantidadBoletos()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void ventaReembolsadaConLaFechaDeLaDevolucion() {
+        UUID cajeroId = UUID.randomUUID();
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 2);
+        venta.cancelar("Viaje eliminado · Quetzaltenango → Guatemala", FECHA_CANCELACION);
+        venta.reembolsarEnEfectivo(FECHA_REEMBOLSO, cajeroId);
+        DatosPrueba.conVersion(venta, 3);
+        List<BoletoEntidad> boletos = DatosPrueba.boletos(venta, 10, 11);
+
+        eventos.ventaReembolsada(venta, boletos, viaje);
+
+        Object payload = publicado("Venta", venta.getId(), 3L, "VentaReembolsada", FECHA_REEMBOLSO);
+        assertThat(payload).isEqualTo(VentaReembolsada.desde(venta, boletos, viaje));
+        assertThat(payload).isInstanceOfSatisfying(VentaReembolsada.class, e -> {
+            assertThat(e.codigo()).isEqualTo(venta.codigo());
+            assertThat(e.asientos()).containsExactly(10, 11);
+            assertThat(e.montoReembolsado()).isEqualByComparingTo("150.00");
+            assertThat(e.metodoPago()).isEqualTo(MetodoPago.EFECTIVO);
+            assertThat(e.motivo()).isEqualTo("Viaje eliminado · Quetzaltenango → Guatemala");
+            assertThat(e.fechaReembolso()).isEqualTo(FECHA_REEMBOLSO);
+            assertThat(e.reembolsadoPor()).isEqualTo(cajeroId);
+            assertThat(e.origenNombre()).isEqualTo("Quetzaltenango");
         });
     }
 

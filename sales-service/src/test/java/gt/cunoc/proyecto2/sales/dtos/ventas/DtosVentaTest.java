@@ -237,6 +237,7 @@ class DtosVentaTest {
         VentaRespuesta respuesta = new VentaRespuesta(venta, boletos, resumen);
 
         assertThat(respuesta.ventaId()).isEqualTo(venta.getId());
+        assertThat(respuesta.codigo()).isEqualTo(venta.codigo()).hasSize(12);
         assertThat(respuesta.viajeId()).isEqualTo(viaje.getViajeId());
         assertThat(respuesta.canal()).isEqualTo(CanalVenta.PRESENCIAL);
         assertThat(respuesta.clienteNit()).isEqualTo("CF");
@@ -267,8 +268,22 @@ class DtosVentaTest {
         assertThat(respuesta.estado()).isEqualTo(EstadoVenta.CANCELADA);
         assertThat(respuesta.motivoCancelacion()).isEqualTo("Viaje reprogramado");
         assertThat(respuesta.fechaCancelacion()).isEqualTo(fecha);
+        assertThat(respuesta.fechaReembolso()).isNull();
         assertThat(respuesta.boletos()).isEmpty();
         assertThat(respuesta.viaje()).isNull();
+    }
+
+    @Test
+    void ventaRespuestaReembolsadaLlevaLaFechaDeLaDevolucion() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(DatosPrueba.vistaViaje(), 1);
+        LocalDate fecha = FECHA_PAGO.plusDays(2);
+        venta.cancelar("Viaje eliminado", FECHA_PAGO.plusDays(1));
+        venta.reembolsarEnEfectivo(fecha, UUID.randomUUID());
+
+        VentaRespuesta respuesta = new VentaRespuesta(venta, List.of(), null);
+
+        assertThat(respuesta.estado()).isEqualTo(EstadoVenta.REEMBOLSADA);
+        assertThat(respuesta.fechaReembolso()).isEqualTo(fecha);
     }
 
     @Test

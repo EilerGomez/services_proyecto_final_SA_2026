@@ -17,6 +17,7 @@ import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.ReembolsoVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.ViajeResumenRespuesta;
@@ -103,6 +104,33 @@ class VentaControladorTest {
         assertThat(cancelada.getBody()).isSameAs(respuesta);
         assertThat(solicitud.motivo()).isEqualTo("Viaje reprogramado");
         verify(servicio).cancelar(mostrador.getId(), solicitud, admin);
+    }
+
+    // ----- S14 -----
+
+    @Test
+    void reembolsarRespondeOkConLaVentaActualizada() {
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        ReembolsoVentaSolicitud solicitud = new ReembolsoVentaSolicitud(0);
+        when(servicio.reembolsar(mostrador.getId(), solicitud, cajero)).thenReturn(respuesta);
+
+        ResponseEntity<VentaRespuesta> reembolsada = controlador.reembolsar(mostrador.getId(), solicitud, cajero);
+
+        assertThat(reembolsada.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reembolsada.getBody()).isSameAs(respuesta);
+        verify(servicio).reembolsar(mostrador.getId(), solicitud, cajero);
+    }
+
+    @Test
+    void buscarPorCodigoRespondeOkConLoQueEncuentra() {
+        UsuarioActual cajero = DatosPrueba.cajero(XELA);
+        when(servicio.buscarPorCodigo("A1B2-C3D4-E5F6", cajero)).thenReturn(List.of(respuesta));
+
+        ResponseEntity<List<VentaRespuesta>> encontradas = controlador.buscarPorCodigo("A1B2-C3D4-E5F6", cajero);
+
+        assertThat(encontradas.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(encontradas.getBody()).containsExactly(respuesta);
+        assertThat(respuesta.codigo()).isEqualTo(mostrador.codigo());
     }
 
     // ----- S3 -----

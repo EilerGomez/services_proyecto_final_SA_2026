@@ -168,7 +168,7 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
                     venta == null ? "no existe" : venta.getEstado());
             return;
         }
-        venta.marcarReembolsada();
+        venta.marcarReembolsada(Fechas.hoy());
         ventas.saveAndFlush(venta);
     }
 }

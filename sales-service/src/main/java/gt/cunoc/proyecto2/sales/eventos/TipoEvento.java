@@ -11,6 +11,7 @@ public enum TipoEvento {
     REEMBOLSO_CARTERA_SOLICITADO("ReembolsoCarteraSolicitado"),
     BOLETO_VENDIDO("BoletoVendido"),
     VENTA_CANCELADA("VentaCancelada"),
+    VENTA_REEMBOLSADA("VentaReembolsada"),
     ALQUILER_PAGADO("AlquilerPagado"),
 
     // ----- Consume Sales (cola sales.q) -----
