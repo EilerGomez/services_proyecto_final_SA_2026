@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.trips.eventos.manejadores.fleet;
 
 import static gt.cunoc.proyecto2.trips.DatosPrueba.FECHA;
+import static gt.cunoc.proyecto2.trips.DatosPrueba.FOTO_BUS;
 import static gt.cunoc.proyecto2.trips.DatosPrueba.XELA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -64,7 +65,7 @@ class ManejadoresFleetTest {
     @Test
     void busCreadoGuardaElBus() {
         ManejadorBusCreado manejador = new ManejadorBusCreado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 45, "ACTIVO");
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS);
 
         manejador.manejar(evento("BusCreado", bus.busId(), bus));
 
@@ -77,7 +78,7 @@ class ManejadoresFleetTest {
     @Test
     void busActualizadoGuardaElBus() {
         ManejadorBusActualizado manejador = new ManejadorBusActualizado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 50, "EN_TALLER");
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 50, "EN_TALLER", FOTO_BUS);
 
         manejador.manejar(evento("BusActualizado", bus.busId(), bus));
 
@@ -144,7 +145,7 @@ class ManejadoresFleetTest {
     @Test
     void sinAggregateVersionPasaNulo() {
         ManejadorBusCreado manejador = new ManejadorBusCreado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-999XYZ", 40, "ACTIVO");
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-999XYZ", 40, "ACTIVO", FOTO_BUS);
 
         manejador.manejar(new EventoRecibido<>(UUID.randomUUID(), "BusCreado", 1, bus.busId(), null,
                 Instant.now(), FECHA, UUID.randomUUID(), bus));

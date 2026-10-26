@@ -55,6 +55,8 @@ class BusesIT extends PruebaIntegracion {
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.estado")).isEqualTo("ACTIVO");
         String busCreado = esperarEventos("BusCreado").get("BusCreado");
         assertThat(JsonPath.<String>read(busCreado, "$.payload.placa")).isEqualTo("P-555XYZ");
+        // La foto viaja en el evento: Trips se la muestra al pasajero cuando compra el boleto
+        assertThat(JsonPath.<String>read(busCreado, "$.payload.fotoUrl")).isEqualTo(FOTO_BUS);
     }
 
     @Test

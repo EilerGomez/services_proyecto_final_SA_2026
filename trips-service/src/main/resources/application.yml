@@ -44,7 +44,7 @@ comun:
     suscripciones:
       "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado,
                           ChoferCreado, ChoferActualizado, ChoferDesactivado]
-      "[identity.eventos]": [TarifaDepreciacionCambiada]
+      "[identity.eventos]": [TarifaDepreciacionCambiada, ClienteRegistrado, PerfilActualizado]
       "[sales.eventos]": [AlquilerPagado]
  
 app:

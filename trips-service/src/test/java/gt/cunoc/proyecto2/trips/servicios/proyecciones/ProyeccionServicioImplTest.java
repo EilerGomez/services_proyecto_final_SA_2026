@@ -1,17 +1,21 @@
 package gt.cunoc.proyecto2.trips.servicios.proyecciones;
 
 import static gt.cunoc.proyecto2.trips.DatosPrueba.FECHA;
+import static gt.cunoc.proyecto2.trips.DatosPrueba.FOTO_BUS;
 import static gt.cunoc.proyecto2.trips.DatosPrueba.XELA;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.BusEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.ChoferEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.SucursalEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.sucursales.VistaSucursalRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
@@ -31,12 +35,14 @@ class ProyeccionServicioImplTest {
     private final VistaBusRepositorio buses = mock(VistaBusRepositorio.class);
     private final VistaChoferRepositorio choferes = mock(VistaChoferRepositorio.class);
     private final VistaTarifaDepreciacionRepositorio tarifas = mock(VistaTarifaDepreciacionRepositorio.class);
+    private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
+    private final AlquilerPrivadoRepositorio alquileres = mock(AlquilerPrivadoRepositorio.class);
 
     private ProyeccionServicioImpl servicio;
 
     @BeforeEach
     void preparar() {
-        servicio = new ProyeccionServicioImpl(sucursales, buses, choferes, tarifas);
+        servicio = new ProyeccionServicioImpl(sucursales, buses, choferes, tarifas, clientes, alquileres);
     }
 
     private static SucursalEvento sucursal() {
@@ -44,7 +50,7 @@ class ProyeccionServicioImplTest {
     }
 
     private static BusEvento bus(UUID busId) {
-        return new BusEvento(busId, XELA, "P-123ABC", 45, "ACTIVO");
+        return new BusEvento(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS);
     }
 
     private static ChoferEvento chofer(UUID choferId) {
@@ -81,11 +87,11 @@ class ProyeccionServicioImplTest {
     @Test
     void guardarBusPasaTodosLosDatosYLaVersion() {
         UUID busId = UUID.randomUUID();
-        when(buses.guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", 2L)).thenReturn(1);
+        when(buses.guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 2L)).thenReturn(1);
 
         servicio.guardarBus(bus(busId), 2L);
 
-        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", 2L);
+        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 2L);
     }
 
     @Test
@@ -93,7 +99,7 @@ class ProyeccionServicioImplTest {
         UUID busId = UUID.randomUUID();
 
         assertThatCode(() -> servicio.guardarBus(bus(busId), null)).doesNotThrowAnyException();
-        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", 0L);
+        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 0L);
     }
 
     @Test
@@ -171,5 +177,39 @@ class ProyeccionServicioImplTest {
         assertThatCode(() -> servicio.guardarTarifa(new TarifaDepreciacionCambiada(tarifaId, MONTO_POR_KM, FECHA)))
                 .doesNotThrowAnyException();
         verify(tarifas).guardar(tarifaId, MONTO_POR_KM, FECHA);
+    }
+
+    // ----- Clientes (Identity) -----
+
+    @Test
+    void guardarClienteCopiaSusDatosYAdoptaSusAlquileresViejos() {
+        UUID usuarioId = UUID.randomUUID();
+        when(alquileres.enlazarPorNit(usuarioId, "1234567-K")).thenReturn(2);
+
+        servicio.guardarCliente(usuarioId, "1234567-K", "Ana López", "ana@correo.com");
+
+        verify(clientes).guardar(usuarioId, "1234567-K", "Ana López", "ana@correo.com");
+        // Los alquileres que la ventanilla registró con su NIT antes de la cuenta quedan enlazados
+        verify(alquileres).enlazarPorNit(usuarioId, "1234567-K");
+    }
+
+    @Test
+    void unClienteSinNitSeGuardaComoConsumidorFinal() {
+        UUID usuarioId = UUID.randomUUID();
+
+        servicio.guardarCliente(usuarioId, "  ", "Ana López", "ana@correo.com");
+
+        verify(clientes).guardar(usuarioId, "CF", "Ana López", "ana@correo.com");
+    }
+
+    @Test
+    void conNitCfNoSeAdoptaNingunAlquiler() {
+        UUID usuarioId = UUID.randomUUID();
+
+        // "CF" es el NIT de todos los consumidores finales: enlazaría alquileres de cualquiera
+        servicio.guardarCliente(usuarioId, "cf", "Ana López", "ana@correo.com");
+        servicio.guardarCliente(usuarioId, null, "Ana López", "ana@correo.com");
+
+        verifyNoInteractions(alquileres);
     }
 }

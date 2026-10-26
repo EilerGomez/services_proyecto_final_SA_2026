@@ -32,7 +32,8 @@ class PayloadsViajeTest {
     @Test
     void viajeEventoRegularLlevaRutaPrecioYNombres() {
         ViajeRespuesta respuesta = new ViajeRespuesta(regular, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
-                Map.of(XELA, "Xela", GUATE, "Guate"), Map.of(regular.getBusId(), "P-123ABC"),
+                Map.of(XELA, "Xela", GUATE, "Guate"),
+                Map.of(regular.getBusId(), DatosPrueba.vistaBus(regular.getBusId(), "P-123ABC")),
                 Map.of(regular.getChoferId(), "Juan Perez")));
 
         ViajeEvento evento = ViajeEvento.desde(respuesta);

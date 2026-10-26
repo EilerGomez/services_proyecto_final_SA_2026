@@ -28,8 +28,8 @@ class OrdenAlquilerEntidadTest {
         ClienteVenta cliente = new ClienteVenta(clienteId, "1234567-8", "Colegio San José", "colegio@correo.com");
 
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(alquilerId, DatosPrueba.XELA, cliente,
-                "Quetzaltenango", "Antigua Guatemala", DatosPrueba.SALIDA, DatosPrueba.RETORNO,
-                new BigDecimal("2600.00"));
+                "Quetzaltenango", "Antigua Guatemala", DatosPrueba.RECORRIDO, DatosPrueba.SALIDA,
+                DatosPrueba.RETORNO, new BigDecimal("2600.00"));
 
         assertThat(orden.getId()).isNotNull();
         assertThat(orden.getAlquilerId()).isEqualTo(alquilerId);
@@ -38,6 +38,8 @@ class OrdenAlquilerEntidadTest {
         assertThat(orden.getClienteNit()).isEqualTo("1234567-8");
         assertThat(orden.getClienteNombre()).isEqualTo("Colegio San José");
         assertThat(orden.getClienteCorreo()).isEqualTo("colegio@correo.com");
+        assertThat(orden.getOrigenLatitud()).isEqualByComparingTo("14.845200");
+        assertThat(orden.getDestinoLongitud()).isEqualByComparingTo("-90.734400");
         assertThat(orden.getOrigen()).isEqualTo("Quetzaltenango");
         assertThat(orden.getDestino()).isEqualTo("Antigua Guatemala");
         assertThat(orden.getFechaSalida()).isEqualTo(DatosPrueba.SALIDA);
@@ -57,9 +59,11 @@ class OrdenAlquilerEntidadTest {
     void registrarAlquilerDeMostradorAConsumidorFinal() {
         OrdenAlquilerEntidad orden = OrdenAlquilerEntidad.registrar(UUID.randomUUID(), DatosPrueba.XELA,
                 new ClienteVenta(null, null, null, null), "Quetzaltenango", "Antigua Guatemala",
-                null, null, new BigDecimal("2600.00"));
+                RecorridoOrden.SIN_MAPA, null, null, new BigDecimal("2600.00"));
 
         assertThat(orden.getClienteUsuarioId()).isNull();
+        assertThat(orden.getOrigenLatitud()).isNull();
+        assertThat(orden.getOrigenLongitud()).isNull();
         assertThat(orden.getClienteNit()).isEqualTo("CF");
         assertThat(orden.getClienteNombre()).isEqualTo("Consumidor final");
         assertThat(orden.getClienteCorreo()).isNull();

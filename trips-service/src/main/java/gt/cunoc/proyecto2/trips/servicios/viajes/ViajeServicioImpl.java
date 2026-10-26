@@ -212,15 +212,15 @@ public class ViajeServicioImpl implements ViajeServicio {
         Set<UUID> sucursalIds = rutasPorId.values().stream()
                 .flatMap(r -> Stream.of(r.getSucursalOrigenId(), r.getSucursalDestinoId()))
                 .collect(Collectors.toSet());
-        Map<UUID, String> placas = buses.findAllById(idsDe(viajes, ViajeEntidad::getBusId)).stream()
-                .collect(Collectors.toMap(VistaBusEntidad::getId, VistaBusEntidad::getPlaca));
+        Map<UUID, VistaBusEntidad> busesPorId = buses.findAllById(idsDe(viajes, ViajeEntidad::getBusId)).stream()
+                .collect(Collectors.toMap(VistaBusEntidad::getId, Function.identity()));
         Map<UUID, String> nombresChoferes = choferes.findAllById(idsDe(viajes, ViajeEntidad::getChoferId)).stream()
                 .collect(Collectors.toMap(VistaChoferEntidad::getId, VistaChoferEntidad::getNombreCompleto));
         Map<UUID, AlquilerPrivadoEntidad> alquileresPorId = alquileres
                 .findAllById(idsDe(viajes, ViajeEntidad::getAlquilerId)).stream()
                 .collect(Collectors.toMap(AlquilerPrivadoEntidad::getId, Function.identity()));
         NombresViaje nombres = new NombresViaje(rutasPorId, alquileresPorId, sucursales.nombres(sucursalIds),
-                placas, nombresChoferes);
+                busesPorId, nombresChoferes);
         return viajes.stream().map(viaje -> new ViajeRespuesta(viaje, nombres)).toList();
     }
 

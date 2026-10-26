@@ -41,8 +41,9 @@ public class AlquilerControlador {
     }
 
     @PostMapping
-    @RequiereRol({Roles.CLIENTE, Roles.CAJERO})
-    @Operation(summary = "T16 · Solicita un alquiler (CLIENTE en línea; CAJERO en mostrador)")
+    @RequiereRol({Roles.CLIENTE, Roles.CAJERO, Roles.ADMIN_SUCURSAL})
+    @Operation(summary = "T16 · Solicita un alquiler (CLIENTE en línea; ventanilla —cajero o administrador"
+            + " de sucursal— en mostrador, a nombre del NIT que atienda y en cualquier sucursal)")
     public ResponseEntity<AlquilerRespuesta> solicitar(@RequestBody @Valid NuevoAlquilerSolicitud solicitud,
                                                        @Parameter(hidden = true) UsuarioActual usuario) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servicio.solicitar(solicitud, usuario));

@@ -62,7 +62,8 @@ class PublicadorEventosTripsTest {
 
     private ViajeRespuesta respuesta(ViajeEntidad viaje) {
         return new ViajeRespuesta(viaje, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
-                Map.of(XELA, "Xela", GUATE, "Guate"), Map.of(viaje.getBusId(), "P-123ABC"),
+                Map.of(XELA, "Xela", GUATE, "Guate"),
+                Map.of(viaje.getBusId(), DatosPrueba.vistaBus(viaje.getBusId(), "P-123ABC")),
                 Map.of(viaje.getChoferId(), "Juan Perez")));
     }
 

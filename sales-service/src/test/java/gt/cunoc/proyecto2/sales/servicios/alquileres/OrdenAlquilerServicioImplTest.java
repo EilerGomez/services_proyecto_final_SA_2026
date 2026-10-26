@@ -230,6 +230,8 @@ class OrdenAlquilerServicioImplTest {
     private CotizacionAlquilerConfirmada cotizacion(UUID alquilerId, UUID usuarioId, String nit) {
         return new CotizacionAlquilerConfirmada(alquilerId, XELA, usuarioId, nit, "Colegio San José",
                 "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala",
+                DatosPrueba.RECORRIDO.origenLatitud(), DatosPrueba.RECORRIDO.origenLongitud(),
+                DatosPrueba.RECORRIDO.destinoLatitud(), DatosPrueba.RECORRIDO.destinoLongitud(),
                 DatosPrueba.SALIDA, DatosPrueba.RETORNO, new BigDecimal("2600.00"));
     }
 

@@ -36,6 +36,10 @@ public class VistaBusEntidad {
     @Column(nullable = false, length = 15)
     private String estado;
 
+    /** V14: foto del bus, para enseñársela al pasajero al comprar. Null si aún no llega su evento. */
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
+
     @Column(nullable = false)
     private int version;
 }

@@ -31,6 +31,11 @@ class DtosAlquilerTest {
         assertThat(respuesta.clienteCorreo()).isEqualTo("colegio@correo.com");
         assertThat(respuesta.origen()).isEqualTo("Quetzaltenango");
         assertThat(respuesta.destino()).isEqualTo("Antigua Guatemala");
+        // Los puntos del mapa viajan con la orden: la ventanilla dibuja el recorrido al cobrar
+        assertThat(respuesta.origenLatitud()).isEqualByComparingTo("14.845200");
+        assertThat(respuesta.origenLongitud()).isEqualByComparingTo("-91.518100");
+        assertThat(respuesta.destinoLatitud()).isEqualByComparingTo("14.561400");
+        assertThat(respuesta.destinoLongitud()).isEqualByComparingTo("-90.734400");
         assertThat(respuesta.monto()).isEqualByComparingTo("2600.00");
         assertThat(respuesta.metodoPago()).isNull();
         assertThat(respuesta.fechaPago()).isNull();

@@ -4,7 +4,10 @@ import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.BusEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.ChoferEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.SucursalEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
+import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.sucursales.VistaSucursalRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
@@ -27,13 +30,18 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     private final VistaBusRepositorio buses;
     private final VistaChoferRepositorio choferes;
     private final VistaTarifaDepreciacionRepositorio tarifas;
+    private final VistaClienteRepositorio clientes;
+    private final AlquilerPrivadoRepositorio alquileres;
 
     public ProyeccionServicioImpl(VistaSucursalRepositorio sucursales, VistaBusRepositorio buses,
-                                  VistaChoferRepositorio choferes, VistaTarifaDepreciacionRepositorio tarifas) {
+                                  VistaChoferRepositorio choferes, VistaTarifaDepreciacionRepositorio tarifas,
+                                  VistaClienteRepositorio clientes, AlquilerPrivadoRepositorio alquileres) {
         this.sucursales = sucursales;
         this.buses = buses;
         this.choferes = choferes;
         this.tarifas = tarifas;
+        this.clientes = clientes;
+        this.alquileres = alquileres;
     }
 
     @Override
@@ -48,7 +56,7 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     @Transactional
     public void guardarBus(BusEvento bus, Long version) {
         int filas = buses.guardar(bus.busId(), bus.sucursalId(), bus.placa(), bus.capacidadPasajeros(),
-                bus.estado(), versionDe(version));
+                bus.estado(), bus.fotoUrl(), versionDe(version));
         registrarSiIgnorado(filas, "bus", bus.busId(), version);
     }
 
@@ -77,6 +85,34 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     public void guardarTarifa(TarifaDepreciacionCambiada tarifa) {
         int filas = tarifas.guardar(tarifa.tarifaId(), tarifa.montoPorKm(), tarifa.vigenteDesde());
         registrarSiIgnorado(filas, "tarifa de depreciación", tarifa.tarifaId(), null);
+    }
+
+    @Override
+    @Transactional
+    public void guardarCliente(UUID usuarioId, String nit, String nombre, String correo) {
+        // Sin NIT el cliente no se puede localizar desde la ventanilla, pero su cuenta igual se copia
+        String suyo = nit == null || nit.isBlank() ? ClienteAlquiler.CONSUMIDOR_FINAL : nit.strip();
+        clientes.guardar(usuarioId, suyo, nombre, correo);
+        adoptarAlquileresDelNit(usuarioId, suyo);
+    }
+
+    /**
+     * Enlaza a la cuenta los alquileres que la ventanilla registró con su NIT antes de que existiera
+     * (o antes de que el perfil tuviera NIT). Así, al crear la cuenta o actualizar el perfil, esos
+     * alquileres aparecen en "Mis alquileres" sin que nadie los reclame a mano.
+     *
+     * <p>Con "CF" no se hace nada: es el NIT de todos los consumidores finales y enlazaría alquileres
+     * de cualquiera.</p>
+     */
+    private void adoptarAlquileresDelNit(UUID usuarioId, String nit) {
+        if (ClienteAlquiler.CONSUMIDOR_FINAL.equalsIgnoreCase(nit)) {
+            return;
+        }
+        int enlazados = alquileres.enlazarPorNit(usuarioId, nit);
+        if (enlazados > 0) {
+            log.info("Cliente {}: {} alquileres con el NIT {} quedaron enlazados a su cuenta",
+                    usuarioId, enlazados, nit);
+        }
     }
 
     /** Fleet siempre manda aggregateVersion; si faltara, 0 (solo entra si la fila no existe o también es 0). */

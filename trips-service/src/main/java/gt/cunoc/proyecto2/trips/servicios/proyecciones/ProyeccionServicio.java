@@ -23,4 +23,10 @@ public interface ProyeccionServicio {
     void desactivarChofer(UUID choferId, Long version);
 
     void guardarTarifa(TarifaDepreciacionCambiada tarifa);
+
+    /**
+     * ClienteRegistrado / PerfilActualizado: copia del cliente con cuenta. Sirve para ligar a su
+     * cuenta un alquiler que la ventanilla pide con su NIT. Identity no manda version: gana el último.
+     */
+    void guardarCliente(UUID usuarioId, String nit, String nombre, String correo);
 }

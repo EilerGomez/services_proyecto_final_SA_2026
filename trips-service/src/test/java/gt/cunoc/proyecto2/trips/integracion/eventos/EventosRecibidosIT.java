@@ -29,10 +29,13 @@ class EventosRecibidosIT extends PruebaIntegracion {
                 """.formatted(id, nombre, activa);
     }
 
+    private static final String FOTO_BUS = "https://almacen.local/buses/p-111aaa.jpg";
+
     private static String bus(UUID id, UUID sucursalId, String placa, int capacidad, String estado) {
         return """
-                {"busId":"%s","sucursalId":"%s","placa":"%s","marca":"Volvo","capacidadPasajeros":%d,"estado":"%s"}
-                """.formatted(id, sucursalId, placa, capacidad, estado);
+                {"busId":"%s","sucursalId":"%s","placa":"%s","marca":"Volvo","capacidadPasajeros":%d,
+                 "estado":"%s","fotoUrl":"%s"}
+                """.formatted(id, sucursalId, placa, capacidad, estado, FOTO_BUS);
     }
 
     private static String chofer(UUID id, UUID sucursalId, String nombre, String salario, String estado) {
@@ -97,6 +100,8 @@ class EventosRecibidosIT extends PruebaIntegracion {
         await().atMost(ESPERA).untilAsserted(() -> assertThat(filas("vista_buses", id)).isEqualTo(1));
         assertThat(fila("vista_buses", id).get("placa")).isEqualTo("P-111AAA");
         assertThat(fila("vista_buses", id).get("capacidad_pasajeros")).isEqualTo(40);
+        // La foto llega en el evento: con ella el pasajero reconoce el bus al comprar el boleto
+        assertThat(fila("vista_buses", id).get("foto_url")).isEqualTo(FOTO_BUS);
 
         publicarEvento(FLEET_EVENTOS, "BusActualizado", id, 1, bus(id, xela, "P-111AAA", 45, "EN_TALLER"));
         await().atMost(ESPERA).untilAsserted(() -> assertThat(fila("vista_buses", id).get("estado"))
@@ -181,6 +186,90 @@ class EventosRecibidosIT extends PruebaIntegracion {
         UUID repetido = publicarEvento("identity.eventos", "TarifaDepreciacionCambiada", tarifa, 1, payload);
         await().atMost(ESPERA).until(() -> procesado(repetido));
         assertThat(contar("vista_tarifas_depreciacion")).isEqualTo(1);
+    }
+
+    // ----- Clientes (Identity) -----
+
+    @Test
+    void clienteRegistradoYPerfilActualizadoMantienenLaCopia() {
+        UUID usuarioId = UUID.randomUUID();
+
+        publicarEvento("identity.eventos", "ClienteRegistrado", usuarioId, 0, """
+                {"usuarioId":"%s","nit":"1234567-K","nombre":"Ana López","correo":"ana@correo.com"}
+                """.formatted(usuarioId));
+
+        await().atMost(ESPERA).untilAsserted(() ->
+                assertThat(contar("vista_clientes")).isEqualTo(1));
+        Map<String, Object> cliente = jdbc.queryForMap("SELECT * FROM vista_clientes WHERE usuario_id = ?",
+                usuarioId);
+        assertThat(cliente.get("nit")).isEqualTo("1234567-K");
+        assertThat(cliente.get("nombre")).isEqualTo("Ana López");
+
+        // Cambia su perfil: el nombre viene partido y el NIT puede cambiar
+        UUID eventId = publicarEvento("identity.eventos", "PerfilActualizado", usuarioId, 1, """
+                {"usuarioId":"%s","nit":"7654321-0","nombres":"Ana María","apellidos":"López Coyoy",
+                 "correo":"otro@correo.com"}
+                """.formatted(usuarioId));
+
+        await().atMost(ESPERA).until(() -> procesado(eventId));
+        Map<String, Object> actualizado = jdbc.queryForMap("SELECT * FROM vista_clientes WHERE usuario_id = ?",
+                usuarioId);
+        assertThat(actualizado.get("nit")).isEqualTo("7654321-0");
+        assertThat(actualizado.get("nombre")).isEqualTo("Ana María López Coyoy");
+        assertThat(actualizado.get("correo")).isEqualTo("otro@correo.com");
+        assertThat(contar("vista_clientes")).isEqualTo(1);
+    }
+
+    @Test
+    void alCrearSuCuentaAdoptaLosAlquileresQueLaVentanillaPidioConSuNit() {
+        UUID sucursal = insertarSucursal("Quetzaltenango", true);
+        UUID suyo = insertarAlquilerDeVentanilla(sucursal, "1234567-K");
+        UUID deOtro = insertarAlquilerDeVentanilla(sucursal, "7654321-0");
+        UUID consumidorFinal = insertarAlquilerDeVentanilla(sucursal, "CF");
+        UUID usuarioId = UUID.randomUUID();
+
+        publicarEvento("identity.eventos", "ClienteRegistrado", usuarioId, 0, """
+                {"usuarioId":"%s","nit":"1234567-k","nombre":"Ana López","correo":"ana@correo.com"}
+                """.formatted(usuarioId));
+
+        // El suyo queda enlazado (el NIT viene del evento, sin importar mayúsculas)
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(clienteDelAlquiler(suyo)).isEqualTo(usuarioId));
+        // Los de otro NIT y los de consumidor final no se tocan
+        assertThat(clienteDelAlquiler(deOtro)).isNull();
+        assertThat(clienteDelAlquiler(consumidorFinal)).isNull();
+    }
+
+    @Test
+    void unClienteSinNitNoAdoptaLosAlquileresDeConsumidorFinal() {
+        UUID sucursal = insertarSucursal("Quetzaltenango", true);
+        UUID consumidorFinal = insertarAlquilerDeVentanilla(sucursal, "CF");
+        UUID usuarioId = UUID.randomUUID();
+
+        UUID eventId = publicarEvento("identity.eventos", "ClienteRegistrado", usuarioId, 0, """
+                {"usuarioId":"%s","nit":null,"nombre":"Ana López","correo":"ana@correo.com"}
+                """.formatted(usuarioId));
+
+        await().atMost(ESPERA).until(() -> procesado(eventId));
+        assertThat(clienteDelAlquiler(consumidorFinal)).isNull();
+    }
+
+    /** Alquiler de mostrador: con NIT y sin cuenta, que es lo que se puede adoptar después. */
+    private UUID insertarAlquilerDeVentanilla(UUID sucursalId, String nit) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO alquileres_privados (id, sucursal_id, canal, cliente_usuario_id, cliente_nit,
+                                                 cliente_nombre, origen, destino, fecha_salida, cantidad_pasajeros,
+                                                 km_estimados, precio_estimado, estado, fecha_solicitud,
+                                                 solicitado_por)
+                VALUES (?, ?, 'PRESENCIAL', NULL, ?, 'Maria Lopez', 'Xela', 'Antigua', ?, 30,
+                        180.50, 2707.50, 'SOLICITADO', DATE '2026-10-01', ?)""",
+                id, sucursalId, nit, SALIDA_ALQUILER, UUID.randomUUID());
+        return id;
+    }
+
+    private UUID clienteDelAlquiler(UUID alquilerId) {
+        return jdbc.queryForObject("SELECT cliente_usuario_id FROM alquileres_privados WHERE id = ?",
+                UUID.class, alquilerId);
     }
 
     // ----- Sales -----
