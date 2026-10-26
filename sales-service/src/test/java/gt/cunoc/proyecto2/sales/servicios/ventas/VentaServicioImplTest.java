@@ -27,6 +27,7 @@ import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.ReembolsoVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import gt.cunoc.proyecto2.sales.errores.ventas.ErrorVenta;
@@ -439,7 +440,9 @@ class VentaServicioImplTest {
                 viaje.getViajeId(), "Bus averiado");
 
         assertThat(confirmada.getEstado()).isEqualTo(EstadoVenta.CANCELADA);
-        assertThat(confirmada.getMotivoCancelacion()).isEqualTo("Bus averiado");
+        // El motivo lleva el viaje escrito: la fila de vista_viajes se borra justo después
+        assertThat(confirmada.getMotivoCancelacion()).isEqualTo(
+                "Viaje eliminado · Quetzaltenango → Guatemala · 05/11/2026 08:00 · Bus P-123ABC · Bus averiado");
         assertThat(confirmada.getFechaCancelacion()).isEqualTo(fechaEsperada);
         assertThat(suyos)
                 .extracting(BoletoEntidad::getEstado)
@@ -660,5 +663,230 @@ class VentaServicioImplTest {
         assertThat(venta.getClienteUsuarioId()).isEqualTo(clienteUsuarioId);
 
         verify(clientes).findFirstByNit("1234567-K");
+    }
+
+    // ===================== S14 · Reembolso =====================
+
+    private VentaEntidad mostradorCancelada() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 2);
+        venta.cancelarPorViajeEliminado(
+                "Viaje eliminado · Quetzaltenango → Guatemala", FECHA_PAGO);
+        return venta;
+    }
+
+    @Test
+    void reembolsarEnEfectivoDejaLaVentaReembolsadaYAvisaAlCliente() {
+        VentaEntidad venta = mostradorCancelada();
+        laVentaExiste(venta);
+        elViajeEstaEnLaVista(null);                // el viaje ya se borró de la vista
+        guardarDevuelveElMismo();
+        List<BoletoEntidad> suyos = boletosDe(venta, 1, 2);
+
+        VentaRespuesta respuesta = servicio.reembolsar(
+                venta.getId(), new ReembolsoVentaSolicitud(0), cajeroXela);
+
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
+        assertThat(venta.getFechaReembolso()).isEqualTo(
+                venta.fechaNoAnteriorAlPago(Fechas.hoy()));
+        assertThat(venta.getReembolsadoPor()).isEqualTo(cajeroXela.usuarioId());
+        assertThat(respuesta.estado()).isEqualTo(EstadoVenta.REEMBOLSADA);
+        assertThat(respuesta.codigo()).isEqualTo(venta.codigo());
+        assertThat(respuesta.viaje()).isNull();
+
+        verify(repositorio).saveAndFlush(venta);
+        verify(eventos).ventaReembolsada(venta, suyos, null);
+        verify(eventos, never()).reembolsoVenta(any(), any(), any());
+    }
+
+    @Test
+    void reembolsarUnaVentaConCarteraSoloSeLoVuelveAPedirALaBilletera() {
+        VentaEntidad venta = DatosPrueba.ventaEnLineaConfirmada(
+                viaje, UUID.randomUUID(), 1);
+        venta.cancelar("Viaje reprogramado", FECHA_PAGO.plusDays(1));
+        laVentaExiste(venta);
+        elViajeEstaEnLaVista(viaje);
+        boletosDe(venta, 3);
+
+        VentaRespuesta respuesta = servicio.reembolsar(
+                venta.getId(), new ReembolsoVentaSolicitud(0), adminXela);
+
+        // Sigue CANCELADA: el estado lo cambia Wallet cuando responda CarteraReembolsada
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CANCELADA);
+        assertThat(venta.getFechaReembolso()).isNull();
+        assertThat(respuesta.estado()).isEqualTo(EstadoVenta.CANCELADA);
+
+        verify(eventos).reembolsoVenta(
+                venta, MotivoSaga.VENTA_CANCELADA,
+                venta.fechaNoAnteriorAlPago(Fechas.hoy()));
+        verify(eventos, never()).ventaReembolsada(any(), any(), any());
+        verify(repositorio, never()).saveAndFlush(any(VentaEntidad.class));
+    }
+
+    @Test
+    void noSeReembolsaDosVeces() {
+        VentaEntidad venta = mostradorCancelada();
+        venta.reembolsarEnEfectivo(FECHA_PAGO, UUID.randomUUID());
+        laVentaExiste(venta);
+
+        VerificarError.lanza(() -> servicio.reembolsar(
+                        venta.getId(), new ReembolsoVentaSolicitud(0), cajeroXela),
+                ErrorVenta.VENTA_YA_REEMBOLSADA);
+
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void noSeReembolsaUnaVentaConfirmada() {
+        VentaEntidad venta = DatosPrueba.ventaMostrador(viaje, 1);
+        laVentaExiste(venta);
+
+        VerificarError.lanza(() -> servicio.reembolsar(
+                        venta.getId(), new ReembolsoVentaSolicitud(0), cajeroXela),
+                ErrorVenta.ESTADO_INVALIDO);
+
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CONFIRMADA);
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void unCajeroDeOtraSucursalNoReembolsa() {
+        VentaEntidad venta = mostradorCancelada();
+        laVentaExiste(venta);
+
+        assertThatThrownBy(() -> servicio.reembolsar(
+                venta.getId(), new ReembolsoVentaSolicitud(0),
+                DatosPrueba.cajero(GUATE))).isInstanceOf(RuntimeException.class);
+
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CANCELADA);
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void reembolsarConVersionViejaEsConflicto() {
+        VentaEntidad venta = DatosPrueba.conVersion(mostradorCancelada(), 3);
+        laVentaExiste(venta);
+
+        assertThatThrownBy(() -> servicio.reembolsar(
+                venta.getId(), new ReembolsoVentaSolicitud(1), cajeroXela))
+                .isInstanceOf(RuntimeException.class);
+
+        assertThat(venta.getEstado()).isEqualTo(EstadoVenta.CANCELADA);
+        verifyNoInteractions(eventos);
+    }
+
+    // ===================== S14 · Búsqueda por el código del boleto =====================
+
+    @Test
+    void buscarPorCodigoEncuentraLaVentaDelBoletoImpreso() {
+        VentaEntidad venta = mostradorCancelada();
+        elViajeEstaEnLaVista(viaje);
+        boletosDe(venta, 1, 2);
+        when(repositorio.buscarPorCodigo(venta.codigo()))
+                .thenReturn(List.of(venta));
+
+        List<VentaRespuesta> encontradas = servicio.buscarPorCodigo(
+                venta.codigo(), cajeroXela);
+
+        assertThat(encontradas).singleElement().satisfies(r -> {
+            assertThat(r.ventaId()).isEqualTo(venta.getId());
+            assertThat(r.codigo()).isEqualTo(venta.codigo());
+            assertThat(r.boletos()).hasSize(2);
+            assertThat(r.viaje()).isNotNull();
+        });
+    }
+
+    @Test
+    void buscarPorCodigoAceptaGuionesYElIdCompleto() {
+        VentaEntidad venta = mostradorCancelada();
+        elViajeEstaEnLaVista(viaje);
+        boletosDe(venta, 1);
+        when(repositorio.buscarPorCodigo(venta.codigo()))
+                .thenReturn(List.of(venta));
+
+        String conGuiones = venta.codigo().replaceAll("(.{4})(?=.)", "$1-");
+
+        assertThat(servicio.buscarPorCodigo(conGuiones, cajeroXela)).hasSize(1);
+        assertThat(servicio.buscarPorCodigo(
+                venta.getId().toString(), cajeroXela)).hasSize(1);
+    }
+
+    @Test
+    void buscarPorCodigoIncompletoEsSolicitudInvalida() {
+        VerificarError.lanza(
+                () -> servicio.buscarPorCodigo("A1B2-C3", cajeroXela),
+                ErrorVenta.CODIGO_INVALIDO);
+
+        verifyNoInteractions(repositorio);
+    }
+
+    @Test
+    void buscarPorCodigoDeOtraSucursalNoDevuelveNada() {
+        VentaEntidad venta = mostradorCancelada();
+        when(repositorio.buscarPorCodigo(venta.codigo()))
+                .thenReturn(List.of(venta));
+
+        VerificarError.lanza(() -> servicio.buscarPorCodigo(
+                        venta.codigo(), DatosPrueba.cajero(GUATE)),
+                ErrorVenta.VENTA_NO_EXISTE);
+    }
+
+    @Test
+    void buscarUnCodigoSinVentasEsNoEncontrado() {
+        when(repositorio.buscarPorCodigo("A1B2C3D4E5F6"))
+                .thenReturn(List.of());
+
+        VerificarError.lanza(
+                () -> servicio.buscarPorCodigo("A1B2-C3D4-E5F6", cajeroXela),
+                ErrorVenta.VENTA_NO_EXISTE);
+    }
+
+    // ===================== Motivo del viaje eliminado =====================
+
+    @Test
+    void sinElViajeEnLaVistaElMotivoEsSoloElDeTrips() {
+        VentaEntidad confirmada = DatosPrueba.ventaMostrador(viaje, 1);
+        elViajeEstaEnLaVista(null);
+        when(repositorio.findByViajeIdAndEstadoIn(
+                viaje.getViajeId(), AFECTADAS))
+                .thenReturn(List.of(confirmada));
+        guardarDevuelveElMismo();
+        boletosDe(confirmada, 1);
+
+        servicio.compensarViajeEliminado(viaje.getViajeId(), "Bus averiado");
+
+        assertThat(confirmada.getMotivoCancelacion())
+                .isEqualTo("Viaje eliminado · Bus averiado");
+    }
+
+    @Test
+    void sinMotivoDeTripsElMotivoDiceQueElViajeSeElimino() {
+        VentaEntidad confirmada = DatosPrueba.ventaMostrador(viaje, 1);
+        elViajeEstaEnLaVista(viaje);
+        when(repositorio.findByViajeIdAndEstadoIn(
+                viaje.getViajeId(), AFECTADAS))
+                .thenReturn(List.of(confirmada));
+        guardarDevuelveElMismo();
+        boletosDe(confirmada, 1);
+
+        servicio.compensarViajeEliminado(viaje.getViajeId(), "  ");
+
+        assertThat(confirmada.getMotivoCancelacion()).isEqualTo(
+                "Viaje eliminado · Quetzaltenango → Guatemala · 05/11/2026 08:00 · Bus P-123ABC");
+    }
+
+    @Test
+    void unMotivoLarguisimoSeRecortaALoQueCabeEnLaColumna() {
+        VentaEntidad confirmada = DatosPrueba.ventaMostrador(viaje, 1);
+        elViajeEstaEnLaVista(viaje);
+        when(repositorio.findByViajeIdAndEstadoIn(
+                viaje.getViajeId(), AFECTADAS))
+                .thenReturn(List.of(confirmada));
+        guardarDevuelveElMismo();
+        boletosDe(confirmada, 1);
+
+        servicio.compensarViajeEliminado(
+                viaje.getViajeId(), "x".repeat(600));
+
+        assertThat(confirmada.getMotivoCancelacion()).hasSize(500);
     }
 }

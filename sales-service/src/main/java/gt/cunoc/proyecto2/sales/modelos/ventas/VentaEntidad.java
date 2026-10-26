@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -28,6 +29,9 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class VentaEntidad {
+
+    /** Caracteres del id que forman el código del boleto impreso (48 bits). */
+    private static final int LARGO_CODIGO = 12;
 
     @Id
     private UUID id;
@@ -78,11 +82,20 @@ public class VentaEntidad {
     @Column(name = "motivo_rechazo")
     private String motivoRechazo;
 
-    @Column(name = "motivo_cancelacion")
+    /** 500 (V11): al eliminarse un viaje lleva el origen, el destino, la salida y la placa del bus. */
+    @Column(name = "motivo_cancelacion", length = 500)
     private String motivoCancelacion;
 
     @Column(name = "fecha_cancelacion")
     private LocalDate fechaCancelacion;
+
+    /** V11: cuándo volvió el dinero (la cartera lo devuelve sola; el efectivo lo entrega la sucursal). */
+    @Column(name = "fecha_reembolso")
+    private LocalDate fechaReembolso;
+
+    /** V11: cajero o administrador que entregó el efectivo. Null si lo devolvió la cartera. */
+    @Column(name = "reembolsado_por")
+    private UUID reembolsadoPor;
 
     /** Momento en que se registró (DEFAULT now() en la BD): ordena las ventas del mismo día de pago. */
     @Column(name = "fecha_creacion", insertable = false, updatable = false)
@@ -158,15 +171,67 @@ public class VentaEntidad {
     }
 
     /** CarteraReembolsada: CANCELADA o RECHAZADA → REEMBOLSADA (el dinero ya volvió a la cartera). */
-    public void marcarReembolsada() {
-        if (!puedeMarcarseReembolsada()) {
-            throw ErrorVenta.ESTADO_INVALIDO.excepcion(estado, "CANCELADA o RECHAZADA");
+    public void marcarReembolsada(LocalDate fecha) {
+        verificarPuedeReembolsarse();
+        this.fechaReembolso = fechaNoAnteriorAlPago(fecha);
+        this.estado = EstadoVenta.REEMBOLSADA;
+    }
+
+    /**
+     * S14. Devolución del efectivo en la sucursal: CANCELADA o RECHAZADA → REEMBOLSADA y queda
+     * registrado quién entregó el dinero. Solo para ventas que se pagaron en efectivo: lo que se pagó
+     * con cartera lo devuelve Wallet.
+     */
+    public void reembolsarEnEfectivo(LocalDate fecha, UUID porUsuarioId) {
+        if (pagadaConCartera()) {
+            throw ErrorVenta.REEMBOLSO_NO_EN_EFECTIVO.excepcion();
         }
+        verificarPuedeReembolsarse();
+        this.fechaReembolso = fechaNoAnteriorAlPago(fecha);
+        this.reembolsadoPor = porUsuarioId;
         this.estado = EstadoVenta.REEMBOLSADA;
     }
 
     public boolean puedeMarcarseReembolsada() {
         return estado == EstadoVenta.CANCELADA || estado == EstadoVenta.RECHAZADA;
+    }
+
+    public boolean estaReembolsada() {
+        return estado == EstadoVenta.REEMBOLSADA;
+    }
+
+    /**
+     * Código del boleto impreso: los primeros 12 caracteres del id, en mayúsculas. Es lo que lleva el
+     * código de barras del talón, para localizar la venta cuando el cliente llega con el boleto en mano.
+     */
+    public String codigo() {
+        return codigoDe(id);
+    }
+
+    public static String codigoDe(UUID id) {
+        return id == null ? null : id.toString().replace("-", "").substring(0, LARGO_CODIGO).toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Deja el código como se guarda: sin guiones ni espacios, en mayúsculas y recortado a 12.
+     * Así funciona igual si se escanea el código del talón, si se escribe con guiones o si se pega
+     * el id completo de la venta. Devuelve null si no quedan 12 caracteres hexadecimales.
+     */
+    public static String normalizarCodigo(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String limpio = valor.replaceAll("[^0-9A-Fa-f]", "").toUpperCase(Locale.ROOT);
+        return limpio.length() < LARGO_CODIGO ? null : limpio.substring(0, LARGO_CODIGO);
+    }
+
+    private void verificarPuedeReembolsarse() {
+        if (estaReembolsada()) {
+            throw ErrorVenta.VENTA_YA_REEMBOLSADA.excepcion();
+        }
+        if (!puedeMarcarseReembolsada()) {
+            throw ErrorVenta.ESTADO_INVALIDO.excepcion(estado, "CANCELADA o RECHAZADA");
+        }
     }
 
     public boolean estaPendienteDePago() {

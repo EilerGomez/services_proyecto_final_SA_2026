@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.sales.dtos.ventas.CancelarVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.FiltroVentas;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaEnLineaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.NuevaVentaMostradorSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.ventas.ReembolsoVentaSolicitud;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaPendienteRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.ventas.VentaRespuesta;
 import java.util.List;
@@ -44,9 +45,33 @@ public interface VentaServicio {
     VentaRespuesta cancelar(UUID id, CancelarVentaSolicitud solicitud, UsuarioActual usuario);
 
     /**
+     * S14 · Devolución del dinero de una venta cancelada, desde la sucursal que la atendió.
+     * <ul>
+     *   <li>404 VENTA_NO_EXISTE · 403 SUCURSAL_AJENA · 409 version.</li>
+     *   <li>422 VENTA_YA_REEMBOLSADA si el dinero ya se devolvió.</li>
+     *   <li>422 ESTADO_INVALIDO si la venta no está CANCELADA ni RECHAZADA.</li>
+     *   <li>Pagada con cartera (en línea): vuelve a pedir ReembolsoCarteraSolicitado y la venta sigue
+     *       CANCELADA hasta que Wallet responda (Wallet no devuelve dos veces la misma venta).</li>
+     *   <li>Pagada en efectivo (mostrador): queda REEMBOLSADA con la fecha de hoy y el cajero que
+     *       entregó el dinero, y publica VentaReembolsada para avisarle al cliente por correo.</li>
+     * </ul>
+     */
+    VentaRespuesta reembolsar(UUID id, ReembolsoVentaSolicitud solicitud, UsuarioActual usuario);
+
+    /**
+     * S14 · Venta cuyo boleto impreso lleva este código de barras (los primeros 12 caracteres del id).
+     * Acepta el código con guiones o el id completo. Devuelve una lista porque el código no es único,
+     * aunque casi siempre trae una sola venta. 400 CODIGO_INVALIDO si no llegan 12 caracteres;
+     * 404 VENTA_NO_EXISTE si no hay ninguna que este usuario pueda ver.
+     */
+    List<VentaRespuesta> buscarPorCodigo(String codigo, UsuarioActual usuario);
+
+    /**
      * ViajeEliminado (compensación): ventas PENDIENTE_PAGO → RECHAZADA (VIAJE_ELIMINADO); ventas CONFIRMADA →
      * CANCELADA con el motivo de Trips, VentaCancelada y, si se pagaron con cartera, el reembolso.
-     * Se llama antes de borrar el viaje de vista_viajes (para armar VentaCancelada con origen y destino).
+     * Se llama antes de borrar el viaje de vista_viajes: el motivo de cancelación se arma con el origen,
+     * el destino, la salida y la placa, porque después esos datos ya no existen en ninguna parte y son
+     * lo único que identifica el viaje en la pantalla de reembolsos.
      */
     void compensarViajeEliminado(UUID viajeId, String motivo);
 

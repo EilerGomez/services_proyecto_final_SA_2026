@@ -274,7 +274,7 @@ class PagoCarteraServicioImplTest {
     @Test
     void carteraDebitadaDeVentaReembolsadaNoHaceNada() {
         VentaEntidad venta = ventaCancelada();
-        venta.marcarReembolsada();
+        venta.marcarReembolsada(FECHA_PAGO);
         bloqueable(venta);
 
         servicio.carteraDebitada(ReferenciaCartera.VENTA, venta.getId());

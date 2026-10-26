@@ -114,6 +114,44 @@ class CorreosVentasIT extends PruebaIntegracion {
     }
 
     @Test
+    void ventaReembolsadaAvisaQueLaSucursalYaDevolvioElDinero() {
+        String payload = """
+                {"ventaId":"%s","codigo":"A1B2C3D4E5F6","viajeId":"%s","sucursalId":"%s","clienteNit":"1234567-8",
+                 "clienteNombre":"Ana López","clienteCorreo":"%s","asientos":[5,6],"cantidadBoletos":2,
+                 "montoReembolsado":150.00,"metodoPago":"EFECTIVO",
+                 "motivo":"Viaje eliminado · Quetzaltenango → Guatemala · Bus P-123ABC · Bus averiado",
+                 "fechaReembolso":"2026-11-04","reembolsadoPor":"%s","origenNombre":null,"destinoNombre":null,
+                 "fechaSalida":null}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), ANA, UUID.randomUUID());
+
+        UUID eventId = publicarEvento(SALES_EVENTOS, "VentaReembolsada", "2026-11-04", payload);
+
+        await().atMost(ESPERA).until(() -> procesado(eventId));
+        await().atMost(ESPERA).untilAsserted(() ->
+                assertThat(asuntosPara(ANA)).containsExactly("Devolución de tu compra cancelada"));
+        assertThat(textoPara(ANA)).contains("Asientos: 5, 6", "Monto devuelto: Q 150.00, en efectivo",
+                "Fecha de la devolución: 04/11/2026", "Bus averiado", "el código A1B2C3D4E5F6");
+        assertThat(notificaciones(eventId).get(0)).containsEntry("plantilla", "VENTA_REEMBOLSADA");
+    }
+
+    @Test
+    void ventaReembolsadaSinCorreoNoEscribeANadie() {
+        String payload = """
+                {"ventaId":"%s","codigo":"A1B2C3D4E5F6","viajeId":"%s","sucursalId":"%s","clienteNit":"CF",
+                 "clienteNombre":"Consumidor final","clienteCorreo":null,"asientos":[9],"cantidadBoletos":1,
+                 "montoReembolsado":75.00,"metodoPago":"EFECTIVO","motivo":"Viaje eliminado",
+                 "fechaReembolso":"2026-11-04","reembolsadoPor":"%s"}
+                """.formatted(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+
+        UUID eventId = publicarEvento(SALES_EVENTOS, "VentaReembolsada", "2026-11-04", payload);
+
+        await().atMost(ESPERA).until(() -> procesado(eventId));
+
+        assertThat(totalNotificaciones()).isZero();
+        assertThat(totalCorreos()).isZero();
+    }
+
+    @Test
     void alquilerPagadoLeConfirmaAlClienteYNoLeEscribeAlAdmin() {
         String payload = """
                 {"ordenId":"%s","alquilerId":"%s","sucursalId":"%s","clienteUsuarioId":null,"clienteNit":"CF",

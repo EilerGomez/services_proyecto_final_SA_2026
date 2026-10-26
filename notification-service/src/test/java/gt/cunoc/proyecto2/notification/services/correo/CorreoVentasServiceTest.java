@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerPagado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoVendido;
 import gt.cunoc.proyecto2.notification.evento.recibido.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.notification.evento.recibido.VentaCancelada;
+import gt.cunoc.proyecto2.notification.evento.recibido.VentaReembolsada;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -142,6 +143,45 @@ class CorreoVentasServiceTest {
                 () -> assertTrue(cuerpo.getValue().contains("Motivo: -")),
                 () -> assertTrue(cuerpo.getValue().contains("Acércate a la sucursal")),
                 () -> assertTrue(datos.getValue().contains("\"reembolsoACartera\":false")));
+    }
+
+    @Test
+    void ventaReembolsadaAvisaQueYaSeDevolvioElEfectivo() {
+        // Arrange: el viaje ya no existe; el motivo es lo único que dice cuál era
+        VentaReembolsada venta = new VentaReembolsada(UUID.randomUUID(), "A1B2C3D4E5F6", "Ana", "ana@correo.com",
+                List.of(5, 6), new BigDecimal("150.00"), "EFECTIVO",
+                "Viaje eliminado · Quetzaltenango → Guatemala · Bus P-123ABC · Bus averiado", FECHA,
+                null, null, null);
+
+        // Act
+        servicio.ventaReembolsada(EVENTO_ID, venta);
+
+        // Assert
+        capturar("ana@correo.com", CorreoVentasService.VENTA_REEMBOLSADA);
+        assertAll(
+                () -> assertEquals("Devolución de tu compra cancelada", asunto.getValue()),
+                () -> assertFalse(cuerpo.getValue().contains("Viaje:")),
+                () -> assertTrue(cuerpo.getValue().contains("Asientos: 5, 6")),
+                () -> assertTrue(cuerpo.getValue().contains("Monto devuelto: Q 150.00, en efectivo")),
+                () -> assertTrue(cuerpo.getValue().contains("Fecha de la devolución: 01/11/2026")),
+                () -> assertTrue(cuerpo.getValue().contains("Bus averiado")),
+                () -> assertTrue(cuerpo.getValue().contains("el código A1B2C3D4E5F6")),
+                () -> assertTrue(datos.getValue().contains("\"codigo\":\"A1B2C3D4E5F6\"")));
+    }
+
+    @Test
+    void ventaReembolsadaConElViajeTodaviaEnLaVistaLoMuestra() {
+        // Arrange
+        VentaReembolsada venta = new VentaReembolsada(UUID.randomUUID(), "A1B2C3D4E5F6", "Ana", "ana@correo.com",
+                List.of(1), new BigDecimal("75.00"), "EFECTIVO", "Cliente desistió", FECHA,
+                "Quetzaltenango", "Guatemala", SALIDA);
+
+        // Act
+        servicio.ventaReembolsada(EVENTO_ID, venta);
+
+        // Assert
+        capturar("ana@correo.com", CorreoVentasService.VENTA_REEMBOLSADA);
+        assertTrue(cuerpo.getValue().contains("Viaje: Quetzaltenango → Guatemala"));
     }
 
     @Test
