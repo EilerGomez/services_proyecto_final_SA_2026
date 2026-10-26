@@ -100,6 +100,13 @@ public class AlquilerPrivadoEntidad {
     @Column(name = "solicitado_por", nullable = false, updatable = false)
     private UUID solicitadoPor;
 
+    /**
+     * La maneja la BD (trigger de V11): acá solo se lee, para ordenar los listados por lo último
+     * que se pidió o se tocó. insertable/updatable = false para no pisar al trigger.
+     */
+    @Column(name = "fecha_actualizacion", insertable = false, updatable = false)
+    private OffsetDateTime fechaActualizacion;
+
     /** Null al crear (así Spring Data sabe que es nuevo); Hibernate pone 0 y la sube en cada UPDATE. */
     @Version
     private Integer version;

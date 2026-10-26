@@ -47,7 +47,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ViajeServicioImpl implements ViajeServicio {
 
-    private static final Sort POR_SALIDA = Sort.by("fechaSalidaProgramada");
+    /**
+     * Listados de gestión: primero lo último programado o modificado. La fecha de salida es el
+     * desempate, para que dos viajes tocados en el mismo instante siempre salgan en el mismo orden.
+     */
+    private static final Sort RECIENTES = Sort.by(Sort.Direction.DESC, "fechaActualizacion", "fechaSalidaProgramada");
 
     private final ViajeRepositorio repositorio;
     private final RutaServicio rutas;
@@ -82,7 +86,7 @@ public class ViajeServicioImpl implements ViajeServicio {
     @Override
     @Transactional(readOnly = true)
     public List<ViajeRespuesta> buscar(FiltroViajes filtro) {
-        return respuestas(repositorio.findAll(EspecificacionesViaje.filtrar(filtro), POR_SALIDA));
+        return respuestas(repositorio.findAll(EspecificacionesViaje.filtrar(filtro), RECIENTES));
     }
 
     @Override

@@ -74,6 +74,13 @@ public class ViajeEntidad {
     @Column(nullable = false, length = 12)
     private EstadoViaje estado;
 
+    /**
+     * La maneja la BD (trigger de V7): acá solo se lee, para poder ordenar los listados por lo
+     * último que se programó o se tocó. insertable/updatable = false para no pisar al trigger.
+     */
+    @Column(name = "fecha_actualizacion", insertable = false, updatable = false)
+    private OffsetDateTime fechaActualizacion;
+
     @Column(name = "creado_por", nullable = false, updatable = false)
     private UUID creadoPor;
 

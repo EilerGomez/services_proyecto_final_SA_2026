@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,10 +20,15 @@ public record NombresViaje(
         Map<UUID, VistaBusEntidad> buses,
         Map<UUID, String> choferes) {
 
+    /** El alquiler del viaje, solo si es PRIVADO (un REGULAR va por ruta, no por alquiler). */
+    private AlquilerPrivadoEntidad alquilerDe(ViajeEntidad viaje) {
+        return viaje.esPrivado() ? alquileres.get(viaje.getAlquilerId()) : null;
+    }
+
     /*nombre de la sucursal de origen de la ruta. PRIVADO: el origen que escribió el cliente. */
     public String origenNombre(ViajeEntidad viaje) {
         if (viaje.esPrivado()) {
-            AlquilerPrivadoEntidad alquiler = alquileres.get(viaje.getAlquilerId());
+            AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
             return alquiler == null ? null : alquiler.getOrigen();
         }
         RutaEntidad ruta = rutas.get(viaje.getRutaId());
@@ -32,11 +38,36 @@ public record NombresViaje(
     /*nombre de la sucursal de destino de la ruta. PRIVADO: el destino que escribió el cliente. */
     public String destinoNombre(ViajeEntidad viaje) {
         if (viaje.esPrivado()) {
-            AlquilerPrivadoEntidad alquiler = alquileres.get(viaje.getAlquilerId());
+            AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
             return alquiler == null ? null : alquiler.getDestino();
         }
         RutaEntidad ruta = rutas.get(viaje.getRutaId());
         return ruta == null ? null : sucursales.get(ruta.getSucursalDestinoId());
+    }
+
+    /*
+     * Puntos que el cliente marcó en el mapa al pedir el alquiler: con ellos el detalle del viaje
+     * PRIVADO dibuja su recorrido, igual que el REGULAR lo dibuja con las sucursales de su ruta.
+     * Null en un REGULAR y también en un alquiler viejo que se pidió sin marcar el mapa.
+     */
+    public BigDecimal origenLatitud(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getOrigenLatitud();
+    }
+
+    public BigDecimal origenLongitud(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getOrigenLongitud();
+    }
+
+    public BigDecimal destinoLatitud(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getDestinoLatitud();
+    }
+
+    public BigDecimal destinoLongitud(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getDestinoLongitud();
     }
 
     public String placa(ViajeEntidad viaje) {
