@@ -11,7 +11,8 @@ import org.springframework.stereotype.Repository;
 public interface OrdenAlquilerRepositorio extends JpaRepository<OrdenAlquilerEntidad, UUID>,
         JpaSpecificationExecutor<OrdenAlquilerEntidad> {
 
-    List<OrdenAlquilerEntidad> findByClienteNitOrderByFechaCreacionDesc(String nit);
+    /** Historial por NIT: igual que en las ventas, sin distinguir mayúsculas. */
+    List<OrdenAlquilerEntidad> findByClienteNitIgnoreCaseOrderByFechaCreacionDesc(String nit);
 
     List<OrdenAlquilerEntidad> findByClienteUsuarioIdOrderByFechaCreacionDesc(UUID clienteUsuarioId);
 

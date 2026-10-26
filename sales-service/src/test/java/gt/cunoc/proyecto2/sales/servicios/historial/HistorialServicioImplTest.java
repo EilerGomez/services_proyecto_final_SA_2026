@@ -63,11 +63,11 @@ class HistorialServicioImplTest {
     }
 
     private void comprasDelNit(String nit, VentaEntidad... suyas) {
-        when(ventas.findByClienteNit(eq(nit), any(Sort.class))).thenReturn(Arrays.asList(suyas));
+        when(ventas.findByClienteNitIgnoreCase(eq(nit), any(Sort.class))).thenReturn(Arrays.asList(suyas));
     }
 
     private void alquileresDelNit(String nit, OrdenAlquilerEntidad... suyos) {
-        when(ordenes.findByClienteNitOrderByFechaCreacionDesc(nit)).thenReturn(Arrays.asList(suyos));
+        when(ordenes.findByClienteNitIgnoreCaseOrderByFechaCreacionDesc(nit)).thenReturn(Arrays.asList(suyos));
     }
 
     // ----- S7: delCliente -----
@@ -90,7 +90,7 @@ class HistorialServicioImplTest {
 
     @Test
     void historialPorNitLoNormalizaYUsaElNombreDelPerfil() {
-        when(clientes.findFirstByNit("1234567-K")).thenReturn(Optional.of(
+        when(clientes.findFirstByNitIgnoreCase("1234567-K")).thenReturn(Optional.of(
                 DatosPrueba.vistaCliente(UUID.randomUUID(), "1234567-K", "Ana López", "ana@correo.com")));
         comprasDelNit("1234567-K");
         alquileresDelNit("1234567-K");
@@ -101,14 +101,14 @@ class HistorialServicioImplTest {
         assertThat(historial.nombre()).isEqualTo("Ana López");
         assertThat(historial.ventas()).isEmpty();
         assertThat(historial.alquileres()).isEmpty();
-        verify(ventas).findByClienteNit("1234567-K", RECIENTES_PRIMERO);
+        verify(ventas).findByClienteNitIgnoreCase("1234567-K", RECIENTES_PRIMERO);
         // Sin ventas no se consultan boletos
         verifyNoInteractions(boletos);
     }
 
     @Test
     void historialPorNitSinPerfilTomaElNombreDeLaCompraMasReciente() {
-        when(clientes.findFirstByNit("555555-5")).thenReturn(Optional.empty());
+        when(clientes.findFirstByNitIgnoreCase("555555-5")).thenReturn(Optional.empty());
         VentaEntidad reciente = ventaMostradorDe("555555-5", "Pedro Ruiz");
         VentaEntidad anterior = ventaMostradorDe("555555-5", "P. Ruiz");
         comprasDelNit("555555-5", reciente, anterior);
@@ -128,7 +128,7 @@ class HistorialServicioImplTest {
 
     @Test
     void historialPorNitSinPerfilNiComprasTomaElNombreDelAlquiler() {
-        when(clientes.findFirstByNit("1234567-8")).thenReturn(Optional.empty());
+        when(clientes.findFirstByNitIgnoreCase("1234567-8")).thenReturn(Optional.empty());
         comprasDelNit("1234567-8");
         alquileresDelNit("1234567-8", DatosPrueba.orden(null), DatosPrueba.orden(UUID.randomUUID()));
 
@@ -142,7 +142,7 @@ class HistorialServicioImplTest {
 
     @Test
     void historialPorNitSinNadaNoTieneNombre() {
-        when(clientes.findFirstByNit("999999-9")).thenReturn(Optional.empty());
+        when(clientes.findFirstByNitIgnoreCase("999999-9")).thenReturn(Optional.empty());
         comprasDelNit("999999-9");
         alquileresDelNit("999999-9");
 

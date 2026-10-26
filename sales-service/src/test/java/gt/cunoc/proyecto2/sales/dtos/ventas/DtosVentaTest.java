@@ -143,13 +143,13 @@ class DtosVentaTest {
     }
 
     @Test
-    void clienteRegistradoCompletaNombreYCorreoQueFaltan() {
-        UUID usuarioId = UUID.randomUUID();
-        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(usuarioId);
+    void clienteRegistradoCompletaNombreYCorreoQueFaltanYLigaLaCuenta() {
+        UUID cuenta = UUID.randomUUID();
+        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(cuenta);
 
         ClienteVenta cliente = mostrador("1234567-8", null, null).cliente(Optional.of(registrado));
 
-        assertThat(cliente.usuarioId()).isEqualTo(usuarioId);
+        assertThat(cliente.usuarioId()).isEqualTo(cuenta);
         assertThat(cliente.nit()).isEqualTo("1234567-8");
         assertThat(cliente.nombre()).isEqualTo("Ana López");
         assertThat(cliente.correo()).isEqualTo("ana@correo.com");
@@ -157,13 +157,23 @@ class DtosVentaTest {
 
     @Test
     void loQueEscribioElCajeroTienePrioridadSobreElRegistro() {
-        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(UUID.randomUUID());
+        UUID cuenta = UUID.randomUUID();
+        VistaClienteEntidad registrado = DatosPrueba.vistaCliente(cuenta);
 
         ClienteVenta cliente = mostrador("1234567-8", "Ana María López", "otra@correo.com")
                 .cliente(Optional.of(registrado));
 
         assertThat(cliente.nombre()).isEqualTo("Ana María López");
         assertThat(cliente.correo()).isEqualTo("otra@correo.com");
+        // Viaja otra persona, pero la factura y la cuenta siguen siendo del dueño del NIT
+        assertThat(cliente.usuarioId()).isEqualTo(cuenta);
+    }
+
+    @Test
+    void sinClienteRegistradoLaVentaNoQuedaLigadaANingunaCuenta() {
+        ClienteVenta cliente = mostrador("9999999-9", "Quien sea", null).cliente(Optional.empty());
+
+        assertThat(cliente.usuarioId()).isNull();
     }
 
     @Test

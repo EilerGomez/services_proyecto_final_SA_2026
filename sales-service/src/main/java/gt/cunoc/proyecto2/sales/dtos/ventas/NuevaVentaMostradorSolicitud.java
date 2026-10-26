@@ -32,14 +32,13 @@ public record NuevaVentaMostradorSolicitud(
     }
 
     /**
-     * Cliente de la venta: lo que escribió el cajero manda; lo que falte se completa con el perfil
-     * registrado. Si el NIT pertenece a una cuenta, la venta queda ligada a ella para que el
-     * cliente pueda ver y reimprimir su boleto en "Mis boletos".
+     * El NIT identifica la cuenta que se liga a la venta. Los datos que el cajero escribe tienen
+     * prioridad; los campos que deje vacíos se completan desde el perfil registrado.
      */
     public ClienteVenta cliente(Optional<VistaClienteEntidad> registrado) {
         String nombre = clienteNombre != null ? clienteNombre : registrado.map(VistaClienteEntidad::getNombre).orElse(null);
         String correo = clienteCorreo != null ? clienteCorreo : registrado.map(VistaClienteEntidad::getCorreo).orElse(null);
-        UUID usuarioId = registrado.map(VistaClienteEntidad::getUsuarioId).orElse(null);
-        return new ClienteVenta(usuarioId, clienteNit, nombre, correo);
+        return new ClienteVenta(registrado.map(VistaClienteEntidad::getUsuarioId).orElse(null), clienteNit, nombre,
+                correo);
     }
 }

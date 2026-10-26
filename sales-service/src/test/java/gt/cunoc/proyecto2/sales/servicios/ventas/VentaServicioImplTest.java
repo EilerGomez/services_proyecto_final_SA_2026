@@ -628,15 +628,15 @@ class VentaServicioImplTest {
     }
 
     @Test
-    void mostradorConNitDeClienteRegistradoLigaLaCuentaYCompletaDatos() {
+    void mostradorConNitDeClienteRegistradoLoLigaASuCuenta() {
+        UUID cuenta = UUID.randomUUID();
         viajeALaVenta();
         tripsDiceVendible(true, null);
         guardarDevuelveElMismo();
 
-        UUID clienteUsuarioId = UUID.randomUUID();
-        when(clientes.findFirstByNit("1234567-K")).thenReturn(Optional.of(
+        when(clientes.findFirstByNitIgnoreCase("1234567-K")).thenReturn(Optional.of(
                 DatosPrueba.vistaCliente(
-                        clienteUsuarioId,
+                        cuenta,
                         "1234567-K",
                         "Ana Lopez",
                         "ana@correo.com")));
@@ -660,9 +660,11 @@ class VentaServicioImplTest {
         assertThat(respuesta.clienteNit()).isEqualTo("1234567-K");
         assertThat(respuesta.clienteNombre()).isEqualTo("Ana Lopez");
         assertThat(venta.getClienteCorreo()).isEqualTo("ana@correo.com");
-        assertThat(venta.getClienteUsuarioId()).isEqualTo(clienteUsuarioId);
+        // Ligada a la cuenta: el boleto le sale al pasajero en "Mis boletos" aunque pagó en efectivo
+        assertThat(venta.getClienteUsuarioId()).isEqualTo(cuenta);
+        assertThat(venta.getCanal()).isEqualTo(CanalVenta.PRESENCIAL);
 
-        verify(clientes).findFirstByNit("1234567-K");
+        verify(clientes).findFirstByNitIgnoreCase("1234567-K");
     }
 
     // ===================== S14 · Reembolso =====================
