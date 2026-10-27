@@ -162,4 +162,25 @@ public class ReporteSucursalControlador {
                 fabrica.obtener(TipoReporte.TALLER_POR_BUS).generar(params),
                 "taller-por-bus", desde, hasta);
     }
+
+    @GetMapping("/taller-por-bus-categoria")
+    @Operation(summary = "RS6 agrupado · Por cada bus, el subtotal de cada categoría de gasto (json | pdf)")
+    public ResponseEntity<?> tallerPorBusCategoria(@PathVariable UUID id,
+                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+                                          @RequestParam(required = false) UUID busId,
+                                          @RequestParam(required = false) UUID categoriaId,
+                                          @Parameter(description = "json o pdf")
+                                          @RequestParam(defaultValue = "pdf") String format,
+                                          @Parameter(hidden = true) UsuarioActual usuario) throws Exception {
+        verificarAcceso(id, usuario);
+        ParametrosReporte params = ParametrosReporte.builder()
+                .sucursalId(id).desde(desde).hasta(hasta).busId(busId).categoriaId(categoriaId).build();
+        if ("json".equalsIgnoreCase(format)) {
+            return ResponseEntity.ok(fabrica.obtener(TipoReporte.TALLER_BUS_CATEGORIA).datos(params));
+        }
+        return ReporteSistemaControlador.pdf(
+                fabrica.obtener(TipoReporte.TALLER_BUS_CATEGORIA).generar(params),
+                "taller-por-bus-categoria", desde, hasta);
+    }
 }

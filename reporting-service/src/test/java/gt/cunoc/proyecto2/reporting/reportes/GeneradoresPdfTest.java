@@ -23,6 +23,7 @@ import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorGanancias;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorMapaRutas;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorRutasDemandadas;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerBus;
+import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerBusCategoria;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerCategoria;
 import java.util.List;
 import java.util.Optional;
@@ -183,6 +184,12 @@ class GeneradoresPdfTest {
     @Test
     void tallerBus() throws Exception {
         esPdf(new GeneradorTallerBus(gastos, buses, compilador).generar(params()));
+    }
+
+    @Test
+    void tallerBusCategoria() throws Exception {
+        esPdf(new GeneradorTallerBusCategoria(
+                new GeneradorTallerBus(gastos, buses, compilador), compilador).generar(params()));
     }
 
     @Test

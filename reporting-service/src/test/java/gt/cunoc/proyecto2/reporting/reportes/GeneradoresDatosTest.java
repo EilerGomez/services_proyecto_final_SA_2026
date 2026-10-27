@@ -30,6 +30,7 @@ import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorGastosGlobales
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorMapaRutas;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorRutasDemandadas;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerBus;
+import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerBusCategoria;
 import gt.cunoc.proyecto2.reporting.reportes.generadores.GeneradorTallerCategoria;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -457,5 +458,41 @@ class GeneradoresDatosTest {
         assertThat(gastosJson.get(1).get("tipo")).isEqualTo("Mano de obra");
         assertThat(busesJson.get(0).get("total")).isEqualTo(new BigDecimal("7200.00"));
         assertThat(datos.get("total")).isEqualTo(new BigDecimal("7200.00"));
+    }
+
+    @Test
+    void tallerBusCategoriaSumaLosGastosDeCadaCategoria() {
+        UUID busId = UUID.randomUUID();
+        UUID llantas = UUID.randomUUID();
+        UUID motor = UUID.randomUUID();
+        when(gastos.tallerDetalleBus(any(), any(), any(), any(), any())).thenReturn(List.<Object[]>of(
+                new Object[]{busId, llantas, "Llantas", LocalDate.of(2026, 10, 20), "Cambio",
+                        "REPUESTO", new BigDecimal("6800.00")},
+                new Object[]{busId, llantas, "Llantas", LocalDate.of(2026, 10, 20), "Mano de obra",
+                        "MANO_OBRA", new BigDecimal("400.00")},
+                new Object[]{busId, motor, "Motor", LocalDate.of(2026, 10, 22), "Empaques",
+                        "REPUESTO", new BigDecimal("9000.00")}));
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("C123ABC");
+        when(buses.findAll()).thenReturn(List.of(bus));
+
+        Map<String, Object> datos = (Map<String, Object>) new GeneradorTallerBusCategoria(
+                new GeneradorTallerBus(gastos, buses, compilador), compilador).datos(
+                ParametrosReporte.builder().sucursalId(UUID.randomUUID()).build());
+
+        List<Map<String, Object>> busesJson = (List<Map<String, Object>>) datos.get("buses");
+        assertThat(busesJson).hasSize(1);
+        List<Map<String, Object>> categorias = (List<Map<String, Object>>) busesJson.get(0).get("categorias");
+        assertThat(categorias).hasSize(2);
+        // Primero en lo que más se gastó: Motor (9000) antes que Llantas (6800 + 400)
+        assertThat(categorias.get(0).get("categoria")).isEqualTo("Motor");
+        assertThat(categorias.get(0).get("gastos")).isEqualTo(1);
+        assertThat(categorias.get(0).get("monto")).isEqualTo(new BigDecimal("9000.00"));
+        assertThat(categorias.get(1).get("categoria")).isEqualTo("Llantas");
+        assertThat(categorias.get(1).get("gastos")).isEqualTo(2);
+        assertThat(categorias.get(1).get("monto")).isEqualTo(new BigDecimal("7200.00"));
+        assertThat(busesJson.get(0).get("total")).isEqualTo(new BigDecimal("16200.00"));
+        assertThat(datos.get("total")).isEqualTo(new BigDecimal("16200.00"));
     }
 }
