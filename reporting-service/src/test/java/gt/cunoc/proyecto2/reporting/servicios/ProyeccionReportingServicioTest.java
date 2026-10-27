@@ -304,7 +304,7 @@ class ProyeccionReportingServicioTest {
         UUID busId = UUID.randomUUID();
         UUID busNuevo = UUID.randomUUID();
         when(viajes.findById(viajeId)).thenReturn(Optional.empty());
-        var programado = new ViajeEvento(viajeId, null, null, UUID.randomUUID(), busId,
+        var programado = new ViajeEvento(viajeId, null, null, null, UUID.randomUUID(), busId,
                 UUID.randomUUID(), null);
         proyeccion.aplicarViaje(programado, 0L);
 
@@ -313,8 +313,8 @@ class ProyeccionReportingServicioTest {
         guardado.setBusId(busId);
         guardado.setEstado("PROGRAMADO");
         when(viajes.findById(viajeId)).thenReturn(Optional.of(guardado));
-        var actualizado = new ViajeEvento(viajeId, "PRIVADO", null, UUID.randomUUID(), busNuevo,
-                UUID.randomUUID(), null);
+        var actualizado = new ViajeEvento(viajeId, "PRIVADO", null, UUID.randomUUID(), UUID.randomUUID(),
+                busNuevo, UUID.randomUUID(), null);
         proyeccion.aplicarViajeActualizado(actualizado, 1L);
         proyeccion.aplicarViaje(actualizado, 0L); // versión vieja
         assertThat(guardado.getVersion()).isEqualTo(1);

@@ -126,7 +126,7 @@ class ProyeccionRamasTest {
         enRuta.setEstado("EN_RUTA");
         enRuta.setVersion(5);
         when(viajes.findById(viajeId)).thenReturn(Optional.of(enRuta));
-        var evento = new ViajeEvento(viajeId, null, null, UUID.randomUUID(), UUID.randomUUID(),
+        var evento = new ViajeEvento(viajeId, null, null, null, UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), null);
 
         proyeccion.aplicarViaje(evento, 9L);
@@ -147,7 +147,7 @@ class ProyeccionRamasTest {
         when(viajes.choferActualDe(any(), any())).thenReturn(List.of());
 
         proyeccion.aplicarViajeActualizado(
-                new ViajeEvento(viajeId, "REGULAR", null, null, busId, null, null), 1L);
+                new ViajeEvento(viajeId, "REGULAR", null, null, null, busId, null, null), 1L);
 
         verify(viajes).save(any(ViajeEntidad.class));
     }

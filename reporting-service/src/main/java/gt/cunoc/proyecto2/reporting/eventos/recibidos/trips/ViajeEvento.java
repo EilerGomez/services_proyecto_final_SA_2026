@@ -10,6 +10,7 @@ public record ViajeEvento(
         UUID viajeId,
         String tipo,
         UUID rutaId,
+        UUID alquilerId,
         UUID sucursalId,
         UUID busId,
         UUID choferId,

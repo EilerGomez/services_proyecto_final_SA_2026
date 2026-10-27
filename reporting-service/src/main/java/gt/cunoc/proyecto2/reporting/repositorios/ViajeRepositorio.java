@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.reporting.repositorios;
 
 import gt.cunoc.proyecto2.reporting.modelos.ViajeEntidad;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +15,9 @@ public interface ViajeRepositorio extends JpaRepository<ViajeEntidad, UUID> {
 
     List<ViajeEntidad> findByBusIdAndFechaSalidaBetweenOrderByFechaSalidaDesc(
             UUID busId, OffsetDateTime desde, OffsetDateTime hasta);
+
+    /** RS4: los viajes PRIVADO de estos alquileres, para poner la placa del bus en el reporte. */
+    List<ViajeEntidad> findByAlquilerIdIn(Collection<UUID> alquilerIds);
 
     // OJO: no usar "(:desde IS NULL OR ...)" con OffsetDateTime: PostgreSQL no infiere el tipo
     // del parámetro nulo ("could not determine data type of parameter"). Como fecha_salida es

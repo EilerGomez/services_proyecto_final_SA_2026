@@ -15,6 +15,7 @@
     <field name="clienteNombre" class="java.lang.String"/>
     <field name="origen" class="java.lang.String"/>
     <field name="destino" class="java.lang.String"/>
+    <field name="busPlaca" class="java.lang.String"/>
     <field name="fechaSalida" class="java.lang.String"/>
     <field name="fechaRetorno" class="java.lang.String"/>
     <field name="monto" class="java.math.BigDecimal"/>
@@ -32,23 +33,25 @@
     <columnHeader>
         <band height="22">
             <rectangle><reportElement x="0" y="0" width="555" height="22" backcolor="#0D1B2A" mode="Opaque"/></rectangle>
-            <staticText><reportElement x="5" y="3" width="52" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Fecha pago]]></text></staticText>
-            <staticText><reportElement x="60" y="3" width="95" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Cliente]]></text></staticText>
-            <staticText><reportElement x="158" y="3" width="150" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Origen → Destino]]></text></staticText>
-            <staticText><reportElement x="311" y="3" width="78" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Salida]]></text></staticText>
-            <staticText><reportElement x="392" y="3" width="78" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Retorno]]></text></staticText>
-            <staticText><reportElement x="473" y="3" width="82" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Monto]]></text></staticText>
+            <staticText><reportElement x="5" y="3" width="48" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Fecha pago]]></text></staticText>
+            <staticText><reportElement x="56" y="3" width="85" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Cliente]]></text></staticText>
+            <staticText><reportElement x="144" y="3" width="130" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Origen → Destino]]></text></staticText>
+            <staticText><reportElement x="277" y="3" width="50" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Bus]]></text></staticText>
+            <staticText><reportElement x="330" y="3" width="70" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Salida]]></text></staticText>
+            <staticText><reportElement x="403" y="3" width="70" height="16" forecolor="#FFFFFF"/><textElement><font isBold="true" size="7"/></textElement><text><![CDATA[Retorno]]></text></staticText>
+            <staticText><reportElement x="476" y="3" width="79" height="16" forecolor="#FFFFFF"/><textElement textAlignment="Right"><font isBold="true" size="7"/></textElement><text><![CDATA[Monto]]></text></staticText>
         </band>
     </columnHeader>
     <detail>
         <band height="28">
             <rectangle><reportElement x="0" y="0" width="555" height="28" backcolor="#F4F6F8" mode="Opaque"><printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression></reportElement></rectangle>
-            <textField><reportElement x="5" y="2" width="52" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="60" y="2" width="95" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{clienteNombre} + " (" + $F{clienteNit} + ")"]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="158" y="2" width="150" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{origen} + " → " + $F{destino}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="311" y="2" width="78" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fechaSalida} == null ? "-" : $F{fechaSalida}]]></textFieldExpression></textField>
-            <textField isStretchWithOverflow="true"><reportElement x="392" y="2" width="78" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fechaRetorno} == null ? "-" : $F{fechaRetorno}]]></textFieldExpression></textField>
-            <textField pattern="Q #,##0.00"><reportElement x="473" y="2" width="82" height="12"/><textElement textAlignment="Right"><font size="6" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression></textField>
+            <textField><reportElement x="5" y="2" width="48" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fecha}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="56" y="2" width="85" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{clienteNombre} + " (" + $F{clienteNit} + ")"]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="144" y="2" width="130" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{origen} + " → " + $F{destino}]]></textFieldExpression></textField>
+            <textField><reportElement x="277" y="2" width="50" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{busPlaca} == null ? "-" : $F{busPlaca}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="330" y="2" width="70" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fechaSalida} == null ? "-" : $F{fechaSalida}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true"><reportElement x="403" y="2" width="70" height="24"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA[$F{fechaRetorno} == null ? "-" : $F{fechaRetorno}]]></textFieldExpression></textField>
+            <textField pattern="Q #,##0.00"><reportElement x="476" y="2" width="79" height="12"/><textElement textAlignment="Right"><font size="6" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{monto}]]></textFieldExpression></textField>
         </band>
     </detail>
     <pageFooter><band height="20">
@@ -56,8 +59,8 @@
     </band></pageFooter>
     <summary><band height="30">
         <line><reportElement x="0" y="2" width="555" height="1" forecolor="#0D1B2A"/></line>
-        <staticText><reportElement x="311" y="6" width="159" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><text><![CDATA[TOTAL]]></text></staticText>
-        <textField><reportElement x="473" y="6" width="82" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{TOTAL}]]></textFieldExpression></textField>
+        <staticText><reportElement x="330" y="6" width="143" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><text><![CDATA[TOTAL]]></text></staticText>
+        <textField><reportElement x="476" y="6" width="79" height="16"/><textElement textAlignment="Right"><font size="9" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{TOTAL}]]></textFieldExpression></textField>
     </band></summary>
     <noData><band height="40">
         <staticText><reportElement x="0" y="10" width="555" height="20"/><textElement textAlignment="Center"><font size="11" isItalic="true"/></textElement><text><![CDATA[No se encontraron ingresos por alquiler en el período indicado.]]></text></staticText>

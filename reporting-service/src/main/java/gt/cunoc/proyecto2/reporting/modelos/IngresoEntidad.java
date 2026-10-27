@@ -41,6 +41,10 @@ public class IngresoEntidad {
     @Column(name = "viaje_id")
     private UUID viajeId;
 
+    /** Alquiler cobrado (solo ingresos ALQUILER): por él se busca el bus que le asignaron. */
+    @Column(name = "alquiler_id")
+    private UUID alquilerId;
+
     @Column(name = "ruta_id")
     private UUID rutaId;
 

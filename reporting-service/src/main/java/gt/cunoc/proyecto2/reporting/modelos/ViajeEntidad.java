@@ -29,6 +29,10 @@ public class ViajeEntidad {
     @Column(name = "ruta_id")
     private UUID rutaId;
 
+    /** Alquiler del que salió el viaje PRIVADO; null en un REGULAR. RS4 lo usa para la placa. */
+    @Column(name = "alquiler_id")
+    private UUID alquilerId;
+
     @Column(name = "sucursal_id", nullable = false)
     private UUID sucursalId;
 

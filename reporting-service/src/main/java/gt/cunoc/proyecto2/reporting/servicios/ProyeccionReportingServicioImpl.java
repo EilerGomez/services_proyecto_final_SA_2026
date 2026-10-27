@@ -233,6 +233,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         }
         entidad.setTipo(evento.tipo() != null ? evento.tipo() : "REGULAR");
         entidad.setRutaId(evento.rutaId());
+        entidad.setAlquilerId(evento.alquilerId());   // solo en un PRIVADO: RS4 saca la placa por aquí
         entidad.setSucursalId(evento.sucursalId());
         entidad.setBusId(evento.busId());
         entidad.setChoferId(evento.choferId());
@@ -417,6 +418,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         ingreso.setSucursalId(evento.sucursalId());
         ingreso.setTipo("ALQUILER");
         ingreso.setReferenciaId(evento.ordenId() != null ? evento.ordenId() : evento.alquilerId());
+        ingreso.setAlquilerId(evento.alquilerId());   // por él se busca el bus que le asignaron después
         ingreso.setClienteNit(evento.clienteNit());
         ingreso.setClienteNombre(evento.clienteNombre());
         ingreso.setOrigen(evento.origen());

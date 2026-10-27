@@ -1,7 +1,11 @@
 package gt.cunoc.proyecto2.reporting.reportes.generadores;
 
+import gt.cunoc.proyecto2.reporting.modelos.BusEntidad;
 import gt.cunoc.proyecto2.reporting.modelos.IngresoEntidad;
+import gt.cunoc.proyecto2.reporting.modelos.ViajeEntidad;
+import gt.cunoc.proyecto2.reporting.repositorios.BusRepositorio;
 import gt.cunoc.proyecto2.reporting.repositorios.IngresoRepositorio;
+import gt.cunoc.proyecto2.reporting.repositorios.ViajeRepositorio;
 import gt.cunoc.proyecto2.reporting.reportes.CompiladorJasper;
 import gt.cunoc.proyecto2.reporting.reportes.GeneradorReporte;
 import gt.cunoc.proyecto2.reporting.reportes.ParametrosReporte;
@@ -13,6 +17,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import net.sf.jasperreports.engine.JasperExportManager;
 import net.sf.jasperreports.engine.JasperFillManager;
 import net.sf.jasperreports.engine.JasperPrint;
@@ -24,11 +32,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class GeneradorIngresosAlquiler implements GeneradorReporte {
 
+    private static final String SIN_BUS = "-";
+
     private final IngresoRepositorio ingresos;
+    private final ViajeRepositorio viajes;
+    private final BusRepositorio buses;
     private final CompiladorJasper compilador;
 
-    public GeneradorIngresosAlquiler(IngresoRepositorio ingresos, CompiladorJasper compilador) {
+    public GeneradorIngresosAlquiler(IngresoRepositorio ingresos, ViajeRepositorio viajes,
+                                     BusRepositorio buses, CompiladorJasper compilador) {
         this.ingresos = ingresos;
+        this.viajes = viajes;
+        this.buses = buses;
         this.compilador = compilador;
     }
 
@@ -66,6 +81,7 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
             fila.put("clienteNombre", f.getClienteNombre());
             fila.put("origen", f.getOrigen());
             fila.put("destino", f.getDestino());
+            fila.put("busPlaca", f.getBusPlaca());
             fila.put("fechaSalida", f.getFechaSalida());
             fila.put("fechaRetorno", f.getFechaRetorno());
             fila.put("monto", f.getMonto());
@@ -79,8 +95,10 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
     }
 
     List<AlquilerFila> filas(ParametrosReporte params) {
-        return ingresos.buscar(params.getSucursalId(), "ALQUILER", params.getDesde(), params.getHasta())
-                .stream()
+        List<IngresoEntidad> cobros = ingresos
+                .buscar(params.getSucursalId(), "ALQUILER", params.getDesde(), params.getHasta());
+        Map<UUID, String> placas = placasPorAlquiler(cobros);
+        return cobros.stream()
                 .sorted(Comparator.comparing(IngresoEntidad::getFechaNegocio))
                 .map(i -> AlquilerFila.builder()
                         .fecha(Formatos.fecha(i.getFechaNegocio()))
@@ -91,8 +109,45 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
                         .clienteNombre(i.getClienteNombre())
                         .origen(i.getOrigen())
                         .destino(i.getDestino())
+                        .busPlaca(placaDe(placas, i.getAlquilerId()))
                         .monto(i.getMonto())
                         .build())
                 .toList();
+    }
+
+    /**
+     * La placa de ese alquiler, o "-" si todavía no tiene bus. El id puede venir null (ingresos
+     * anteriores a que se guardara el alquiler), y un mapa inmutable no admite ni consultarse con
+     * una clave null: por eso se revisa antes en lugar de confiar en getOrDefault.
+     */
+    private static String placaDe(Map<UUID, String> placas, UUID alquilerId) {
+        return alquilerId == null ? SIN_BUS : placas.getOrDefault(alquilerId, SIN_BUS);
+    }
+
+    /**
+     * Placa del bus de cada alquiler cobrado. El bus no viene en el cobro: se asigna después, con
+     * el viaje PRIVADO, así que se resuelve acá en dos consultas (los viajes de esos alquileres y
+     * los buses de esos viajes) en lugar de una por fila. Un alquiler sin viaje asignado todavía
+     * no tiene bus y se queda sin placa.
+     */
+    private Map<UUID, String> placasPorAlquiler(List<IngresoEntidad> cobros) {
+        Set<UUID> alquileres = cobros.stream()
+                .map(IngresoEntidad::getAlquilerId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (alquileres.isEmpty()) {
+            return Map.of();
+        }
+        List<ViajeEntidad> deEsosAlquileres = viajes.findByAlquilerIdIn(alquileres);
+        Map<UUID, String> placasPorBus = buses
+                .findAllById(deEsosAlquileres.stream().map(ViajeEntidad::getBusId)
+                        .filter(Objects::nonNull).collect(Collectors.toSet()))
+                .stream()
+                .filter(b -> b.getPlaca() != null)
+                .collect(Collectors.toMap(BusEntidad::getId, BusEntidad::getPlaca, (a, b) -> a));
+        return deEsosAlquileres.stream()
+                .filter(v -> v.getAlquilerId() != null && placasPorBus.containsKey(v.getBusId()))
+                .collect(Collectors.toMap(ViajeEntidad::getAlquilerId,
+                        v -> placasPorBus.get(v.getBusId()), (a, b) -> a));
     }
 }

@@ -155,7 +155,7 @@ class ManejadoresTest {
 
     @Test
     void viajes() {
-        var payload = new ViajeEvento(UUID.randomUUID(), "REGULAR", UUID.randomUUID(),
+        var payload = new ViajeEvento(UUID.randomUUID(), "REGULAR", UUID.randomUUID(), null,
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 OffsetDateTime.of(2026, 10, 20, 8, 0, 0, 0, ZoneOffset.UTC));
         var programado = new ManejadorViajeProgramado(proyeccion);

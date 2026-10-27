@@ -38,6 +38,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -352,15 +353,46 @@ class GeneradoresDatosTest {
         alq.setFechaSalida(OffsetDateTime.parse("2026-11-05T14:00:00Z"));
         alq.setFechaRetorno(OffsetDateTime.parse("2026-11-09T00:00:00Z"));
         when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(alq));
+        // El bus no viene en el cobro: se resuelve por el viaje PRIVADO que se le asignó después
+        UUID alquilerId = UUID.randomUUID();
+        UUID busId = UUID.randomUUID();
+        alq.setAlquilerId(alquilerId);
+        ViajeEntidad delAlquiler = new ViajeEntidad();
+        delAlquiler.setViajeId(UUID.randomUUID());
+        delAlquiler.setAlquilerId(alquilerId);
+        delAlquiler.setBusId(busId);
+        BusEntidad bus = new BusEntidad();
+        bus.setId(busId);
+        bus.setPlaca("P-123ABC");
+        when(viajes.findByAlquilerIdIn(Set.of(alquilerId))).thenReturn(List.of(delAlquiler));
+        when(buses.findAllById(Set.of(busId))).thenReturn(List.of(bus));
 
         Map<String, Object> datos = (Map<String, Object>) new GeneradorIngresosAlquiler(
-                ingresos, compilador).datos(ParametrosReporte.builder().sucursalId(sucursalId).build());
+                ingresos, viajes, buses, compilador)
+                .datos(ParametrosReporte.builder().sucursalId(sucursalId).build());
 
         Map<String, Object> fila = ((List<Map<String, Object>>) datos.get("filas")).get(0);
         assertThat(fila.get("origen")).isEqualTo("Xela");
+        assertThat(fila.get("busPlaca")).isEqualTo("P-123ABC");
         assertThat(fila.get("fechaSalida")).isEqualTo("05/11/2026 08:00");
         assertThat(fila.get("fechaRetorno")).isEqualTo("08/11/2026 18:00");
         assertThat(datos.get("total")).isEqualTo(new BigDecimal("4300.00"));
+    }
+
+    @Test
+    void ingresosAlquilerSinViajeAsignadoNoTraePlaca() {
+        UUID sucursalId = UUID.randomUUID();
+        IngresoEntidad alq = ingreso(sucursalId, "ALQUILER", "1500.00", 0);
+        alq.setAlquilerId(UUID.randomUUID());
+        when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(alq));
+        when(viajes.findByAlquilerIdIn(any())).thenReturn(List.of());
+
+        Map<String, Object> datos = (Map<String, Object>) new GeneradorIngresosAlquiler(
+                ingresos, viajes, buses, compilador)
+                .datos(ParametrosReporte.builder().sucursalId(sucursalId).build());
+
+        Map<String, Object> fila = ((List<Map<String, Object>>) datos.get("filas")).get(0);
+        assertThat(fila.get("busPlaca")).isEqualTo("-");
     }
 
     @Test

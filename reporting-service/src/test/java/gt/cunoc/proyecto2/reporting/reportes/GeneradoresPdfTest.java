@@ -147,7 +147,7 @@ class GeneradoresPdfTest {
         alquiler.setMonto(new java.math.BigDecimal("2600.00"));
         when(ingresos.buscar(any(), any(), any(), any())).thenReturn(List.of(alquiler));
 
-        esPdf(new GeneradorIngresosAlquiler(ingresos, compilador).generar(params()));
+        esPdf(new GeneradorIngresosAlquiler(ingresos, viajes, buses, compilador).generar(params()));
     }
 
     @Test
@@ -172,7 +172,7 @@ class GeneradoresPdfTest {
 
     @Test
     void ingresosAlquiler() throws Exception {
-        esPdf(new GeneradorIngresosAlquiler(ingresos, compilador).generar(params()));
+        esPdf(new GeneradorIngresosAlquiler(ingresos, viajes, buses, compilador).generar(params()));
     }
 
     @Test

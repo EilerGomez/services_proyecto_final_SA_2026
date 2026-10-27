@@ -18,5 +18,7 @@ public class AlquilerFila {
     String clienteNombre;
     String origen;
     String destino;
+    /** Placa del bus asignado al alquiler; "-" mientras no tenga viaje asignado. */
+    String busPlaca;
     BigDecimal monto;
 }
