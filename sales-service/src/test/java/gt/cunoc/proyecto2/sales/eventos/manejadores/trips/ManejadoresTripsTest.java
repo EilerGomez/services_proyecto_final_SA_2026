@@ -16,6 +16,8 @@ import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfir
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEliminado;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEvento;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeIniciado;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeReasignado;
+import gt.cunoc.proyecto2.sales.servicios.ventas.AvisoReasignacionServicio;
 import gt.cunoc.proyecto2.sales.servicios.alquileres.OrdenAlquilerServicio;
 import gt.cunoc.proyecto2.sales.servicios.proyecciones.ProyeccionServicio;
 import gt.cunoc.proyecto2.sales.servicios.ventas.VentaServicio;
@@ -25,7 +27,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/** Los 5 manejadores de eventos de Trips: nombre, payload y a qué servicio delegan (solo viajes REGULAR). */
+/** Los 6 manejadores de eventos de Trips: nombre, payload y a qué servicio delegan (solo viajes REGULAR). */
 class ManejadoresTripsTest {
 
     private static final Long VERSION = 7L;
@@ -35,6 +37,7 @@ class ManejadoresTripsTest {
     private final ProyeccionServicio proyecciones = mock(ProyeccionServicio.class);
     private final VentaServicio ventas = mock(VentaServicio.class);
     private final OrdenAlquilerServicio ordenes = mock(OrdenAlquilerServicio.class);
+    private final AvisoReasignacionServicio avisos = mock(AvisoReasignacionServicio.class);
 
     private <T> EventoRecibido<T> evento(String tipo, UUID agregadoId, Long version, T payload) {
         return new EventoRecibido<>(UUID.randomUUID(), tipo, 1, agregadoId, version, Instant.now(), FECHA_PAGO,
@@ -161,6 +164,37 @@ class ManejadoresTripsTest {
         manejador.manejar(evento("ViajeEliminado", viajeId, new ViajeEliminado(viajeId, PRIVADO, XELA, null)));
 
         verifyNoInteractions(ventas, proyecciones);
+    }
+
+    // ----- ViajeReasignado -----
+
+    private static ViajeReasignado reasignado(String tipo) {
+        return new ViajeReasignado(UUID.randomUUID(), tipo, "Quetzaltenango", "Guatemala", SALIDA,
+                true, "P-111AAA", "P-222BBB", false, "Juan Perez", "Juan Perez");
+    }
+
+    @Test
+    void viajeReasignadoRegularAvisaALosPasajeros() {
+        ManejadorViajeReasignado manejador = new ManejadorViajeReasignado(avisos);
+        ViajeReasignado viaje = reasignado(REGULAR);
+
+        manejador.manejar(evento("ViajeReasignado", viaje.viajeId(), viaje));
+
+        assertThat(manejador.tipoEvento()).isEqualTo("ViajeReasignado");
+        assertThat(manejador.tipoPayload()).isEqualTo(ViajeReasignado.class);
+        verify(avisos).avisarALosPasajeros(viaje);
+        verifyNoMoreInteractions(avisos);
+    }
+
+    @Test
+    void viajeReasignadoPrivadoSeIgnora() {
+        // Un privado no tiene boletos: a su cliente le escribe Notification con el correo del evento.
+        ManejadorViajeReasignado manejador = new ManejadorViajeReasignado(avisos);
+        ViajeReasignado viaje = reasignado(PRIVADO);
+
+        manejador.manejar(evento("ViajeReasignado", viaje.viajeId(), viaje));
+
+        verifyNoInteractions(avisos);
     }
 
     // ----- CotizacionAlquilerConfirmada -----

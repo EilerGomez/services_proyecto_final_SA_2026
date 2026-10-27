@@ -36,6 +36,11 @@ public record ViajeRespuesta(
         BigDecimal precioBoleto,
         OffsetDateTime fechaSalidaProgramada,
         OffsetDateTime fechaLlegadaEstimada,
+        /*
+         * Solo en un viaje PRIVADO de ida y vuelta: cuándo pidió el cliente el regreso. No es lo
+         * mismo que la llegada estimada, que es la del trayecto de ida.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime fechaRetorno,
         EstadoViaje estado,
         Integer version) {
 
@@ -60,6 +65,7 @@ public record ViajeRespuesta(
                 viaje.getPrecioBoleto(),
                 Fechas.enGuatemala(viaje.getFechaSalidaProgramada()),
                 Fechas.enGuatemala(viaje.getFechaLlegadaEstimada()),
+                Fechas.enGuatemala(nombres.fechaRetorno(viaje)),
                 viaje.getEstado(),
                 viaje.getVersion());
     }
