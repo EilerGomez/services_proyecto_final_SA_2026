@@ -4,9 +4,11 @@ import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.sales.eventos.publicados.alquileres.AlquilerPagado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.DebitoCarteraSolicitado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.ReembolsoCarteraSolicitado;
+import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoReasignado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoVendido;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaCancelada;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaReembolsada;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeReasignado;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.BoletoEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.VentaEntidad;
@@ -80,6 +82,15 @@ public class PublicadorEventosSales {
     public void ventaReembolsada(VentaEntidad venta, List<BoletoEntidad> boletos, VistaViajeEntidad viaje) {
         publicar(TipoAgregado.VENTA, venta.getId(), venta.getVersion(), TipoEvento.VENTA_REEMBOLSADA,
                 VentaReembolsada.desde(venta, boletos, viaje), venta.getFechaReembolso());
+    }
+
+    /**
+     * Al viaje de este boleto le cambiaron el bus o el piloto: Notification le escribe al pasajero.
+     * La version de la venta no cambia (no se tocó la venta), va la que ya tenía.
+     */
+    public void boletoReasignado(VentaEntidad venta, List<BoletoEntidad> boletos, ViajeReasignado viaje) {
+        publicar(TipoAgregado.VENTA, venta.getId(), venta.getVersion(), TipoEvento.BOLETO_REASIGNADO,
+                BoletoReasignado.desde(venta, boletos, viaje), venta.getFechaPago());
     }
 
     // ----- Alquileres -----

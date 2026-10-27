@@ -11,6 +11,7 @@ import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeCompletado;
 import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeEliminado;
 import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeEvento;
 import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeIniciado;
+import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeReasignado;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
@@ -62,6 +63,15 @@ public class PublicadorEventosTrips {
     public void viajeActualizado(ViajeRespuesta viaje) {
         publicar(TipoAgregado.VIAJE, viaje.viajeId(), viaje.version(), TipoEvento.VIAJE_ACTUALIZADO,
                 ViajeEvento.desde(viaje), Fechas.diaEnGuatemala(viaje.fechaSalidaProgramada()));
+    }
+
+    /**
+     * Le cambiaron el bus o el piloto a un viaje ya programado: Sales avisa a los pasajeros con
+     * boleto y Notification al cliente del alquiler cuando es PRIVADO.
+     */
+    public void viajeReasignado(ViajeRespuesta viaje, ViajeReasignado payload) {
+        publicar(TipoAgregado.VIAJE, viaje.viajeId(), viaje.version(), TipoEvento.VIAJE_REASIGNADO,
+                payload, Fechas.diaEnGuatemala(viaje.fechaSalidaProgramada()));
     }
 
     public void viajeEliminado(ViajeEntidad viaje, String motivo) {

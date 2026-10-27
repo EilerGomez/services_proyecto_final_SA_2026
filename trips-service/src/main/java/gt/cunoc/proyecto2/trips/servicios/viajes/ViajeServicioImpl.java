@@ -14,6 +14,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeReasignado;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
@@ -143,10 +144,26 @@ public class ViajeServicioImpl implements ViajeServicio {
         VerificadorVersion.verificar(viaje.getVersion(), solicitud.version());
         AsignacionViaje asignacion = asignaciones.validarCambio(viaje, solicitud.busId(), solicitud.choferId(),
                 solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
+        ViajeRespuesta antes = respuesta(viaje);   // placa y piloto de ahora, para contar el cambio
         viaje.reprogramar(asignacion);
         ViajeRespuesta respuesta = respuesta(repositorio.saveAndFlush(viaje));
         eventos.viajeActualizado(respuesta);
+        avisarSiCambioLaUnidad(viaje, antes, respuesta);
         return respuesta;
+    }
+
+    /**
+     * Cambiar la hora es una cosa y cambiar el bus o el piloto es otra: quien ya tiene el boleto o
+     * contrató el alquiler buscará otra unidad en la terminal. Solo en ese caso sale el aviso.
+     */
+    private void avisarSiCambioLaUnidad(ViajeEntidad viaje, ViajeRespuesta antes, ViajeRespuesta ahora) {
+        if (!ViajeReasignado.huboCambio(antes, ahora)) {
+            return;
+        }
+        AlquilerPrivadoEntidad alquiler = viaje.esPrivado() && viaje.getAlquilerId() != null
+                ? alquileres.findById(viaje.getAlquilerId()).orElse(null)
+                : null;
+        eventos.viajeReasignado(ahora, ViajeReasignado.desde(antes, ahora, alquiler));
     }
 
     @Override

@@ -12,6 +12,7 @@ public enum TipoEvento {
     VIAJE_PROGRAMADO("ViajeProgramado"),
     VIAJE_ACTUALIZADO("ViajeActualizado"),
     VIAJE_ELIMINADO("ViajeEliminado"),
+    VIAJE_REASIGNADO("ViajeReasignado"),
     VIAJE_INICIADO("ViajeIniciado"),
     VIAJE_COMPLETADO("ViajeCompletado"),
     COTIZACION_ALQUILER_CONFIRMADA("CotizacionAlquilerConfirmada"),

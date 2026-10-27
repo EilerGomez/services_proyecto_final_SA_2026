@@ -41,7 +41,7 @@ comun:
     cola: sales.q                      # consume de esta cola (DLQ: sales.q.dlq)
     suscripciones:
       "[trips.eventos]": [ViajeProgramado, ViajeActualizado, ViajeIniciado, ViajeEliminado,
-                          CotizacionAlquilerConfirmada]
+                          ViajeReasignado, CotizacionAlquilerConfirmada]
       "[identity.eventos]": [ClienteRegistrado, PerfilActualizado]
       "[wallet.eventos]": [CarteraDebitada, DebitoCarteraRechazado, CarteraReembolsada]   # saga de pago con cartera
 

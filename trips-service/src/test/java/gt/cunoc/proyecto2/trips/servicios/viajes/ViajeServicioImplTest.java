@@ -27,6 +27,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ViajesActivosRespuesta;
 import gt.cunoc.proyecto2.trips.errores.generales.ErrorGeneral;
 import gt.cunoc.proyecto2.trips.errores.viajes.ErrorViaje;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.eventos.publicados.viajes.ViajeReasignado;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.EstadoAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
@@ -298,6 +299,40 @@ class ViajeServicioImplTest {
         verify(repositorio, never()).saveAndFlush(any(ViajeEntidad.class));
     }
 
+
+    @Test
+    void cambiarElBusAvisaAQuienYaTieneElViaje() {
+        elViajeExiste(viaje);
+        guardarDevuelveElMismo();
+        UUID otroBus = UUID.randomUUID();
+        when(asignaciones.validarCambio(eq(viaje), eq(otroBus), eq(viaje.getChoferId()), any(), any()))
+                .thenReturn(DatosPrueba.asignacion(otroBus, viaje.getChoferId(), 45));
+
+        servicio.actualizar(viaje.getId(), cambio(otroBus, 0), adminXela);
+
+        verify(eventos).viajeActualizado(any(ViajeRespuesta.class));
+        ArgumentCaptor<ViajeReasignado> aviso = ArgumentCaptor.forClass(ViajeReasignado.class);
+        verify(eventos).viajeReasignado(any(ViajeRespuesta.class), aviso.capture());
+        assertThat(aviso.getValue().cambioBus()).isTrue();
+        assertThat(aviso.getValue().cambioChofer()).isFalse();
+        assertThat(aviso.getValue().clienteCorreo()).isNull();   // REGULAR: sus pasajeros los avisa Sales
+        // Y por lo mismo no se va a buscar el alquiler: eso solo pasa en un viaje PRIVADO.
+        verify(alquileres, never()).findById(any(UUID.class));
+    }
+
+    @Test
+    void moverLaHoraSinCambiarBusNiPilotoNoAvisaANadie() {
+        // Cambiar el horario también publica ViajeActualizado, pero nadie tiene que buscar otro bus.
+        elViajeExiste(viaje);
+        guardarDevuelveElMismo();
+        when(asignaciones.validarCambio(eq(viaje), eq(viaje.getBusId()), eq(viaje.getChoferId()), any(), any()))
+                .thenReturn(DatosPrueba.asignacion(viaje.getBusId(), viaje.getChoferId(), 45));
+
+        servicio.actualizar(viaje.getId(), cambio(viaje.getBusId(), 0), adminXela);
+
+        verify(eventos).viajeActualizado(any(ViajeRespuesta.class));
+        verify(eventos, never()).viajeReasignado(any(ViajeRespuesta.class), any(ViajeReasignado.class));
+    }
 
     // T12: eliminar
 

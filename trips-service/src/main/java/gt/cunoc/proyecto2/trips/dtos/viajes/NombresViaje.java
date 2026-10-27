@@ -5,6 +5,7 @@ import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -68,6 +69,26 @@ public record NombresViaje(
     public BigDecimal destinoLongitud(ViajeEntidad viaje) {
         AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
         return alquiler == null ? null : alquiler.getDestinoLongitud();
+    }
+
+    /**
+     * Fecha y hora de retorno que pidió el cliente del alquiler, o null si lo pidió solo de ida.
+     * El piloto la necesita: la llegada estimada del viaje es la del trayecto, no la del regreso.
+     */
+    public OffsetDateTime fechaRetorno(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getFechaRetorno();
+    }
+
+    /** Correo del cliente del alquiler (puede no tener): a él se le avisa un cambio de bus o piloto. */
+    public String clienteCorreo(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getClienteCorreo();
+    }
+
+    public String clienteNombre(ViajeEntidad viaje) {
+        AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
+        return alquiler == null ? null : alquiler.getClienteNombre();
     }
 
     public String placa(ViajeEntidad viaje) {
