@@ -4,22 +4,25 @@ import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.sales.eventos.publicados.alquileres.AlquilerPagado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.DebitoCarteraSolicitado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.cartera.ReembolsoCarteraSolicitado;
+import gt.cunoc.proyecto2.sales.eventos.publicados.tarifas.TarifaReembolsoCambiada;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoReasignado;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.BoletoVendido;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaCancelada;
 import gt.cunoc.proyecto2.sales.eventos.publicados.ventas.VentaReembolsada;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeReasignado;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
+import gt.cunoc.proyecto2.sales.modelos.tarifas.TarifaReembolsoEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.BoletoEntidad;
 import gt.cunoc.proyecto2.sales.modelos.ventas.VentaEntidad;
 import gt.cunoc.proyecto2.sales.modelos.viajes.VistaViajeEntidad;
+import gt.cunoc.proyecto2.sales.utilidades.Fechas;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Los 6 eventos que publica Sales, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
+ * Los eventos que publica Sales, con su tipo de agregado, aggregateId, aggregateVersion y businessDate.
  * Los servicios llaman a estos métodos en lugar de escribir nombres de eventos a mano.
  *
  * <p>Reglas (comun): se llama dentro de la transacción del cambio y después de saveAndFlush,
@@ -99,6 +102,17 @@ public class PublicadorEventosSales {
     public void alquilerPagado(OrdenAlquilerEntidad orden) {
         publicar(TipoAgregado.ORDEN_ALQUILER, orden.getId(), orden.getVersion(), TipoEvento.ALQUILER_PAGADO,
                 AlquilerPagado.desde(orden), orden.getFechaPago());
+    }
+
+    // ----- Tarifas de reembolso -----
+
+    /**
+     * Cambió la política de cancelación: Trips actualiza su copia de solo lectura para poder rechazar
+     * una cancelación fuera de plazo sin preguntarle nada a Sales.
+     */
+    public void tarifaReembolsoCambiada(TarifaReembolsoEntidad tarifa) {
+        publicar(TipoAgregado.TARIFA_REEMBOLSO, tarifa.getId(), tarifa.getVersion(),
+                TipoEvento.TARIFA_REEMBOLSO_CAMBIADA, TarifaReembolsoCambiada.desde(tarifa), Fechas.hoy());
     }
 
     private void publicar(TipoAgregado agregado, UUID agregadoId, Integer version, TipoEvento evento,

@@ -25,8 +25,12 @@ public record ReembolsoCarteraSolicitado(
                 venta.getMontoTotal(), motivo, fecha);
     }
 
+    /**
+     * El monto no siempre es el total: si el alquiler se canceló, se devuelve el porcentaje que
+     * indicó la tarifa de reembolso. Un cobro de más (débito tardío) sí devuelve todo.
+     */
     public static ReembolsoCarteraSolicitado deOrden(OrdenAlquilerEntidad orden, MotivoSaga motivo, LocalDate fecha) {
         return new ReembolsoCarteraSolicitado(ReferenciaCartera.ALQUILER, orden.getId(),
-                orden.getClienteUsuarioId(), orden.getMonto(), motivo, fecha);
+                orden.getClienteUsuarioId(), orden.montoAReembolsar(), motivo, fecha);
     }
 }

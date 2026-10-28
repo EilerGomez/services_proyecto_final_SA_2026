@@ -31,6 +31,17 @@ public interface ViajeServicio {
 
     void eliminar(UUID id, String motivo, UsuarioActual usuario);
 
+    /**
+     * Borra el viaje PRIVADO de un alquiler que se está cancelando y devuelve su id (null si el
+     * alquiler no tenía bus asignado). No valida roles ni sucursal: el permiso ya se verificó sobre el
+     * alquiler, que es lo que el usuario está cancelando —y desde PAGADO el propio cliente puede
+     * hacerlo, aunque no sea personal de la sucursal—. Tampoco libera el alquiler (no vuelve a PAGADO
+     * como cuando se borra el viaje para cambiarle la unidad): quien llama lo deja CANCELADO.
+     *
+     * @throws gt.cunoc.proyecto2.comun.errores.NegocioException 422 si el viaje ya salió
+     */
+    UUID eliminarPorCancelacionDeAlquiler(UUID alquilerId, String motivo);
+
     VendibleRespuesta consultarVendible(UUID id);
 
     ViajesActivosRespuesta viajesActivos(UUID busId, UUID choferId);

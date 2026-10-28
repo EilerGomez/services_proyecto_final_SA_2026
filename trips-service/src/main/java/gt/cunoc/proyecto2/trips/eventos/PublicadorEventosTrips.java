@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.comun.eventos.publicador.PublicadorEventos;
 import gt.cunoc.proyecto2.trips.dtos.rutas.RutaRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
 import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerAsignado;
+import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerCancelado;
 import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEliminada;
 import gt.cunoc.proyecto2.trips.eventos.publicados.rutas.RutaEvento;
@@ -101,6 +102,17 @@ public class PublicadorEventosTrips {
     public void alquilerAsignado(AlquilerPrivadoEntidad alquiler, ViajeRespuesta viaje) {
         publicar(TipoAgregado.ALQUILER_PRIVADO, alquiler.getId(), alquiler.getVersion(),
                 TipoEvento.ALQUILER_ASIGNADO, AlquilerAsignado.desde(alquiler, viaje), Fechas.hoy());
+    }
+
+    /**
+     * T21: se canceló el alquiler y su viaje ya se borró. Sales cancela la orden y, si había pago,
+     * devuelve el porcentaje de la tarifa vigente. businessDate = día de la cancelación, que es el
+     * día que indicó quien canceló y no necesariamente hoy.
+     */
+    public void alquilerCancelado(AlquilerPrivadoEntidad alquiler, AlquilerCancelado payload) {
+        publicar(TipoAgregado.ALQUILER_PRIVADO, alquiler.getId(), alquiler.getVersion(),
+                TipoEvento.ALQUILER_CANCELADO, payload,
+                Fechas.diaEnGuatemala(payload.fechaHoraCancelacion()));
     }
 
     private static Integer siguienteVersion(Integer version) {

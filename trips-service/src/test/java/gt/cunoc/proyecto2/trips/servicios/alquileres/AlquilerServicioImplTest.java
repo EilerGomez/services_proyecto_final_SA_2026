@@ -21,6 +21,7 @@ import gt.cunoc.proyecto2.trips.dtos.alquileres.CancelarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.CotizarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.FiltroAlquileres;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.NuevoAlquilerSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.alquileres.PoliticaCancelacionRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NombresViaje;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
@@ -29,6 +30,7 @@ import gt.cunoc.proyecto2.trips.errores.alquileres.ErrorConfiguracionAlquiler;
 import gt.cunoc.proyecto2.trips.errores.generales.ErrorGeneral;
 import gt.cunoc.proyecto2.trips.errores.sucursales.ErrorSucursal;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerCancelado;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.CanalAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
@@ -40,6 +42,7 @@ import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositor
 import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
+import gt.cunoc.proyecto2.trips.servicios.tarifas.PoliticaCancelacionServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.AsignacionViajeServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.ViajeServicio;
 import java.math.BigDecimal;
@@ -74,6 +77,7 @@ class AlquilerServicioImplTest {
     private final ViajeServicio viajes = mock(ViajeServicio.class);
     private final ViajeRepositorio viajeRepositorio = mock(ViajeRepositorio.class);
     private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
+    private final PoliticaCancelacionServicio politicas = mock(PoliticaCancelacionServicio.class);
     private final PublicadorEventosTrips eventos = mock(PublicadorEventosTrips.class);
 
     private AlquilerServicioImpl servicio;
@@ -81,7 +85,20 @@ class AlquilerServicioImplTest {
     @BeforeEach
     void preparar() {
         servicio = new AlquilerServicioImpl(repositorio, precios, sucursales, asignaciones, viajes,
-                viajeRepositorio, clientes, eventos);
+                viajeRepositorio, clientes, politicas, eventos);
+    }
+
+    /** La tarifa vigente permite cancelar y devolver el porcentaje indicado. */
+    private void laTarifaPermiteCancelar(String porcentaje, long horasAntes) {
+        when(politicas.para(any(AlquilerPrivadoEntidad.class), any(OffsetDateTime.class)))
+                .thenReturn(new PoliticaCancelacionRespuesta(UUID.randomUUID(), true,
+                        new BigDecimal(porcentaje), "Dentro del plazo", horasAntes, null));
+    }
+
+    private void laTarifaNoPermiteCancelar(String justificacion) {
+        when(politicas.para(any(AlquilerPrivadoEntidad.class), any(OffsetDateTime.class)))
+                .thenReturn(new PoliticaCancelacionRespuesta(UUID.randomUUID(), false,
+                        new BigDecimal("0.00"), justificacion, 0L, null));
     }
 
     private void guardarDevuelveElMismo() {
@@ -447,14 +464,16 @@ class AlquilerServicioImplTest {
         AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler(cliente.usuarioId());
         existe(alquiler);
         guardarDevuelveElMismo();
+        laTarifaPermiteCancelar("0.00", 300);
 
         AlquilerRespuesta respuesta = servicio.cancelar(alquiler.getId(),
-                new CancelarAlquilerSolicitud("  Cambio de planes ", 0), cliente);
+                new CancelarAlquilerSolicitud("  Cambio de planes ", null, 0), cliente);
 
         assertThat(respuesta.estado()).isEqualTo(EstadoAlquiler.CANCELADO);
         assertThat(respuesta.motivoCancelacion()).isEqualTo("Cambio de planes");
+        assertThat(respuesta.fechaHoraCancelacion()).isNotNull();
         verify(repositorio).saveAndFlush(alquiler);
-        verifyNoInteractions(eventos);
+        verify(eventos).alquilerCancelado(eq(alquiler), any(AlquilerCancelado.class));
     }
 
     @Test
@@ -462,9 +481,10 @@ class AlquilerServicioImplTest {
         AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
         existe(alquiler);
         guardarDevuelveElMismo();
+        laTarifaPermiteCancelar("0.00", 300);
 
         AlquilerRespuesta respuesta = servicio.cancelar(alquiler.getId(),
-                new CancelarAlquilerSolicitud("Sin buses", 0), DatosPrueba.adminSucursal(XELA));
+                new CancelarAlquilerSolicitud("Sin buses", null, 0), DatosPrueba.adminSucursal(XELA));
 
         assertThat(respuesta.estado()).isEqualTo(EstadoAlquiler.CANCELADO);
     }
@@ -474,11 +494,76 @@ class AlquilerServicioImplTest {
         AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
         existe(alquiler);
         guardarDevuelveElMismo();
+        laTarifaPermiteCancelar("0.00", 300);
 
         AlquilerRespuesta respuesta = servicio.cancelar(alquiler.getId(),
-                new CancelarAlquilerSolicitud("Sin buses", 0), DatosPrueba.adminSistema());
+                new CancelarAlquilerSolicitud("Sin buses", null, 0), DatosPrueba.adminSistema());
 
         assertThat(respuesta.estado()).isEqualTo(EstadoAlquiler.CANCELADO);
+    }
+
+    /**
+     * El alquiler pagado y con bus asignado se cancela: el viaje desaparece y el evento lleva su id y
+     * el estado anterior, que es lo que Sales necesita para resolver la tarifa y devolver el dinero.
+     */
+    @Test
+    void cancelarUnAlquilerAsignadoBorraElViajeYAvisaASales() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
+        alquiler.cotizar(new BigDecimal("2600.00"), UUID.randomUUID());
+        alquiler.marcarPagado();
+        alquiler.asignar();
+        existe(alquiler);
+        guardarDevuelveElMismo();
+        laTarifaPermiteCancelar("80.00", 30);
+        UUID viajeId = UUID.randomUUID();
+        when(viajes.eliminarPorCancelacionDeAlquiler(alquiler.getId(), "Se enfermó el grupo"))
+                .thenReturn(viajeId);
+
+        servicio.cancelar(alquiler.getId(),
+                new CancelarAlquilerSolicitud("Se enfermó el grupo", null, 0), DatosPrueba.adminSucursal(XELA));
+
+        ArgumentCaptor<AlquilerCancelado> payload = ArgumentCaptor.forClass(AlquilerCancelado.class);
+        verify(eventos).alquilerCancelado(eq(alquiler), payload.capture());
+        assertThat(payload.getValue().estadoAnterior()).isEqualTo(EstadoAlquiler.ASIGNADO);
+        assertThat(payload.getValue().viajeId()).isEqualTo(viajeId);
+        assertThat(payload.getValue().horasAntesDeSalida()).isEqualTo(30);
+        assertThat(alquiler.getEstado()).isEqualTo(EstadoAlquiler.CANCELADO);
+    }
+
+    /** Fuera del plazo no se toca nada: ni el alquiler, ni el viaje, ni el dinero. */
+    @Test
+    void siLaTarifaNoPermiteCancelarNoSeBorraElViaje() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
+        alquiler.cotizar(new BigDecimal("2600.00"), UUID.randomUUID());
+        alquiler.marcarPagado();
+        alquiler.asignar();
+        existe(alquiler);
+        laTarifaNoPermiteCancelar("A la hora de la salida ya no se puede cancelar");
+
+        VerificarError.lanza(() -> servicio.cancelar(alquiler.getId(),
+                        new CancelarAlquilerSolicitud("Ya no viajamos", null, 0), DatosPrueba.adminSucursal(XELA)),
+                ErrorAlquiler.CANCELACION_NO_PERMITIDA);
+
+        assertThat(alquiler.getEstado()).isEqualTo(EstadoAlquiler.ASIGNADO);
+        verify(viajes, never()).eliminarPorCancelacionDeAlquiler(any(UUID.class), ArgumentMatchers.anyString());
+        verifyNoInteractions(eventos);
+    }
+
+    @Test
+    void unAlquilerCompletadoYaNoSePuedeCancelar() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler();
+        alquiler.cotizar(new BigDecimal("2600.00"), UUID.randomUUID());
+        alquiler.marcarPagado();
+        alquiler.asignar();
+        alquiler.completar();
+        existe(alquiler);
+
+        VerificarError.lanza(() -> servicio.cancelar(alquiler.getId(),
+                        new CancelarAlquilerSolicitud("tarde", null, 0), DatosPrueba.adminSucursal(XELA)),
+                ErrorAlquiler.ESTADO_NO_CANCELABLE);
+
+        verifyNoInteractions(politicas);
+        verifyNoInteractions(eventos);
     }
 
 }

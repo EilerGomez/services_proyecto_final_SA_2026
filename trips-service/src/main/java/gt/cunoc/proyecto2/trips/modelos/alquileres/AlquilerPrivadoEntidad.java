@@ -94,6 +94,13 @@ public class AlquilerPrivadoEntidad {
     @Column(name = "motivo_cancelacion")
     private String motivoCancelacion;
 
+    /**
+     * V16: momento exacto de la cancelación, el que indicó quien canceló. Es lo que fija el tramo de
+     * la tarifa de reembolso, por eso lo manda el frontend igual que la fecha de solicitud en T16.
+     */
+    @Column(name = "fecha_hora_cancelacion")
+    private OffsetDateTime fechaHoraCancelacion;
+
     @Column(name = "fecha_solicitud", nullable = false, updatable = false)
     private LocalDate fechaSolicitud;
 
@@ -146,10 +153,27 @@ public class AlquilerPrivadoEntidad {
         this.estado = EstadoAlquiler.COTIZADO;
     }
 
-    public void cancelar(String motivo) {
-        verificarEstado(EstadoAlquiler.SOLICITADO);
+    /**
+     * T21. Se cancela desde cualquiera de los cuatro estados previos a COMPLETADO: antes de pagar no
+     * hay dinero en juego, y después de pagar la tarifa de reembolso (Sales) decide si la cancelación
+     * se permite a esa hora y qué porcentaje se devuelve. Esa validación va antes de llamar a este
+     * método; acá solo se vigila que el alquiler no esté ya completado ni cancelado.
+     *
+     * @param cuando momento de la cancelación que indicó el usuario; es el que fija el tramo de la
+     *               tarifa y el que viaja en AlquilerCancelado para que Sales calcule el reembolso
+     */
+    public void cancelar(String motivo, OffsetDateTime cuando) {
+        if (!EstadoAlquiler.CANCELABLES.contains(estado)) {
+            throw ErrorAlquiler.ESTADO_NO_CANCELABLE.excepcion(estado);
+        }
         this.motivoCancelacion = motivo;
+        this.fechaHoraCancelacion = cuando;
         this.estado = EstadoAlquiler.CANCELADO;
+    }
+
+    /** Desde PAGADO ya entró dinero: cancelar obliga a devolver el porcentaje que toque. */
+    public boolean yaSePago() {
+        return estado.conPagoHecho();
     }
 
     public boolean marcarPagado() {

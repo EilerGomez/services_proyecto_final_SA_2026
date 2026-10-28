@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.sales.repositorios.alquileres;
 
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -17,4 +18,7 @@ public interface OrdenAlquilerRepositorio extends JpaRepository<OrdenAlquilerEnt
     List<OrdenAlquilerEntidad> findByClienteUsuarioIdOrderByFechaCreacionDesc(UUID clienteUsuarioId);
 
     boolean existsByAlquilerId(UUID alquilerId);
+
+    /** AlquilerCancelado: la orden del alquiler que Trips acaba de cancelar (alquiler_id es UNIQUE). */
+    Optional<OrdenAlquilerEntidad> findByAlquilerId(UUID alquilerId);
 }

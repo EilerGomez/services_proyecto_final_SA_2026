@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,12 @@ class AlquileresIT extends PruebaIntegracion {
     private static final String ALQUILERES = "/trips/alquileres";
     private static final OffsetDateTime LLEGADA_ALQUILER = SALIDA_ALQUILER.plusHours(8);
 
+    /**
+     * Tarifa de reembolso que agrega un solo test. vista_tarifas_reembolso no se trunca entre pruebas
+     * (la siembra la migración V16, igual que la tabla dueña en Sales), así que se borra al terminar.
+     */
+    private static final UUID TARIFA_DE_PRUEBA = UUID.fromString("7a4f0001-0000-4000-8000-0000000000ff");
+
     private UUID xela;
     private UUID guate;
 
@@ -29,6 +36,11 @@ class AlquileresIT extends PruebaIntegracion {
         xela = insertarSucursal("Quetzaltenango", true);
         guate = insertarSucursal("Guatemala", true);
         insertarPrecioAlquiler("15.00", LocalDate.of(2020, 1, 1));     // vigente para cualquier fecha de solicitud
+    }
+
+    @AfterEach
+    void dejarLaPoliticaComoEstaba() {
+        jdbc.update("DELETE FROM vista_tarifas_reembolso WHERE id = ?", TARIFA_DE_PRUEBA);
     }
 
     /** fechaSolicitud: hoy en Guatemala o después (el servicio rechaza fechas pasadas). */
@@ -336,22 +348,126 @@ class AlquileresIT extends PruebaIntegracion {
     }
 
     @Test
-    void cancelarAjenoYaCotizadoOSinMotivoFalla() {
+    void cancelarAjenoOSinMotivoFalla() {
         UUID cliente = UUID.randomUUID();
         UUID solicitado = insertarAlquiler(xela, cliente, "SOLICITADO");
-        UUID cotizado = insertarAlquiler(xela, cliente, "COTIZADO");
 
         esError(post(ALQUILERES + "/" + solicitado + "/cancelar", tokenCliente(UUID.randomUUID()),
                 cancelacion("Otro", 0)), 403, "ALQUILER_AJENO");
         esError(post(ALQUILERES + "/" + solicitado + "/cancelar", tokenAdminSucursal(guate),
                 cancelacion("Otro", 0)), 403, "ALQUILER_AJENO");
-        esError(post(ALQUILERES + "/" + cotizado + "/cancelar", tokenCliente(cliente), cancelacion("Tarde", 0)),
-                422, "ESTADO_INVALIDO");
         esError(post(ALQUILERES + "/" + solicitado + "/cancelar", tokenCliente(cliente), cancelacion("Otro", 2)),
                 409, "MODIFICACION_CONCURRENTE");
         esError(post(ALQUILERES + "/" + solicitado + "/cancelar", tokenCliente(cliente), cancelacion("  ", 0)),
                 400, "VALIDACION");
         assertThat(estadoDelAlquiler(solicitado)).isEqualTo("SOLICITADO");
+    }
+
+    /**
+     * Un alquiler cotizado pero no pagado se cancela en cualquier momento: la tarifa de reembolso lo
+     * permite y no hay nada que devolver (la orden de Sales todavía está PENDIENTE_PAGO).
+     */
+    @Test
+    void elClienteCancelaUnAlquilerCotizadoSinPenalizacion() {
+        UUID cliente = UUID.randomUUID();
+        UUID cotizado = insertarAlquiler(xela, cliente, "COTIZADO");
+
+        esStatus(post(ALQUILERES + "/" + cotizado + "/cancelar", tokenCliente(cliente),
+                cancelacion("Tarde pero se puede", 0)), 200);
+        assertThat(estadoDelAlquiler(cotizado)).isEqualTo("CANCELADO");
+
+        String evento = esperarEventos("AlquilerCancelado").get("AlquilerCancelado");
+        assertThat(JsonPath.<String>read(evento, "$.payload.estadoAnterior")).isEqualTo("COTIZADO");
+        assertThat(JsonPath.<String>read(evento, "$.payload.viajeId")).isNull();
+    }
+
+    /** Un alquiler ya terminado no se cancela: el viaje se hizo. */
+    @Test
+    void unAlquilerCompletadoNoSePuedeCancelar() {
+        UUID cliente = UUID.randomUUID();
+        UUID completado = insertarAlquiler(xela, cliente, "COMPLETADO");
+
+        esError(post(ALQUILERES + "/" + completado + "/cancelar", tokenCliente(cliente), cancelacion("Tarde", 0)),
+                422, "ESTADO_NO_CANCELABLE");
+        assertThat(estadoDelAlquiler(completado)).isEqualTo("COMPLETADO");
+    }
+
+    /**
+     * Alquiler pagado y con bus asignado: cancelar borra el viaje PRIVADO (la unidad queda libre) y
+     * publica AlquilerCancelado con el estado anterior y las horas, que es lo que Sales necesita para
+     * resolver la tarifa y devolver el dinero. También sale ViajeEliminado, para las proyecciones.
+     */
+    @Test
+    void cancelarUnAlquilerAsignadoBorraElViajeYPublicaAlquilerCancelado() {
+        UUID cliente = UUID.randomUUID();
+        UUID alquiler = insertarAlquiler(xela, cliente, "PAGADO");
+        marcarRecorrido(alquiler);
+        UUID bus = insertarBus(xela, "P-222BBB");
+        UUID chofer = insertarChofer(xela, "Ana Ruiz");
+        fleetDisponible(xela, bus, 40, chofer);
+        String viajeId = json(post(ALQUILERES + "/" + alquiler + "/asignacion", tokenAdminSucursal(xela),
+                asignacion(bus, chofer, 0)), "$.viajeId");
+        esperarEventos("ViajeProgramado", "AlquilerAsignado");
+
+        esStatus(post(ALQUILERES + "/" + alquiler + "/cancelar", tokenAdminSucursal(xela),
+                cancelacion("El grupo canceló el paseo", versionDelAlquiler(alquiler))), 200);
+
+        assertThat(estadoDelAlquiler(alquiler)).isEqualTo("CANCELADO");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM viajes WHERE alquiler_id = ?", Integer.class,
+                alquiler)).isZero();
+
+        Map<String, String> eventos = esperarEventos("AlquilerCancelado", "ViajeEliminado");
+        String cancelado = eventos.get("AlquilerCancelado");
+        assertThat(JsonPath.<String>read(cancelado, "$.aggregateId")).isEqualTo(alquiler.toString());
+        assertThat(JsonPath.<String>read(cancelado, "$.payload.estadoAnterior")).isEqualTo("ASIGNADO");
+        assertThat(JsonPath.<String>read(cancelado, "$.payload.viajeId")).isEqualTo(viajeId);
+        assertThat(JsonPath.<String>read(cancelado, "$.payload.motivo")).isEqualTo("El grupo canceló el paseo");
+        assertThat(JsonPath.<Number>read(cancelado, "$.payload.horasAntesDeSalida").longValue()).isPositive();
+    }
+
+    /** El cliente dueño también cancela después de pagar, bajo su propia responsabilidad. */
+    @Test
+    void elClienteCancelaSuAlquilerYaPagado() {
+        UUID cliente = UUID.randomUUID();
+        UUID pagado = insertarAlquiler(xela, cliente, "PAGADO");
+
+        esStatus(post(ALQUILERES + "/" + pagado + "/cancelar", tokenCliente(cliente),
+                cancelacion("Se enfermó el grupo", 0)), 200);
+
+        assertThat(estadoDelAlquiler(pagado)).isEqualTo("CANCELADO");
+        String evento = esperarEventos("AlquilerCancelado").get("AlquilerCancelado");
+        assertThat(JsonPath.<String>read(evento, "$.payload.estadoAnterior")).isEqualTo("PAGADO");
+    }
+
+    /** La tarifa manda: si el tramo que aplica no permite cancelar, no se toca el alquiler ni el viaje. */
+    @Test
+    void siLaTarifaNoPermiteCancelarLaCancelacionSeRechaza() {
+        UUID cliente = UUID.randomUUID();
+        // Salida en 3 horas: cae en el tramo del 60% si se permite, o en el de 0 horas si no
+        UUID pagado = insertarAlquiler(xela, cliente, "PAGADO", 30, OffsetDateTime.now().plusHours(3));
+        prohibirCancelar("PAGADO");
+
+        esError(post(ALQUILERES + "/" + pagado + "/cancelar", tokenCliente(cliente), cancelacion("Ya no", 0)),
+                422, "CANCELACION_NO_PERMITIDA");
+        assertThat(estadoDelAlquiler(pagado)).isEqualTo("PAGADO");
+    }
+
+    /**
+     * Agrega a la copia local un tramo que no permite cancelar y que gana sobre el sembrado por la
+     * migración (horas_minimas_antes más alto). No desactiva las demás filas: así este caso no cambia
+     * la política que ven los otros tests, y la fila se borra al terminar.
+     */
+    private void prohibirCancelar(String estado) {
+        jdbc.update("""
+                INSERT INTO vista_tarifas_reembolso (id, estado_alquiler, horas_minimas_antes,
+                                                     permite_cancelacion, porcentaje_reembolso, justificacion, activa)
+                VALUES (?, ?, 1, false, 0.00, 'Fuera de plazo: ya no se puede cancelar', true)""",
+                TARIFA_DE_PRUEBA, estado);
+    }
+
+    private int versionDelAlquiler(UUID alquilerId) {
+        return jdbc.queryForObject("SELECT version FROM alquileres_privados WHERE id = ?", Integer.class,
+                alquilerId);
     }
 
     // ----- T22 -----

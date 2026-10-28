@@ -157,9 +157,7 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
     @Transactional
     public void carteraReembolsada(ReferenciaCartera tipo, UUID referenciaId) {
         if (tipo == ReferenciaCartera.ALQUILER) {
-            // La orden no cambia: el reembolso de un alquiler siempre es de un cobro de más (débito tardío)
-            // y la orden debe poder seguir pagándose o quedar PAGADA en efectivo.
-            log.info("Reembolso aplicado a la cartera por la orden {}", referenciaId);
+            ordenReembolsada(referenciaId);
             return;
         }
         VentaEntidad venta = ventas.findById(referenciaId).orElse(null);
@@ -170,5 +168,22 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
         }
         venta.marcarReembolsada(Fechas.hoy());
         ventas.saveAndFlush(venta);
+    }
+
+    /**
+     * El dinero del alquiler ya volvió a la cartera. Solo cambia de estado la orden que estaba
+     * esperando ese reembolso (CANCELADA): el reembolso de un cobro de más (débito tardío) no la toca,
+     * porque esa orden debe poder seguir pagándose o quedar PAGADA en efectivo.
+     */
+    private void ordenReembolsada(UUID ordenId) {
+        OrdenAlquilerEntidad orden = ordenes.findById(ordenId).orElse(null);
+        if (orden == null || !orden.puedeMarcarseReembolsada()) {
+            log.info("CarteraReembolsada para la orden {} ({}): no se hace nada", ordenId,
+                    orden == null ? "no existe" : orden.getEstado());
+            return;
+        }
+        orden.marcarReembolsada(Fechas.hoy(), null);         // la cartera no la entrega ningún cajero
+        ordenes.saveAndFlush(orden);
+        log.info("Orden {} reembolsada por la cartera", ordenId);
     }
 }

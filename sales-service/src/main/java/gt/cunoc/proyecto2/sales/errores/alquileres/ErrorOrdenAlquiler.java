@@ -13,7 +13,12 @@ public enum ErrorOrdenAlquiler implements CodigoError {
     ALQUILER_SIN_CUENTA(TipoError.REGLA_NEGOCIO,
             "El alquiler se pidió en mostrador sin cuenta: solo se puede pagar en efectivo"),
     PAGO_EN_PROCESO(TipoError.CONFLICTO,
-            "Ya se está cobrando esta orden con la cartera; espere el resultado");
+            "Ya se está cobrando esta orden con la cartera; espere el resultado"),
+    ESTADO_INVALIDO_CANCELAR(TipoError.REGLA_NEGOCIO,
+            "La orden está %s: ya no se puede cancelar"),
+    ESTADO_INVALIDO_REEMBOLSO(TipoError.REGLA_NEGOCIO,
+            "La orden está %s; solo se devuelve el dinero de una orden CANCELADA"),
+    ORDEN_YA_REEMBOLSADA(TipoError.REGLA_NEGOCIO, "El dinero de esta orden ya se devolvió");
 
     private final TipoError tipo;
     private final String mensaje;

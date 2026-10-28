@@ -149,7 +149,7 @@ class AlquilerControladorTest {
 
     @Test
     void cancelarRespondeOk() {
-        CancelarAlquilerSolicitud solicitud = new CancelarAlquilerSolicitud("  Cambio de planes ", 0);
+        CancelarAlquilerSolicitud solicitud = new CancelarAlquilerSolicitud("  Cambio de planes ", null, 0);
         when(servicio.cancelar(alquiler.getId(), solicitud, cliente)).thenReturn(respuesta);
 
         ResponseEntity<AlquilerRespuesta> cancelado = controlador.cancelar(alquiler.getId(), solicitud, cliente);

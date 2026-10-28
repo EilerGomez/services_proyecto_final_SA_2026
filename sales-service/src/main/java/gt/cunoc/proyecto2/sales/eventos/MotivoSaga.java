@@ -14,5 +14,10 @@ public enum MotivoSaga {
     /** Wallet cobró después de que la venta u orden ya no podía pagarse: se devuelve el dinero. */
     DEBITO_TARDIO,
     /** S5: un administrador canceló una venta pagada con cartera. */
-    VENTA_CANCELADA
+    VENTA_CANCELADA,
+    /**
+     * Se canceló el alquiler y la orden se había pagado con cartera: se devuelve el porcentaje que
+     * indique la tarifa de reembolso vigente, que puede ser menos que lo cobrado.
+     */
+    ALQUILER_CANCELADO
 }

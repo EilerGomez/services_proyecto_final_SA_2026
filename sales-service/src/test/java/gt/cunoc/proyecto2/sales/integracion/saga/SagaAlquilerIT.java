@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import com.jayway.jsonpath.JsonPath;
 import gt.cunoc.proyecto2.sales.integracion.soporte.PruebaIntegracion;
 import gt.cunoc.proyecto2.sales.utilidades.Fechas;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -212,6 +213,111 @@ class SagaAlquilerIT extends PruebaIntegracion {
         await().atMost(ESPERA).until(() -> procesado(reembolsada));
         assertThat(estadoOrden(orden)).isEqualTo("PAGADA");
         assertThat(filaOrden().get("metodo_pago")).isEqualTo("EFECTIVO");
+    }
+
+    // ----- AlquilerCancelado (Trips): cancelación con reembolso parcial -----
+
+    /**
+     * Publica AlquilerCancelado como lo hace Trips. El porcentaje no viaja en el evento: van el estado
+     * anterior y las horas, y Sales resuelve la tarifa con su propia tabla (tarifas_reembolso, V13).
+     */
+    private UUID alquilerCancelado(String estadoAnterior, long horasAntes) {
+        UUID alquilerId = (UUID) filaOrden().get("alquiler_id");
+        return publicarEvento(TRIPS_EVENTOS, "AlquilerCancelado", alquilerId, 3L, """
+                {"alquilerId":"%s","sucursalId":"%s","estadoAnterior":"%s",
+                 "fechaSalida":"2026-12-20T07:00:00-06:00","fechaHoraCancelacion":"2026-12-18T07:00:00-06:00",
+                 "horasAntesDeSalida":%d,"motivo":"El grupo canceló el paseo","viajeId":"%s",
+                 "clienteNombre":"Colegio San José","clienteCorreo":"colegio@correo.com"}
+                """.formatted(alquilerId, xela, estadoAnterior, horasAntes, UUID.randomUUID()));
+    }
+
+    /** Pagada con cartera y cancelada desde ASIGNADO con 30 horas: la tarifa sembrada devuelve el 80%. */
+    @Test
+    void cancelarUnAlquilerPagadoConCarteraPideElReembolsoParcialAWallet() {
+        esStatus(pagarConCartera(), 202);
+        carteraDebitada();
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("PAGADA"));
+
+        alquilerCancelado("ASIGNADO", 30);
+
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("CANCELADA"));
+        Map<String, Object> fila = filaOrden();
+        assertThat(fila.get("motivo_cancelacion")).isEqualTo("El grupo canceló el paseo");
+        assertThat((BigDecimal) fila.get("porcentaje_reembolso")).isEqualByComparingTo("80.00");
+        assertThat((BigDecimal) fila.get("monto_reembolsado")).isEqualByComparingTo("2080.00");
+        assertThat(fila.get("horas_antes_viaje")).isEqualTo(30);
+        assertThat(fila.get("fecha_reembolso")).isNull();                  // todavía no volvió el dinero
+
+        // Wallet recibe solo el 80%, no los Q2600 cobrados
+        String reembolso = esperarEventos("ReembolsoCarteraSolicitado").get("ReembolsoCarteraSolicitado");
+        assertThat(decimal(reembolso, "$.payload.monto")).isEqualByComparingTo("2080.00");
+        assertThat(JsonPath.<String>read(reembolso, "$.payload.motivo")).isEqualTo("ALQUILER_CANCELADO");
+        assertThat(JsonPath.<String>read(reembolso, "$.payload.referenciaTipo")).isEqualTo("ALQUILER");
+        assertThat(JsonPath.<String>read(reembolso, "$.payload.referenciaId")).isEqualTo(orden.toString());
+
+        // y cuando Wallet confirma, la orden queda REEMBOLSADA
+        carteraReembolsada();
+
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("REEMBOLSADA"));
+        assertThat(filaOrden().get("fecha_reembolso")).isNotNull();
+        assertThat(filaOrden().get("reembolsado_por")).isNull();           // lo acreditó la cartera
+    }
+
+    /** Pagada en efectivo: no hay evento, el 95% lo entrega la ventanilla desde la pantalla de reembolsos. */
+    @Test
+    void cancelarUnAlquilerPagadoEnEfectivoDejaElDineroPendienteEnVentanilla() {
+        esStatus(pagarEnEfectivo(), 200);
+        esperarEventos("AlquilerPagado");
+
+        alquilerCancelado("PAGADO", 100);
+
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("CANCELADA"));
+        assertThat((BigDecimal) filaOrden().get("monto_reembolsado")).isEqualByComparingTo("2470.00");
+        assertThat(filaOrden().get("fecha_reembolso")).isNull();
+        assertThat(enOutbox("ReembolsoCarteraSolicitado")).isEmpty();
+
+        // La orden aparece en la pantalla de reembolsos con el monto por devolver
+        ResponseEntity<String> detalle = get("/sales/ordenes-alquiler/" + orden, tokenCajero(xela));
+        esStatus(detalle, 200);
+        assertThat(PruebaIntegracion.<Boolean>json(detalle, "$.reembolsoPendiente")).isTrue();
+        assertThat(decimal(detalle, "$.montoReembolsado")).isEqualByComparingTo("2470.00");
+
+        int version = (Integer) filaOrden().get("version");
+        ResponseEntity<String> entregado = post("/sales/ordenes-alquiler/" + orden + "/reembolso",
+                tokenCajero(xela), "{\"version\":%d}".formatted(version));
+
+        esStatus(entregado, 200);
+        assertThat(PruebaIntegracion.<String>json(entregado, "$.estado")).isEqualTo("REEMBOLSADA");
+        assertThat(filaOrden().get("reembolsado_por")).isNotNull();
+        assertThat(estadoOrden(orden)).isEqualTo("REEMBOLSADA");
+    }
+
+    /** Sin pago no hay tarifa que aplicar ni dinero que devolver: la orden se cierra de una vez. */
+    @Test
+    void cancelarUnAlquilerSinPagarCierraLaOrdenSinReembolso() {
+        alquilerCancelado("COTIZADO", 500);
+
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("CANCELADA"));
+        assertThat((BigDecimal) filaOrden().get("monto_reembolsado")).isEqualByComparingTo("0.00");
+        assertThat(filaOrden().get("porcentaje_reembolso")).isNull();
+        assertThat(filaOrden().get("fecha_reembolso")).isNotNull();        // nada que devolver: ya está cerrada
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM eventos_salida", Integer.class)).isZero();
+    }
+
+    @Test
+    void alquilerCanceladoRepetidoNoVuelveAMoverDinero() {
+        esStatus(pagarEnEfectivo(), 200);
+        esperarEventos("AlquilerPagado");
+        alquilerCancelado("PAGADO", 100);
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoOrden(orden)).isEqualTo("CANCELADA"));
+        Object version = filaOrden().get("version");
+
+        UUID repetido = alquilerCancelado("PAGADO", 100);
+
+        await().atMost(ESPERA).until(() -> procesado(repetido));
+        assertThat(estadoOrden(orden)).isEqualTo("CANCELADA");
+        assertThat(filaOrden().get("version")).isEqualTo(version);
+        assertThat(enOutbox("ReembolsoCarteraSolicitado")).isEmpty();
     }
 
     @Test

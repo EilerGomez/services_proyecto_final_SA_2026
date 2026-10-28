@@ -4,7 +4,8 @@ package gt.cunoc.proyecto2.sales.eventos;
 public enum TipoAgregado {
 
     VENTA("Venta"),
-    ORDEN_ALQUILER("OrdenAlquiler");
+    ORDEN_ALQUILER("OrdenAlquiler"),
+    TARIFA_REEMBOLSO("TarifaReembolso");
 
     private final String nombre;
 

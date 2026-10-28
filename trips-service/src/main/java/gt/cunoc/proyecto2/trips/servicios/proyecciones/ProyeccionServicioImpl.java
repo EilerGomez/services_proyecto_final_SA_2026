@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.BusEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.ChoferEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.SucursalEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.trips.eventos.recibidos.sales.TarifaReembolsoCambiada;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
@@ -11,6 +12,7 @@ import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.sucursales.VistaSucursalRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaReembolsoRepositorio;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,16 +32,19 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     private final VistaBusRepositorio buses;
     private final VistaChoferRepositorio choferes;
     private final VistaTarifaDepreciacionRepositorio tarifas;
+    private final VistaTarifaReembolsoRepositorio tarifasReembolso;
     private final VistaClienteRepositorio clientes;
     private final AlquilerPrivadoRepositorio alquileres;
 
     public ProyeccionServicioImpl(VistaSucursalRepositorio sucursales, VistaBusRepositorio buses,
                                   VistaChoferRepositorio choferes, VistaTarifaDepreciacionRepositorio tarifas,
+                                  VistaTarifaReembolsoRepositorio tarifasReembolso,
                                   VistaClienteRepositorio clientes, AlquilerPrivadoRepositorio alquileres) {
         this.sucursales = sucursales;
         this.buses = buses;
         this.choferes = choferes;
         this.tarifas = tarifas;
+        this.tarifasReembolso = tarifasReembolso;
         this.clientes = clientes;
         this.alquileres = alquileres;
     }
@@ -85,6 +90,15 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     public void guardarTarifa(TarifaDepreciacionCambiada tarifa) {
         int filas = tarifas.guardar(tarifa.tarifaId(), tarifa.montoPorKm(), tarifa.vigenteDesde());
         registrarSiIgnorado(filas, "tarifa de depreciación", tarifa.tarifaId(), null);
+    }
+
+    @Override
+    @Transactional
+    public void guardarTarifaReembolso(TarifaReembolsoCambiada tarifa) {
+        int filas = tarifasReembolso.guardar(tarifa.tarifaId(), tarifa.estadoAlquiler(),
+                tarifa.horasMinimasAntes(), tarifa.permiteCancelacion(), tarifa.porcentajeReembolso(),
+                tarifa.justificacion(), tarifa.activa());
+        registrarSiIgnorado(filas, "tarifa de reembolso", tarifa.tarifaId(), null);
     }
 
     @Override

@@ -9,6 +9,7 @@ import gt.cunoc.proyecto2.trips.dtos.alquileres.CancelarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.CotizarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.FiltroAlquileres;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.NuevoAlquilerSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.alquileres.PoliticaCancelacionRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.EstadoAlquiler;
 import gt.cunoc.proyecto2.trips.servicios.alquileres.AlquilerServicio;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -85,9 +87,22 @@ public class AlquilerControlador {
         return ResponseEntity.ok(servicio.cotizar(id, solicitud, usuario));
     }
 
+    @GetMapping("/{id}/politica-cancelacion")
+    @Operation(summary = "Qué pasaría si se cancelara ahora: si se permite, qué porcentaje se devuelve"
+            + " y por qué (el cliente dueño o el personal de la sucursal)")
+    public ResponseEntity<PoliticaCancelacionRespuesta> politicaDeCancelacion(
+            @PathVariable UUID id,
+            @Parameter(description = "Momento de la cancelación; si no se indica, ahora")
+            @RequestParam(required = false) OffsetDateTime cuando,
+            @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.politicaDeCancelacion(id, cuando, usuario));
+    }
+
     @PostMapping("/{id}/cancelar")
     @RequiereRol({Roles.CLIENTE, Roles.ADMIN_SUCURSAL})
-    @Operation(summary = "T21 · Cancela un alquiler SOLICITADO")
+    @Operation(summary = "T21 · Cancela el alquiler (el cliente dueño o el administrador de la sucursal)."
+            + " Desde PAGADO se devuelve el porcentaje de la tarifa de reembolso vigente y, si tenía bus"
+            + " asignado, su viaje se elimina")
     public ResponseEntity<AlquilerRespuesta> cancelar(@PathVariable UUID id,
                                                       @RequestBody @Valid CancelarAlquilerSolicitud solicitud,
                                                       @Parameter(hidden = true) UsuarioActual usuario) {

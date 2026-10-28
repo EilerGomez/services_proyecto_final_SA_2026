@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -87,6 +88,36 @@ public class OrdenAlquilerEntidad {
     @Column(name = "motivo_rechazo")
     private String motivoRechazo;
 
+    // ----- V14: cancelación del alquiler y devolución del dinero -----
+
+    @Column(name = "fecha_cancelacion")
+    private LocalDate fechaCancelacion;
+
+    @Column(name = "motivo_cancelacion", length = 500)
+    private String motivoCancelacion;
+
+    /** Horas que faltaban para la salida al cancelar: explica qué tramo de la tarifa se aplicó. */
+    @Column(name = "horas_antes_viaje")
+    private Integer horasAntesViaje;
+
+    @Column(name = "porcentaje_reembolso", precision = 5, scale = 2)
+    private BigDecimal porcentajeReembolso;
+
+    @Column(name = "justificacion_reembolso", length = 255)
+    private String justificacionReembolso;
+
+    /** Lo que le toca al cliente según la tarifa. 0 cuando no se había pagado o no hay derecho. */
+    @Column(name = "monto_reembolsado", precision = 12, scale = 2)
+    private BigDecimal montoReembolsado;
+
+    /** Con fecha ya no queda nada por devolver: el dinero volvió o nunca hubo derecho a devolución. */
+    @Column(name = "fecha_reembolso")
+    private LocalDate fechaReembolso;
+
+    /** Quién entregó el efectivo en la ventanilla; null cuando lo devolvió la cartera. */
+    @Column(name = "reembolsado_por")
+    private UUID reembolsadoPor;
+
     @Column(name = "fecha_creacion", insertable = false, updatable = false)
     private OffsetDateTime fechaCreacion;
 
@@ -150,6 +181,101 @@ public class OrdenAlquilerEntidad {
         verificarCobroEnCurso();
         this.estado = EstadoOrdenAlquiler.RECHAZADA;
         this.motivoRechazo = motivo;
+    }
+
+    /**
+     * Se canceló el alquiler. Si la orden ya estaba PAGADA se aplica la tarifa de reembolso y queda
+     * dinero pendiente de devolver; si no se había pagado, se cierra sin nada que devolver.
+     *
+     * @param porcentaje     porcentaje de la tarifa que se aplicó (null si no se había pagado)
+     * @param justificacion  texto de la tarifa, copiado para que el reembolso se pueda explicar después
+     */
+    public void cancelar(String motivo, LocalDate fecha, Integer horasAntes, BigDecimal porcentaje,
+                         String justificacion) {
+        verificarCancelable();
+        boolean habiaDinero = estado == EstadoOrdenAlquiler.PAGADA;
+        this.motivoCancelacion = motivo;
+        this.fechaCancelacion = fecha;
+        this.horasAntesViaje = horasAntes;
+        this.estado = EstadoOrdenAlquiler.CANCELADA;
+        if (!habiaDinero) {
+            // Nunca entró dinero: no hay tarifa que aplicar y la orden queda cerrada de una vez
+            this.porcentajeReembolso = null;
+            this.justificacionReembolso = justificacion;
+            this.montoReembolsado = BigDecimal.ZERO.setScale(2);
+            this.fechaReembolso = fecha;
+            return;
+        }
+        this.porcentajeReembolso = porcentaje;
+        this.justificacionReembolso = justificacion;
+        this.montoReembolsado = reembolsoSegun(porcentaje);
+        // Sin derecho a devolución no hay nada que entregar: se cierra con el monto en cero
+        this.fechaReembolso = this.montoReembolsado.signum() == 0 ? fecha : null;
+    }
+
+    /** CarteraReembolsada o S14 del alquiler: CANCELADA → REEMBOLSADA. */
+    public void marcarReembolsada(LocalDate fecha, UUID porUsuarioId) {
+        verificarPuedeReembolsarse();
+        this.fechaReembolso = fechaNoAnteriorAlPago(fecha);
+        this.reembolsadoPor = porUsuarioId;
+        this.estado = EstadoOrdenAlquiler.REEMBOLSADA;
+    }
+
+    /** ¿Queda dinero por entregarle al cliente? Es el filtro de la pantalla de reembolsos. */
+    public boolean tieneReembolsoPendiente() {
+        return estado == EstadoOrdenAlquiler.CANCELADA && fechaReembolso == null;
+    }
+
+    public boolean puedeMarcarseReembolsada() {
+        return tieneReembolsoPendiente();
+    }
+
+    public boolean estaReembolsada() {
+        return estado == EstadoOrdenAlquiler.REEMBOLSADA;
+    }
+
+    /**
+     * La orden ya no admite otra cancelación: o se canceló, o su dinero ya volvió. Es la guarda de
+     * idempotencia del manejador de AlquilerCancelado (un evento reentregado no hace nada).
+     */
+    public boolean yaCerrada() {
+        return estado == EstadoOrdenAlquiler.CANCELADA || estado == EstadoOrdenAlquiler.REEMBOLSADA;
+    }
+
+    /** El cobro fue con cartera, aunque la orden ya haya cambiado de estado (se devuelve por evento). */
+    public boolean seCobroConCartera() {
+        return metodoPago == MetodoPago.CARTERA;
+    }
+
+    /**
+     * Lo que se le pide a Wallet: el porcentaje de la tarifa cuando la orden se canceló, o el total
+     * cuando el reembolso es por un cobro de más (débito tardío, que devuelve todo).
+     */
+    public BigDecimal montoAReembolsar() {
+        return montoReembolsado != null ? montoReembolsado : monto;
+    }
+
+    private BigDecimal reembolsoSegun(BigDecimal porcentaje) {
+        if (porcentaje == null || porcentaje.signum() <= 0) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        return monto.multiply(porcentaje).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+    }
+
+    private void verificarCancelable() {
+        if (estado != EstadoOrdenAlquiler.PENDIENTE_PAGO && estado != EstadoOrdenAlquiler.RECHAZADA
+                && estado != EstadoOrdenAlquiler.PAGADA) {
+            throw ErrorOrdenAlquiler.ESTADO_INVALIDO_CANCELAR.excepcion(estado);
+        }
+    }
+
+    private void verificarPuedeReembolsarse() {
+        if (estaReembolsada() || fechaReembolso != null) {
+            throw ErrorOrdenAlquiler.ORDEN_YA_REEMBOLSADA.excepcion();
+        }
+        if (!tieneReembolsoPendiente()) {
+            throw ErrorOrdenAlquiler.ESTADO_INVALIDO_REEMBOLSO.excepcion(estado);
+        }
     }
 
     public boolean cobroConCarteraEnCurso() {

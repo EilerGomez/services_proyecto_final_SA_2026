@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.AlquilerCancelado;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfirmada;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEliminado;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEvento;
@@ -27,7 +28,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
-/** Los 6 manejadores de eventos de Trips: nombre, payload y a qué servicio delegan (solo viajes REGULAR). */
+/** Los manejadores de eventos de Trips: nombre, payload y a qué servicio delegan (solo viajes REGULAR). */
 class ManejadoresTripsTest {
 
     private static final Long VERSION = 7L;
@@ -213,5 +214,34 @@ class ManejadoresTripsTest {
         verify(ordenes).registrarOrden(cotizacion);
         verifyNoMoreInteractions(ordenes);
         verifyNoInteractions(proyecciones, ventas);
+    }
+
+    // ----- AlquilerCancelado -----
+
+    @Test
+    void alquilerCanceladoPasaElAvisoYLaFechaDeNegocioALaOrden() {
+        ManejadorAlquilerCancelado manejador = new ManejadorAlquilerCancelado(ordenes);
+        AlquilerCancelado aviso = new AlquilerCancelado(UUID.randomUUID(), XELA, "ASIGNADO", SALIDA,
+                SALIDA.minusHours(30), 30L, "Cambio de planes", UUID.randomUUID(), "Colegio San José",
+                "colegio@correo.com");
+
+        manejador.manejar(evento("AlquilerCancelado", aviso.alquilerId(), aviso));
+
+        assertThat(manejador.tipoEvento()).isEqualTo("AlquilerCancelado");
+        assertThat(manejador.tipoPayload()).isEqualTo(AlquilerCancelado.class);
+        verify(ordenes).registrarCancelacion(aviso, FECHA_PAGO);
+        verifyNoMoreInteractions(ordenes);
+        verifyNoInteractions(proyecciones, ventas);
+    }
+
+    /** Las horas nunca se pasan negativas: si el viaje ya salió, el tramo que aplica es el de 0 horas. */
+    @Test
+    void lasHorasNegativasDelAvisoSeLeenComoCero() {
+        AlquilerCancelado aviso = new AlquilerCancelado(UUID.randomUUID(), XELA, "ASIGNADO", SALIDA,
+                SALIDA.plusHours(2), -2L, "No se presentaron", null, "Colegio", null);
+
+        assertThat(aviso.horas()).isZero();
+        assertThat(new AlquilerCancelado(UUID.randomUUID(), XELA, "PAGADO", SALIDA, SALIDA, null,
+                "x", null, "Colegio", null).horas()).isZero();
     }
 }

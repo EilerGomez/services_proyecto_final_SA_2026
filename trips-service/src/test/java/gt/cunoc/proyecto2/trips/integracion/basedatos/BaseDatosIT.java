@@ -51,7 +51,7 @@ class BaseDatosIT extends PruebaIntegracion {
         Integer aplicadas = jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class);
 
-        assertThat(aplicadas).isEqualTo(15);
+        assertThat(aplicadas).isEqualTo(16);
     }
 
     // ----- fn_registro_inmutable (V1) -----

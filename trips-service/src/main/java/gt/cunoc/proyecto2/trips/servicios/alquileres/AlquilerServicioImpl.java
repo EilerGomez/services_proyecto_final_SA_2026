@@ -8,12 +8,15 @@ import gt.cunoc.proyecto2.trips.dtos.alquileres.CancelarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.CotizarAlquilerSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.FiltroAlquileres;
 import gt.cunoc.proyecto2.trips.dtos.alquileres.NuevoAlquilerSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.alquileres.PoliticaCancelacionRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.errores.alquileres.ErrorAlquiler;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.eventos.publicados.alquileres.AlquilerCancelado;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.CanalAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.alquileres.ClienteAlquiler;
+import gt.cunoc.proyecto2.trips.modelos.alquileres.EstadoAlquiler;
 import gt.cunoc.proyecto2.trips.modelos.clientes.VistaClienteEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
@@ -22,12 +25,14 @@ import gt.cunoc.proyecto2.trips.repositorios.alquileres.EspecificacionesAlquiler
 import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
+import gt.cunoc.proyecto2.trips.servicios.tarifas.PoliticaCancelacionServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.AsignacionViajeServicio;
 import gt.cunoc.proyecto2.trips.servicios.viajes.ViajeServicio;
 import gt.cunoc.proyecto2.trips.utilidades.Fechas;
 import gt.cunoc.proyecto2.trips.utilidades.VerificadorVersion;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,12 +60,14 @@ public class AlquilerServicioImpl implements AlquilerServicio {
     private final ViajeServicio viajes;
     private final ViajeRepositorio viajeRepositorio;
     private final VistaClienteRepositorio clientes;
+    private final PoliticaCancelacionServicio politicas;
     private final PublicadorEventosTrips eventos;
 
     public AlquilerServicioImpl(AlquilerPrivadoRepositorio repositorio, ConfiguracionAlquilerServicio precios,
                                 VistaSucursalServicio sucursales, AsignacionViajeServicio asignaciones,
                                 ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
-                                VistaClienteRepositorio clientes, PublicadorEventosTrips eventos) {
+                                VistaClienteRepositorio clientes, PoliticaCancelacionServicio politicas,
+                                PublicadorEventosTrips eventos) {
         this.repositorio = repositorio;
         this.precios = precios;
         this.sucursales = sucursales;
@@ -68,6 +75,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
         this.clientes = clientes;
+        this.politicas = politicas;
         this.eventos = eventos;
     }
 
@@ -145,6 +153,15 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         return respuesta(alquiler);
     }
 
+    /**
+     * T21. Se cancela desde SOLICITADO, COTIZADO, PAGADO o ASIGNADO, y lo puede hacer tanto el cliente
+     * dueño como el administrador de la sucursal: desde PAGADO el cliente cancela bajo su propia
+     * responsabilidad, aceptando la penalización de la tarifa.
+     *
+     * <p>Orden de los pasos, que importa: primero la tarifa decide si la cancelación se permite (si no,
+     * no se toca nada), después se borra el viaje si había, y de último se cancela el alquiler y sale
+     * AlquilerCancelado. Todo en una transacción: si algo falla, no se borra el viaje ni se mueve dinero.</p>
+     */
     @Override
     @Transactional
     public AlquilerRespuesta cancelar(UUID id, CancelarAlquilerSolicitud solicitud, UsuarioActual usuario) {
@@ -153,8 +170,52 @@ public class AlquilerServicioImpl implements AlquilerServicio {
             throw ErrorAlquiler.ALQUILER_AJENO.excepcion();
         }
         VerificadorVersion.verificar(alquiler.getVersion(), solicitud.version());
-        alquiler.cancelar(solicitud.motivo());                                 // 422 si no está SOLICITADO
-        return respuesta(repositorio.saveAndFlush(alquiler));
+        if (!EstadoAlquiler.CANCELABLES.contains(alquiler.getEstado())) {
+            throw ErrorAlquiler.ESTADO_NO_CANCELABLE.excepcion(alquiler.getEstado());     // 422
+        }
+        OffsetDateTime cuando = cuandoSeCancela(alquiler, solicitud.fechaHoraCancelacion());
+        PoliticaCancelacionRespuesta politica = politicas.para(alquiler, cuando);
+        if (!politica.permiteCancelacion()) {
+            // El mensaje es la justificación de la tarifa: el usuario ve el porqué, no un código
+            throw ErrorAlquiler.CANCELACION_NO_PERMITIDA.excepcion(politica.justificacion());
+        }
+        EstadoAlquiler estadoAnterior = alquiler.getEstado();
+        // Si tenía bus y piloto, el viaje desaparece: la unidad queda libre para otro alquiler
+        UUID viajeBorrado = viajes.eliminarPorCancelacionDeAlquiler(id, solicitud.motivo());
+        alquiler.cancelar(solicitud.motivo(), cuando);
+        AlquilerPrivadoEntidad cancelado = repositorio.saveAndFlush(alquiler);
+        // Sales cancela la orden y, si ya había pago, devuelve el porcentaje que indique su tabla
+        eventos.alquilerCancelado(cancelado, AlquilerCancelado.desde(cancelado, estadoAnterior, cuando,
+                politica.horasAntesDeSalida(), viajeBorrado));
+        log.info("Alquiler {} cancelado desde {} con {} horas de anticipación", id, estadoAnterior,
+                politica.horasAntesDeSalida());
+        return respuesta(cancelado);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PoliticaCancelacionRespuesta politicaDeCancelacion(UUID id, OffsetDateTime cuando,
+                                                              UsuarioActual usuario) {
+        AlquilerPrivadoEntidad alquiler = obtenerPorId(id);
+        if (!usuario.esAdminSistema() && !alquiler.esDelCliente(usuario.usuarioId())
+                && !esPersonalDeLaSucursal(alquiler, usuario)) {
+            throw ErrorAlquiler.ALQUILER_AJENO.excepcion();
+        }
+        return politicas.para(alquiler, cuando == null ? Fechas.ahora() : cuando);
+    }
+
+    /**
+     * El momento que indicó quien cancela, o ahora si no lo mandó. No puede ser anterior a la fecha de
+     * solicitud del alquiler: un tramo calculado hacia atrás regalaría un reembolso que no corresponde.
+     */
+    private static OffsetDateTime cuandoSeCancela(AlquilerPrivadoEntidad alquiler, OffsetDateTime indicada) {
+        if (indicada == null) {
+            return Fechas.ahora();
+        }
+        if (Fechas.diaEnGuatemala(indicada).isBefore(alquiler.getFechaSolicitud())) {
+            throw ErrorAlquiler.CANCELACION_EN_EL_PASADO.excepcion(Fechas.diaEnGuatemala(indicada));
+        }
+        return indicada;
     }
 
     @Override

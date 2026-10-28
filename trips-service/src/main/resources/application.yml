@@ -36,7 +36,8 @@ spring:
 
 # Eventos (módulo comun): exchange propio, cola propia y suscripciones del catálogo.
 # Publica: RutaCreada, RutaActualizada, RutaEliminada, ViajeProgramado, ViajeActualizado,
-#          ViajeEliminado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada, AlquilerAsignado
+#          ViajeEliminado, ViajeReasignado, ViajeIniciado, ViajeCompletado, CotizacionAlquilerConfirmada,
+#          AlquilerAsignado, AlquilerCancelado
 comun:
   eventos:
     exchange: trips.eventos            # publica en este exchange (outbox → RelayOutbox)
@@ -45,7 +46,7 @@ comun:
       "[fleet.eventos]": [SucursalCreada, SucursalActualizada, BusCreado, BusActualizado, BusDesactivado,
                           ChoferCreado, ChoferActualizado, ChoferDesactivado]
       "[identity.eventos]": [TarifaDepreciacionCambiada, ClienteRegistrado, PerfilActualizado]
-      "[sales.eventos]": [AlquilerPagado]
+      "[sales.eventos]": [AlquilerPagado, TarifaReembolsoCambiada]
  
 app:
   jwt:

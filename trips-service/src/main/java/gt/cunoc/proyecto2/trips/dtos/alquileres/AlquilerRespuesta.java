@@ -34,6 +34,8 @@ public record AlquilerRespuesta(
         UUID confirmadoPor,
         EstadoAlquiler estado,
         String motivoCancelacion,
+        /** Momento en que se canceló, el que indicó quien canceló (null si no está CANCELADO). */
+        OffsetDateTime fechaHoraCancelacion,
         LocalDate fechaSolicitud,
         UUID viajeId,
         // Viaje PRIVADO ya asignado (T22): bus, chofer y fechas. Null mientras no esté asignado.
@@ -71,6 +73,7 @@ public record AlquilerRespuesta(
                 alquiler.getConfirmadoPor(),
                 alquiler.getEstado(),
                 alquiler.getMotivoCancelacion(),
+                Fechas.enGuatemala(alquiler.getFechaHoraCancelacion()),
                 alquiler.getFechaSolicitud(),
                 viajeId,
                 viaje,

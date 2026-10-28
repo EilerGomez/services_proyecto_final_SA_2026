@@ -201,8 +201,9 @@ class DtosAlquilerTest {
 
     @Test
     void cancelarNormalizaElMotivo() {
-        assertThat(new CancelarAlquilerSolicitud("  Cambio de planes ", 0).motivo()).isEqualTo("Cambio de planes");
-        assertThat(new CancelarAlquilerSolicitud(null, 0).motivo()).isNull();
+        assertThat(new CancelarAlquilerSolicitud("  Cambio de planes ", null, 0).motivo())
+                .isEqualTo("Cambio de planes");
+        assertThat(new CancelarAlquilerSolicitud(null, null, 0).motivo()).isNull();
     }
 
     // ----- AlquilerRespuesta -----
@@ -251,7 +252,7 @@ class DtosAlquilerTest {
                 new BigDecimal("205.00"), DatosPrueba.FECHA, null, null, null, null);
         AlquilerPrivadoEntidad alquiler = solicitud.crearEntidad(CanalAlquiler.PRESENCIAL, null, null,
                 new BigDecimal("2818.75"), UUID.randomUUID());
-        alquiler.cancelar("Sin presupuesto");
+        alquiler.cancelar("Sin presupuesto", OffsetDateTime.parse("2026-11-01T10:00:00-06:00"));
 
         AlquilerRespuesta respuesta = new AlquilerRespuesta(alquiler, null);
 

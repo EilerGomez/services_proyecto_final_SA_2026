@@ -13,12 +13,14 @@ import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.BusEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.ChoferEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.SucursalEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.trips.eventos.recibidos.sales.TarifaReembolsoCambiada;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.sucursales.VistaSucursalRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaReembolsoRepositorio;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,11 +32,13 @@ class ProyeccionServicioImplTest {
     private static final BigDecimal LONGITUD = new BigDecimal("-91.518639");
     private static final BigDecimal SALARIO = new BigDecimal("350.00");
     private static final BigDecimal MONTO_POR_KM = new BigDecimal("1.2500");
+    private static final BigDecimal PORCENTAJE = new BigDecimal("80.00");
 
     private final VistaSucursalRepositorio sucursales = mock(VistaSucursalRepositorio.class);
     private final VistaBusRepositorio buses = mock(VistaBusRepositorio.class);
     private final VistaChoferRepositorio choferes = mock(VistaChoferRepositorio.class);
     private final VistaTarifaDepreciacionRepositorio tarifas = mock(VistaTarifaDepreciacionRepositorio.class);
+    private final VistaTarifaReembolsoRepositorio tarifasReembolso = mock(VistaTarifaReembolsoRepositorio.class);
     private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
     private final AlquilerPrivadoRepositorio alquileres = mock(AlquilerPrivadoRepositorio.class);
 
@@ -42,7 +46,8 @@ class ProyeccionServicioImplTest {
 
     @BeforeEach
     void preparar() {
-        servicio = new ProyeccionServicioImpl(sucursales, buses, choferes, tarifas, clientes, alquileres);
+        servicio = new ProyeccionServicioImpl(sucursales, buses, choferes, tarifas, tarifasReembolso,
+                clientes, alquileres);
     }
 
     private static SucursalEvento sucursal() {
@@ -177,6 +182,32 @@ class ProyeccionServicioImplTest {
         assertThatCode(() -> servicio.guardarTarifa(new TarifaDepreciacionCambiada(tarifaId, MONTO_POR_KM, FECHA)))
                 .doesNotThrowAnyException();
         verify(tarifas).guardar(tarifaId, MONTO_POR_KM, FECHA);
+    }
+
+    // ----- Tarifas de reembolso (Sales) -----
+
+    @Test
+    void guardarTarifaDeReembolsoPasaTodoElTramo() {
+        UUID tarifaId = UUID.randomUUID();
+        when(tarifasReembolso.guardar(tarifaId, "ASIGNADO", 24, true, PORCENTAJE, "Con 24 horas", true))
+                .thenReturn(1);
+
+        servicio.guardarTarifaReembolso(new TarifaReembolsoCambiada(tarifaId, "ASIGNADO", 24, true,
+                PORCENTAJE, "Con 24 horas", true));
+
+        verify(tarifasReembolso).guardar(tarifaId, "ASIGNADO", 24, true, PORCENTAJE, "Con 24 horas", true);
+    }
+
+    /** Una tarifa desactivada llega como cualquier otra: el upsert la actualiza con activa = false. */
+    @Test
+    void guardarTarifaDeReembolsoDesactivadaNoFalla() {
+        UUID tarifaId = UUID.randomUUID();
+
+        assertThatCode(() -> servicio.guardarTarifaReembolso(new TarifaReembolsoCambiada(tarifaId,
+                "CUALQUIERA", 0, false, BigDecimal.ZERO, "Fuera de plazo", false)))
+                .doesNotThrowAnyException();
+        verify(tarifasReembolso).guardar(tarifaId, "CUALQUIERA", 0, false, BigDecimal.ZERO,
+                "Fuera de plazo", false);
     }
 
     // ----- Clientes (Identity) -----

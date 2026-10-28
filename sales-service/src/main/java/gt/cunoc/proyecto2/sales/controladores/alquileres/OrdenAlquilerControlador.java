@@ -6,6 +6,7 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.FiltroOrdenes;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.OrdenAlquilerRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.PagoOrdenSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.alquileres.ReembolsoOrdenSolicitud;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.EstadoOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.servicios.alquileres.OrdenAlquilerServicio;
 import io.swagger.v3.oas.annotations.Operation;
@@ -77,5 +78,15 @@ public class OrdenAlquilerControlador {
                                                                   @RequestBody @Valid PagoOrdenSolicitud solicitud,
                                                                   @Parameter(hidden = true) UsuarioActual usuario) {
         return ResponseEntity.ok(servicio.pagarEnEfectivo(id, solicitud, usuario));
+    }
+
+    @PostMapping("/{id}/reembolso")
+    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL})
+    @Operation(summary = "Devuelve en ventanilla el dinero de un alquiler cancelado (el monto ya salió"
+            + " de la tarifa de reembolso al cancelar)")
+    public ResponseEntity<OrdenAlquilerRespuesta> reembolsar(@PathVariable UUID id,
+                                                             @RequestBody @Valid ReembolsoOrdenSolicitud solicitud,
+                                                             @Parameter(hidden = true) UsuarioActual usuario) {
+        return ResponseEntity.ok(servicio.reembolsar(id, solicitud, usuario));
     }
 }

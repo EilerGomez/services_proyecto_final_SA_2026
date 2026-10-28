@@ -4,6 +4,7 @@ import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.BusEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.ChoferEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.fleet.SucursalEvento;
 import gt.cunoc.proyecto2.trips.eventos.recibidos.identity.TarifaDepreciacionCambiada;
+import gt.cunoc.proyecto2.trips.eventos.recibidos.sales.TarifaReembolsoCambiada;
 import java.util.UUID;
 
 /**
@@ -23,6 +24,12 @@ public interface ProyeccionServicio {
     void desactivarChofer(UUID choferId, Long version);
 
     void guardarTarifa(TarifaDepreciacionCambiada tarifa);
+
+    /**
+     * TarifaReembolsoCambiada: copia de la política de cancelación de Sales. A diferencia de las
+     * tarifas de depreciación, estas sí se editan, así que es un UPSERT por id.
+     */
+    void guardarTarifaReembolso(TarifaReembolsoCambiada tarifa);
 
     /**
      * ClienteRegistrado / PerfilActualizado: copia del cliente con cuenta. Sirve para ligar a su

@@ -17,6 +17,7 @@ public enum TipoEvento {
     VIAJE_COMPLETADO("ViajeCompletado"),
     COTIZACION_ALQUILER_CONFIRMADA("CotizacionAlquilerConfirmada"),
     ALQUILER_ASIGNADO("AlquilerAsignado"),
+    ALQUILER_CANCELADO("AlquilerCancelado"),
 
     // ----- Consume Trips (cola trips.q) -----
     SUCURSAL_CREADA("SucursalCreada"),
@@ -30,7 +31,8 @@ public enum TipoEvento {
     TARIFA_DEPRECIACION_CAMBIADA("TarifaDepreciacionCambiada"),
     CLIENTE_REGISTRADO("ClienteRegistrado"),
     PERFIL_ACTUALIZADO("PerfilActualizado"),
-    ALQUILER_PAGADO("AlquilerPagado");
+    ALQUILER_PAGADO("AlquilerPagado"),
+    TARIFA_REEMBOLSO_CAMBIADA("TarifaReembolsoCambiada");
 
     private final String nombre;
 

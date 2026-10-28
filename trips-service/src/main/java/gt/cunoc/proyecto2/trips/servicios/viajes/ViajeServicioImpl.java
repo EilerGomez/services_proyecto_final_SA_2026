@@ -184,6 +184,22 @@ public class ViajeServicioImpl implements ViajeServicio {
     }
 
     @Override
+    @Transactional
+    public UUID eliminarPorCancelacionDeAlquiler(UUID alquilerId, String motivo) {
+        List<ViajeEntidad> suyos = repositorio.findByAlquilerIdIn(List.of(alquilerId));
+        if (suyos.isEmpty()) {
+            return null;                                              // el alquiler no llegó a ASIGNADO
+        }
+        ViajeEntidad viaje = suyos.get(0);
+        viaje.verificarProgramado();                                  // 422 si ya salió (el trigger también)
+        repositorio.delete(viaje);
+        repositorio.flush();
+        // No se llama a alquiler.liberar(): el alquiler queda CANCELADO, no vuelve a PAGADO
+        eventos.viajeEliminado(viaje, motivo);                        // Sales y Reporting borran su copia
+        return viaje.getId();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public VendibleRespuesta consultarVendible(UUID id) {
         return repositorio.findById(id)

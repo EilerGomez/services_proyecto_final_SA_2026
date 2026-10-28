@@ -14,6 +14,7 @@ public enum TipoEvento {
     VENTA_REEMBOLSADA("VentaReembolsada"),
     BOLETO_REASIGNADO("BoletoReasignado"),
     ALQUILER_PAGADO("AlquilerPagado"),
+    TARIFA_REEMBOLSO_CAMBIADA("TarifaReembolsoCambiada"),
 
     // ----- Consume Sales (cola sales.q) -----
     VIAJE_PROGRAMADO("ViajeProgramado"),
@@ -22,6 +23,7 @@ public enum TipoEvento {
     VIAJE_ELIMINADO("ViajeEliminado"),
     VIAJE_REASIGNADO("ViajeReasignado"),
     COTIZACION_ALQUILER_CONFIRMADA("CotizacionAlquilerConfirmada"),
+    ALQUILER_CANCELADO("AlquilerCancelado"),
     CLIENTE_REGISTRADO("ClienteRegistrado"),
     PERFIL_ACTUALIZADO("PerfilActualizado"),
     CARTERA_DEBITADA("CarteraDebitada"),

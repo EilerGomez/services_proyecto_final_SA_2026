@@ -5,15 +5,25 @@ import gt.cunoc.proyecto2.comun.seguridad.users.UsuarioActual;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.FiltroOrdenes;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.OrdenAlquilerRespuesta;
 import gt.cunoc.proyecto2.sales.dtos.alquileres.PagoOrdenSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.alquileres.ReembolsoOrdenSolicitud;
+import gt.cunoc.proyecto2.sales.dtos.tarifas.ReglaReembolsoRespuesta;
 import gt.cunoc.proyecto2.sales.errores.alquileres.ErrorOrdenAlquiler;
+import gt.cunoc.proyecto2.sales.eventos.MotivoSaga;
 import gt.cunoc.proyecto2.sales.eventos.PublicadorEventosSales;
+import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.AlquilerCancelado;
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfirmada;
+import gt.cunoc.proyecto2.sales.modelos.alquileres.EstadoOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.clientes.VistaClienteEntidad;
+import gt.cunoc.proyecto2.sales.modelos.tarifas.EstadoAlquilerTarifa;
 import gt.cunoc.proyecto2.sales.modelos.ventas.ClienteVenta;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.EspecificacionesOrden;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
+import gt.cunoc.proyecto2.sales.servicios.tarifas.TarifaReembolsoServicio;
+import gt.cunoc.proyecto2.sales.utilidades.Fechas;
+import gt.cunoc.proyecto2.sales.utilidades.VerificadorVersion;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -30,12 +40,14 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
 
     private final OrdenAlquilerRepositorio repositorio;
     private final VistaClienteRepositorio clientes;
+    private final TarifaReembolsoServicio tarifas;
     private final PublicadorEventosSales eventos;
 
     public OrdenAlquilerServicioImpl(OrdenAlquilerRepositorio repositorio, VistaClienteRepositorio clientes,
-                                     PublicadorEventosSales eventos) {
+                                     TarifaReembolsoServicio tarifas, PublicadorEventosSales eventos) {
         this.repositorio = repositorio;
         this.clientes = clientes;
+        this.tarifas = tarifas;
         this.eventos = eventos;
     }
 
@@ -102,6 +114,73 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
         repositorio.save(OrdenAlquilerEntidad.registrar(cotizacion.alquilerId(), cotizacion.sucursalId(), cliente,
                 cotizacion.origen(), cotizacion.destino(), cotizacion.recorrido(), cotizacion.fechaSalida(),
                 cotizacion.fechaRetorno(), cotizacion.precioConfirmado()));
+    }
+
+    @Override
+    @Transactional
+    public void registrarCancelacion(AlquilerCancelado aviso, LocalDate fechaNegocio) {
+        OrdenAlquilerEntidad orden = repositorio.findByAlquilerId(aviso.alquilerId()).orElse(null);
+        if (orden == null) {
+            // Se canceló antes de cotizar: nunca existió orden de pago y no hay nada que devolver
+            log.info("AlquilerCancelado del alquiler {} sin orden de pago: no se hace nada", aviso.alquilerId());
+            return;
+        }
+        if (orden.yaCerrada()) {
+            log.info("AlquilerCancelado repetido para la orden {} ({}): no se hace nada", orden.getId(),
+                    orden.getEstado());
+            return;
+        }
+        LocalDate fecha = orden.fechaNoAnteriorAlPago(fechaNegocio);
+        boolean habiaDinero = orden.getEstado() == EstadoOrdenAlquiler.PAGADA;
+        // La tarifa solo se resuelve si hay dinero: sin pago no hay porcentaje que aplicar
+        ReglaReembolsoRespuesta regla = habiaDinero
+                ? tarifas.aplicable(EstadoAlquilerTarifa.deNombre(aviso.estadoAnterior()), aviso.horas())
+                : null;
+        orden.cancelar(aviso.motivo(), fecha, (int) aviso.horas(),
+                regla == null ? null : regla.porcentajeReembolso(),
+                regla == null ? null : regla.justificacion());
+        OrdenAlquilerEntidad cancelada = repositorio.saveAndFlush(orden);
+
+        if (!cancelada.tieneReembolsoPendiente()) {
+            log.info("Orden {} cancelada sin dinero por devolver ({})", cancelada.getId(),
+                    cancelada.getMontoReembolsado());
+            return;
+        }
+        if (cancelada.seCobroConCartera()) {
+            // Saga: Wallet acredita el porcentaje y responde CarteraReembolsada (→ REEMBOLSADA)
+            eventos.reembolsoOrden(cancelada, MotivoSaga.ALQUILER_CANCELADO, fecha);
+            log.info("Orden {} cancelada: se pide a Wallet devolver {} ({}%)", cancelada.getId(),
+                    cancelada.getMontoReembolsado(), cancelada.getPorcentajeReembolso());
+            return;
+        }
+        log.info("Orden {} cancelada: quedan {} por devolver en ventanilla ({}%)", cancelada.getId(),
+                cancelada.getMontoReembolsado(), cancelada.getPorcentajeReembolso());
+    }
+
+    @Override
+    @Transactional
+    public OrdenAlquilerRespuesta reembolsar(UUID id, ReembolsoOrdenSolicitud solicitud, UsuarioActual usuario) {
+        OrdenAlquilerEntidad orden = obtenerPorId(id);
+        usuario.verificarAccesoSucursal(orden.getSucursalId());                    // 403 SUCURSAL_AJENA
+        VerificadorVersion.verificar(orden.getVersion(), solicitud.version());     // 409
+        if (orden.estaReembolsada() || orden.getFechaReembolso() != null) {
+            throw ErrorOrdenAlquiler.ORDEN_YA_REEMBOLSADA.excepcion();             // 422
+        }
+        if (!orden.tieneReembolsoPendiente()) {
+            throw ErrorOrdenAlquiler.ESTADO_INVALIDO_REEMBOLSO.excepcion(orden.getEstado());
+        }
+        if (orden.seCobroConCartera()) {
+            // El dinero lo acredita Wallet. Esto solo vuelve a pedirlo (Wallet no repite el reembolso
+            // de la misma orden), y el estado cambia cuando llegue CarteraReembolsada.
+            eventos.reembolsoOrden(orden, MotivoSaga.ALQUILER_CANCELADO,
+                    orden.fechaNoAnteriorAlPago(Fechas.hoy()));
+            log.info("Orden {} pagada con cartera: se volvió a pedir el reembolso a Wallet", id);
+            return new OrdenAlquilerRespuesta(orden);
+        }
+        orden.marcarReembolsada(Fechas.hoy(), usuario.usuarioId());
+        OrdenAlquilerEntidad reembolsada = repositorio.saveAndFlush(orden);
+        log.info("Orden {} reembolsada en efectivo por {}", id, usuario.usuarioId());
+        return new OrdenAlquilerRespuesta(reembolsada);
     }
 
     /**
