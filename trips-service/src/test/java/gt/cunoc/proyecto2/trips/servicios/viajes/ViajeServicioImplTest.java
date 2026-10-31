@@ -291,6 +291,25 @@ class ViajeServicioImplTest {
                 ErrorViaje.REGRESO_ANTES_DE_LA_IDA);
     }
 
+    /**
+     * El regreso va en el mismo bus que la ida: es la unidad que se fue la que se regresa. Se revisa
+     * antes de crear nada, para no dejar la ida programada sola por un dato que se puede corregir.
+     */
+    @Test
+    void elRegresoNoPuedeIrEnOtroBus() {
+        when(rutas.obtenerPorId(ruta.getId())).thenReturn(ruta);
+        UUID bus = UUID.randomUUID();
+        UUID chofer = UUID.randomUUID();
+        NuevoViajeSolicitud conOtroBus = new NuevoViajeSolicitud(ruta.getId(), bus, chofer, SALIDA, LLEGADA,
+                false, new ViajeRegresoSolicitud(UUID.randomUUID(), chofer, LLEGADA.plusHours(2),
+                LLEGADA.plusHours(6), false));
+
+        VerificarError.lanza(() -> servicio.programar(conOtroBus, adminXela), ErrorViaje.REGRESO_CON_OTRO_BUS);
+
+        verify(repositorio, never()).saveAndFlush(any(ViajeEntidad.class));
+        verifyNoInteractions(eventos);
+    }
+
     /** Sin la casilla, todo sigue como antes: un solo viaje y un solo evento. */
     @Test
     void sinRegresoSoloSeProgramaLaIda() {

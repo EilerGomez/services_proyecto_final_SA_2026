@@ -106,6 +106,13 @@ public final class DatosPrueba {
         return viajeRegular(ruta(), asignacion());
     }
 
+    /** Viaje de REGRESO PROGRAMADO de esa ida: misma ruta y el mismo bus, version 0. */
+    public static ViajeEntidad viajeDeRegreso(ViajeEntidad ida) {
+        AsignacionViaje vuelta = new AsignacionViaje(ida.getBusId(), ida.getCapacidadBus(), ida.getChoferId(),
+                SALARIO, LLEGADA.plusHours(1), LLEGADA.plusHours(5));
+        return conVersion(ViajeEntidad.programarRegreso(ruta(), vuelta, UUID.randomUUID(), false, ida), 0);
+    }
+
     /** Viaje PRIVADO PROGRAMADO del alquiler, version 0. */
     public static ViajeEntidad viajePrivado(AlquilerPrivadoEntidad alquiler, AsignacionViaje asignacion) {
         return conVersion(ViajeEntidad.programarPrivado(alquiler, asignacion, UUID.randomUUID()), 0);

@@ -88,6 +88,14 @@ public class ViajeEntidad {
     private boolean ventaPorChofer;
 
     /**
+     * V18. Solo en un REGRESO: el viaje de ida que le dio origen. Con él se exige que la vuelta no
+     * salga antes de que la ida llegue, y que las dos vayan en el mismo bus. Queda en null si la ida
+     * se elimina (ON DELETE SET NULL) o si el regreso se programó antes de la V18.
+     */
+    @Column(name = "viaje_ida_id", updatable = false)
+    private UUID viajeIdaId;
+
+    /**
      * La maneja la BD (trigger de V7): acá solo se lee, para poder ordenar los listados por lo
      * último que se programó o se tocó. insertable/updatable = false para no pisar al trigger.
      */
@@ -122,6 +130,20 @@ public class ViajeEntidad {
         viaje.creadoPor = creadoPor;
         viaje.aplicar(asignacion);
         return viaje;
+    }
+
+    /**
+     * T10. El viaje de vuelta de una ida recién programada: misma ruta al revés, el mismo bus y la
+     * ida apuntada para poder exigir que llegue antes de que este salga.
+     */
+    public static ViajeEntidad programarRegreso(RutaEntidad ruta, AsignacionViaje asignacion, UUID creadoPor,
+                                                boolean ventaPorChofer, ViajeEntidad ida) {
+        if (!ida.getBusId().equals(asignacion.busId())) {
+            throw ErrorViaje.REGRESO_CON_OTRO_BUS.excepcion();
+        }
+        ViajeEntidad vuelta = programarRegular(ruta, asignacion, creadoPor, SentidoViaje.REGRESO, ventaPorChofer);
+        vuelta.viajeIdaId = ida.getId();
+        return vuelta;
     }
 
     public static ViajeEntidad programarPrivado(AlquilerPrivadoEntidad alquiler, AsignacionViaje asignacion,
@@ -200,6 +222,16 @@ public class ViajeEntidad {
     /** El viaje de vuelta de su ruta: el recorrido se lee al revés (destino → origen). */
     public boolean esRegreso() {
         return sentido != null && sentido.esRegreso();
+    }
+
+    /**
+     * T11. Al reprogramar un regreso el bus no se puede cambiar por otro: es el mismo bus que se fue
+     * de ida el que se regresa. El chofer y el horario sí se pueden cambiar.
+     */
+    public void verificarMismoBusQueLaIda(UUID busDeLaIda) {
+        if (busDeLaIda != null && !busDeLaIda.equals(busId)) {
+            throw ErrorViaje.REGRESO_CON_OTRO_BUS.excepcion();
+        }
     }
 
     /**

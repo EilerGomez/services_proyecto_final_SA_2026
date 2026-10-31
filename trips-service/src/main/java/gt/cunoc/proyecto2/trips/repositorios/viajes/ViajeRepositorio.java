@@ -44,6 +44,30 @@ public interface ViajeRepositorio extends JpaRepository<ViajeEntidad, UUID>, Jpa
     List<ViajeEntidad> findByChoferIdAndEstadoInOrderByFechaSalidaProgramadaAsc(UUID choferId,
                                                                               Collection<EstadoViaje> estados);
 
+    /**
+     * T14. ¿El bus ya viene EN_RUTA en otro viaje? Un bus no puede arrancar dos viajes a la vez, y
+     * es lo que pasa con una vuelta cuya ida todavía no ha llegado.
+     */
+    boolean existsByBusIdAndEstadoAndIdNot(UUID busId, EstadoViaje estado, UUID viajeId);
+
+    /** T14. Lo mismo para el piloto: no puede ir manejando dos viajes al mismo tiempo. */
+    boolean existsByChoferIdAndEstadoAndIdNot(UUID choferId, EstadoViaje estado, UUID viajeId);
+
+    /**
+     * T14. ¿El piloto o el bus tienen otro viaje programado que sale antes que este? Los viajes se
+     * operan en orden: primero sale el más próximo. Si quedó uno viejo sin registrar, se registra o
+     * se elimina antes de arrancar el siguiente.
+     */
+    @Query("""
+            SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM Viaje v
+            WHERE v.id <> :viajeId
+              AND v.estado = :estado
+              AND (v.choferId = :choferId OR v.busId = :busId)
+              AND v.fechaSalidaProgramada < :salida""")
+    boolean existeOtroAntesDeEste(@Param("choferId") UUID choferId, @Param("busId") UUID busId,
+                                  @Param("viajeId") UUID viajeId, @Param("estado") EstadoViaje estado,
+                                  @Param("salida") OffsetDateTime salida);
+
     List<ViajeEntidad> findByAlquilerIdIn(Collection<UUID> alquilerIds);
 
     boolean existsByRutaId(UUID rutaId);

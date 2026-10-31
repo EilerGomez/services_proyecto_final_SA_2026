@@ -15,6 +15,8 @@ public enum ErrorViaje implements CodigoError {
     RUTA_INACTIVA(TipoError.REGLA_NEGOCIO, "La ruta está inactiva; no se le programan viajes"),
     REGRESO_ANTES_DE_LA_IDA(TipoError.SOLICITUD_INVALIDA,
             "El viaje de regreso tiene que salir después que el de ida"),
+    REGRESO_CON_OTRO_BUS(TipoError.REGLA_NEGOCIO,
+            "El viaje de regreso va en el mismo bus que la ida: es la unidad que se fue la que se regresa"),
     BUS_NO_DISPONIBLE(TipoError.REGLA_NEGOCIO, "El bus no se puede asignar: %s"),
     CHOFER_NO_DISPONIBLE(TipoError.REGLA_NEGOCIO, "El chofer no se puede asignar: %s"),
     LICENCIA_VENCIDA(TipoError.REGLA_NEGOCIO, "La licencia del chofer vence el %s, antes del viaje"),

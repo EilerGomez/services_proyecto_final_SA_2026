@@ -9,6 +9,7 @@ import gt.cunoc.proyecto2.trips.errores.operaciones.ErrorOperacionViaje;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
+import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
@@ -53,6 +54,9 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
                                                  UsuarioActual usuario) {
         ViajeEntidad viaje = viajes.obtenerPorId(viajeId);
         verificarPuedeOperar(viaje, usuario);
+        verificarSinOtroViajeEnRuta(viaje);                                     // 409 bus o piloto ocupados
+        verificarEsElMasProximo(viaje);                                         // 422 si hay uno anterior
+        verificarIdaCompletada(viaje);                                          // 422 si la vuelta se adelanta
         viaje.iniciar();                                                        // 409 si ya salió
         SalidaViajeEntidad salida = salidas.saveAndFlush(solicitud.crearEntidad(viaje, usuario.usuarioId()));
         viaje = viajeRepositorio.saveAndFlush(viaje);
@@ -92,6 +96,49 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
             return;
         }
         throw ErrorOperacionViaje.CHOFER_NO_ASIGNADO.excepcion();
+    }
+
+    /**
+     * T14. El bus y el piloto no pueden arrancar un viaje si vienen EN_RUTA en otro: físicamente no
+     * están en dos lados. En la llegada no hace falta revisarlo, porque con esta regla un bus nunca
+     * llega a tener dos viajes en ruta.
+     */
+    private void verificarSinOtroViajeEnRuta(ViajeEntidad viaje) {
+        if (viajeRepositorio.existsByBusIdAndEstadoAndIdNot(viaje.getBusId(), EstadoViaje.EN_RUTA, viaje.getId())) {
+            throw ErrorOperacionViaje.BUS_EN_RUTA.excepcion();
+        }
+        if (viajeRepositorio.existsByChoferIdAndEstadoAndIdNot(viaje.getChoferId(), EstadoViaje.EN_RUTA,
+                viaje.getId())) {
+            throw ErrorOperacionViaje.CHOFER_EN_RUTA.excepcion();
+        }
+    }
+
+    /**
+     * T14. Los viajes se arrancan en orden: si el piloto o el bus tienen otro viaje programado que
+     * sale antes, ese va primero. Así el piloto solo opera el viaje que le toca y no deja atrás
+     * viajes sin registrar, que es lo que luego descuadra los reportes.
+     */
+    private void verificarEsElMasProximo(ViajeEntidad viaje) {
+        if (viajeRepositorio.existeOtroAntesDeEste(viaje.getChoferId(), viaje.getBusId(), viaje.getId(),
+                EstadoViaje.PROGRAMADO, viaje.getFechaSalidaProgramada())) {
+            throw ErrorOperacionViaje.HAY_UN_VIAJE_ANTERIOR.excepcion();
+        }
+    }
+
+    /**
+     * T14. El viaje de vuelta no sale hasta que su ida esté COMPLETADA: es el mismo bus haciendo el
+     * mismo recorrido al revés. Si la ida se eliminó, el regreso queda suelto y opera por su cuenta.
+     */
+    private void verificarIdaCompletada(ViajeEntidad viaje) {
+        if (!viaje.esRegreso() || viaje.getViajeIdaId() == null) {
+            return;
+        }
+        boolean idaCompletada = viajeRepositorio.findById(viaje.getViajeIdaId())
+                .map(ida -> ida.getEstado() == EstadoViaje.COMPLETADO)
+                .orElse(true);
+        if (!idaCompletada) {
+            throw ErrorOperacionViaje.IDA_SIN_COMPLETAR.excepcion();
+        }
     }
 
     private BigDecimal tarifaVigente(LocalDate fecha) {

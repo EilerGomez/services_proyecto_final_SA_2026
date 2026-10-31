@@ -21,7 +21,6 @@ import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
-import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
@@ -141,6 +140,11 @@ public class ViajeServicioImpl implements ViajeServicio {
         if (!ruta.isActiva()) {
             throw ErrorViaje.RUTA_INACTIVA.excepcion();
         }
+        // El regreso va en el mismo bus que la ida: se revisa antes de crear nada, para no dejar la
+        // ida programada sola por un dato que el formulario puede corregir.
+        if (solicitud.pidioRegreso() && !solicitud.busId().equals(solicitud.regreso().busId())) {
+            throw ErrorViaje.REGRESO_CON_OTRO_BUS.excepcion();                          // 422
+        }
         AsignacionViaje asignacion = asignaciones.validarNueva(ruta.getSucursalOrigenId(), solicitud.busId(),
                 solicitud.choferId(), solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
         ViajeEntidad viaje = repositorio.saveAndFlush(solicitud.crearEntidad(ruta, asignacion, usuario.usuarioId()));
@@ -156,6 +160,9 @@ public class ViajeServicioImpl implements ViajeServicio {
     /**
      * El viaje de vuelta: misma ruta, sentido REGRESO. No se le cambia el origen ni el destino en la
      * base —son los de la ruta— porque quien invierte el recorrido al mostrarlo es NombresViaje.
+     *
+     * <p>Va en el mismo bus que la ida: la unidad que se fue es la que se regresa. El piloto sí puede
+     * ser otro (el relevo que espera en la otra punta).</p>
      */
     private void programarRegreso(RutaEntidad ruta, ViajeRegresoSolicitud regreso, ViajeEntidad ida,
                                   UsuarioActual usuario) {
@@ -164,8 +171,8 @@ public class ViajeServicioImpl implements ViajeServicio {
         }
         AsignacionViaje asignacion = asignaciones.validarNueva(ruta.getSucursalOrigenId(), regreso.busId(),
                 regreso.choferId(), regreso.fechaSalidaProgramada(), regreso.fechaLlegadaEstimada());
-        ViajeEntidad vuelta = repositorio.saveAndFlush(ViajeEntidad.programarRegular(ruta, asignacion,
-                usuario.usuarioId(), SentidoViaje.REGRESO, regreso.ventaPorChoferActiva()));
+        ViajeEntidad vuelta = repositorio.saveAndFlush(ViajeEntidad.programarRegreso(ruta, asignacion,
+                usuario.usuarioId(), regreso.ventaPorChoferActiva(), ida));
         eventos.viajeProgramado(respuesta(vuelta));
     }
 
@@ -180,6 +187,7 @@ public class ViajeServicioImpl implements ViajeServicio {
                 solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
         ViajeRespuesta antes = respuesta(viaje);   // placa y piloto de ahora, para contar el cambio
         viaje.reprogramar(asignacion);
+        viaje.verificarMismoBusQueLaIda(busDeLaIda(viaje));   // el regreso no cambia de bus
         if (solicitud.ventaPorChofer() != null) {
             viaje.permitirVentaPorChofer(solicitud.ventaPorChofer());
         }
@@ -187,6 +195,14 @@ public class ViajeServicioImpl implements ViajeServicio {
         eventos.viajeActualizado(respuesta);
         avisarSiCambioLaUnidad(viaje, antes, respuesta);
         return respuesta;
+    }
+
+    /** El bus del viaje de ida de este regreso, o null si no es un regreso o su ida ya no existe. */
+    private UUID busDeLaIda(ViajeEntidad viaje) {
+        if (!viaje.esRegreso() || viaje.getViajeIdaId() == null) {
+            return null;
+        }
+        return repositorio.findById(viaje.getViajeIdaId()).map(ViajeEntidad::getBusId).orElse(null);
     }
 
     /**

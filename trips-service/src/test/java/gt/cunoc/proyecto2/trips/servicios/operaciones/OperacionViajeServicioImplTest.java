@@ -155,6 +155,75 @@ class OperacionViajeServicioImplTest {
         verifyNoInteractions(salidas, eventos);
     }
 
+    /** Un bus no arranca dos viajes a la vez: la vuelta espera a que la ida registre su llegada. */
+    @Test
+    void siElBusVieneEnRutaEnOtroViajeLaSalidaSeRechaza() {
+        prepararViaje(viaje);
+        when(viajeRepositorio.existsByBusIdAndEstadoAndIdNot(viaje.getBusId(), EstadoViaje.EN_RUTA, viaje.getId()))
+                .thenReturn(true);
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.BUS_EN_RUTA);
+
+        assertThat(viaje.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+        verifyNoInteractions(salidas);
+    }
+
+    @Test
+    void siElPilotoVieneEnRutaEnOtroViajeLaSalidaSeRechaza() {
+        prepararViaje(viaje);
+        when(viajeRepositorio.existsByChoferIdAndEstadoAndIdNot(viaje.getChoferId(), EstadoViaje.EN_RUTA,
+                viaje.getId())).thenReturn(true);
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.CHOFER_EN_RUTA);
+
+        assertThat(viaje.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+    }
+
+    /** Los viajes se arrancan en orden: el que sale antes va primero. */
+    @Test
+    void siHayOtroViajeQueSaleAntesLaSalidaSeRechaza() {
+        prepararViaje(viaje);
+        when(viajeRepositorio.existeOtroAntesDeEste(viaje.getChoferId(), viaje.getBusId(), viaje.getId(),
+                EstadoViaje.PROGRAMADO, viaje.getFechaSalidaProgramada())).thenReturn(true);
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.HAY_UN_VIAJE_ANTERIOR);
+
+        assertThat(viaje.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+        verifyNoInteractions(salidas);
+    }
+
+    /** El regreso espera a que su ida esté COMPLETADA; si la ida ya no existe, opera por su cuenta. */
+    @Test
+    void elRegresoNoSaleMientrasSuIdaNoEsteCompletada() {
+        ViajeEntidad ida = DatosPrueba.viajeRegular();
+        ViajeEntidad vuelta = DatosPrueba.viajeDeRegreso(ida);
+        prepararViaje(vuelta);
+        when(viajeRepositorio.findById(ida.getId())).thenReturn(Optional.of(ida));
+
+        VerificarError.lanza(() -> servicio.registrarSalida(vuelta.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(vuelta.getChoferId())), ErrorOperacionViaje.IDA_SIN_COMPLETAR);
+
+        assertThat(vuelta.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+        verifyNoInteractions(salidas);
+    }
+
+    @Test
+    void conLaIdaCompletadaElRegresoYaPuedeSalir() {
+        ViajeEntidad ida = DatosPrueba.viajeRegular();
+        ida.iniciar();
+        ida.completar();
+        ViajeEntidad vuelta = DatosPrueba.viajeDeRegreso(ida);
+        prepararViaje(vuelta);
+        when(viajeRepositorio.findById(ida.getId())).thenReturn(Optional.of(ida));
+
+        servicio.registrarSalida(vuelta.getId(), salidaSolicitud(), DatosPrueba.chofer(vuelta.getChoferId()));
+
+        assertThat(vuelta.getEstado()).isEqualTo(EstadoViaje.EN_RUTA);
+    }
+
     @Test
     void laSalidaNoSeRegistraDosVeces() {
         prepararViaje(viaje);
