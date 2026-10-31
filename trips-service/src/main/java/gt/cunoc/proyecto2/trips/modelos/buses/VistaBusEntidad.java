@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -35,6 +36,13 @@ public class VistaBusEntidad {
 
     @Column(nullable = false, length = 15)
     private String estado;
+
+    /**
+     * V19: odómetro del bus según Fleet, que lo sube con cada viaje completado. Es el piso del
+     * kilometraje inicial que se puede registrar en una salida.
+     */
+    @Column(name = "kilometraje_actual", nullable = false, precision = 12, scale = 2)
+    private BigDecimal kilometrajeActual;
 
     /** V14: foto del bus, para enseñársela al pasajero al comprar. Null si aún no llega su evento. */
     @Column(name = "foto_url", length = 500)

@@ -324,13 +324,27 @@ class AlquileresIT extends PruebaIntegracion {
 
     // ----- T21 -----
 
+    /**
+     * Mientras no lo haya pagado, el cliente no cancela por su cuenta: está en plena cotización con
+     * la sucursal y es ella la que lo da de baja (lo mismo vale para un alquiler SOLICITADO).
+     */
     @Test
-    void elClienteCancelaSuAlquilerSolicitado() {
+    void elClienteNoCancelaUnAlquilerQueNoHaPagado() {
         UUID cliente = UUID.randomUUID();
         UUID alquiler = insertarAlquiler(xela, cliente, "SOLICITADO");
 
-        ResponseEntity<String> respuesta = post(ALQUILERES + "/" + alquiler + "/cancelar", tokenCliente(cliente),
-                cancelacion("  Ya no viajamos ", 0));
+        esError(post(ALQUILERES + "/" + alquiler + "/cancelar", tokenCliente(cliente),
+                cancelacion("  Ya no viajamos ", 0)), 403, "SOLO_LA_SUCURSAL_CANCELA");
+        assertThat(estadoDelAlquiler(alquiler)).isEqualTo("SOLICITADO");
+    }
+
+    @Test
+    void laSucursalCancelaElAlquilerSolicitado() {
+        UUID cliente = UUID.randomUUID();
+        UUID alquiler = insertarAlquiler(xela, cliente, "SOLICITADO");
+
+        ResponseEntity<String> respuesta = post(ALQUILERES + "/" + alquiler + "/cancelar",
+                tokenAdminSucursal(xela), cancelacion("  Ya no viajamos ", 0));
 
         esStatus(respuesta, 200);
         assertThat(PruebaIntegracion.<String>json(respuesta, "$.estado")).isEqualTo("CANCELADO");
@@ -364,15 +378,15 @@ class AlquileresIT extends PruebaIntegracion {
     }
 
     /**
-     * Un alquiler cotizado pero no pagado se cancela en cualquier momento: la tarifa de reembolso lo
-     * permite y no hay nada que devolver (la orden de Sales todavía está PENDIENTE_PAGO).
+     * Un alquiler cotizado pero no pagado lo cancela la sucursal en cualquier momento: la tarifa de
+     * reembolso lo permite y no hay nada que devolver (la orden de Sales sigue PENDIENTE_PAGO).
      */
     @Test
-    void elClienteCancelaUnAlquilerCotizadoSinPenalizacion() {
+    void laSucursalCancelaUnAlquilerCotizadoSinPenalizacion() {
         UUID cliente = UUID.randomUUID();
         UUID cotizado = insertarAlquiler(xela, cliente, "COTIZADO");
 
-        esStatus(post(ALQUILERES + "/" + cotizado + "/cancelar", tokenCliente(cliente),
+        esStatus(post(ALQUILERES + "/" + cotizado + "/cancelar", tokenAdminSucursal(xela),
                 cancelacion("Tarde pero se puede", 0)), 200);
         assertThat(estadoDelAlquiler(cotizado)).isEqualTo("CANCELADO");
 

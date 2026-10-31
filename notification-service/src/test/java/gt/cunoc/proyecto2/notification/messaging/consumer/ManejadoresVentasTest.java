@@ -9,6 +9,7 @@ import gt.cunoc.proyecto2.notification.evento.recibido.LicenciaChoferActualizada
 import gt.cunoc.proyecto2.notification.evento.recibido.VentaCancelada;
 import gt.cunoc.proyecto2.notification.evento.recibido.VentaReembolsada;
 import gt.cunoc.proyecto2.notification.services.correo.CorreoVentasService;
+import gt.cunoc.proyecto2.notification.services.correo.CorreoViajesService;
 import gt.cunoc.proyecto2.notification.services.recordatorios.RecordatorioLicenciaService;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,6 +33,7 @@ class ManejadoresVentasTest {
     private static final OffsetDateTime SALIDA = OffsetDateTime.parse("2026-11-05T08:00:00-06:00");
 
     @Mock private CorreoVentasService correos;
+    @Mock private CorreoViajesService viajes;
     @Mock private RecordatorioLicenciaService recordatorios;
 
     @InjectMocks private ManejadorBoletoVendido manejadorBoleto;
@@ -129,7 +131,7 @@ class ManejadoresVentasTest {
         // Arrange
         AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "Colegio", "colegio@correo.com", "Quetzaltenango", "Antigua", SALIDA, SALIDA.plusHours(10),
-                "P-123ABC", "Juan Pérez");
+                "P-123ABC", "Juan Pérez", UUID.randomUUID());
         EventoRecibido<AlquilerAsignado> evento = evento("AlquilerAsignado", asignado);
 
         // Act
@@ -137,6 +139,8 @@ class ManejadoresVentasTest {
 
         // Assert
         verify(correos).alquilerAsignado(evento.eventId(), asignado);
+        // Y al piloto, que también tiene que enterarse de que le tocó ese alquiler
+        verify(viajes).alquilerAsignadoAlPiloto(evento.eventId(), asignado);
     }
 
     @Test

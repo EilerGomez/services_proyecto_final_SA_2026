@@ -28,6 +28,7 @@ import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.SalidaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
@@ -52,10 +53,11 @@ class OperacionViajeServicioImplTest {
     private final LlegadaViajeRepositorio llegadas = mock(LlegadaViajeRepositorio.class);
     private final VistaTarifaDepreciacionRepositorio tarifas = mock(VistaTarifaDepreciacionRepositorio.class);
     private final AlquilerPrivadoRepositorio alquileres = mock(AlquilerPrivadoRepositorio.class);
+    private final VistaBusRepositorio buses = mock(VistaBusRepositorio.class);
     private final PublicadorEventosTrips eventos = mock(PublicadorEventosTrips.class);
 
     private final OperacionViajeServicioImpl servicio = new OperacionViajeServicioImpl(viajes, viajeRepositorio,
-            salidas, llegadas, tarifas, alquileres, eventos);
+            salidas, llegadas, tarifas, alquileres, buses, eventos);
 
     /** Viaje REGULAR PROGRAMADO de Xela. */
     private final ViajeEntidad viaje = DatosPrueba.viajeRegular();
@@ -219,9 +221,50 @@ class OperacionViajeServicioImplTest {
         prepararViaje(vuelta);
         when(viajeRepositorio.findById(ida.getId())).thenReturn(Optional.of(ida));
 
-        servicio.registrarSalida(vuelta.getId(), salidaSolicitud(), DatosPrueba.chofer(vuelta.getChoferId()));
+        // La vuelta sale a su propia hora, no a la de la ida: salir antes de lo programado se rechaza.
+        RegistrarSalidaSolicitud aSuHora = new RegistrarSalidaSolicitud(vuelta.getFechaSalidaProgramada(),
+                new BigDecimal("1000.00"));
+
+        servicio.registrarSalida(vuelta.getId(), aSuHora, DatosPrueba.chofer(vuelta.getChoferId()));
 
         assertThat(vuelta.getEstado()).isEqualTo(EstadoViaje.EN_RUTA);
+    }
+
+    /** El odómetro no camina para atrás: la salida no se registra con menos km de los que trae el bus. */
+    @Test
+    void elKilometrajeInicialNoPuedeSerMenorAlDelBus() {
+        prepararViaje(viaje);
+        when(buses.findById(viaje.getBusId()))
+                .thenReturn(Optional.of(DatosPrueba.vistaBusCon(viaje.getBusId(), "1500.00")));
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.KM_MENOR_AL_DEL_BUS);
+
+        assertThat(viaje.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+    }
+
+    /** Aunque Fleet venga atrasado, la última salida registrada aquí también cuenta. */
+    @Test
+    void elKilometrajeTambienSeComparaConLaUltimaSalidaRegistrada() {
+        prepararViaje(viaje);
+        when(salidas.ultimoKilometrajeDelBus(viaje.getBusId())).thenReturn(new BigDecimal("2000.00"));
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), salidaSolicitud(),
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.KM_MENOR_AL_DEL_BUS);
+    }
+
+    /** La salida puede atrasarse, pero no adelantarse a la hora a la que el viaje estaba programado. */
+    @Test
+    void laSalidaNoPuedeSerAntesDeLaHoraProgramada() {
+        prepararViaje(viaje);
+        RegistrarSalidaSolicitud adelantada = new RegistrarSalidaSolicitud(SALIDA.minusMinutes(1),
+                new BigDecimal("1000.00"));
+
+        VerificarError.lanza(() -> servicio.registrarSalida(viaje.getId(), adelantada,
+                DatosPrueba.chofer(viaje.getChoferId())), ErrorOperacionViaje.SALIDA_ANTES_DE_LO_PROGRAMADO);
+
+        assertThat(viaje.getEstado()).isEqualTo(EstadoViaje.PROGRAMADO);
+        verifyNoInteractions(eventos);
     }
 
     @Test

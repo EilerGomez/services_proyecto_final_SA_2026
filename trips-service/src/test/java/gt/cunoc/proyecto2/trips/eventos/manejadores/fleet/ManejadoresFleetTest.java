@@ -65,7 +65,7 @@ class ManejadoresFleetTest {
     @Test
     void busCreadoGuardaElBus() {
         ManejadorBusCreado manejador = new ManejadorBusCreado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS);
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 45, "ACTIVO", new BigDecimal("12500.00"), FOTO_BUS);
 
         manejador.manejar(evento("BusCreado", bus.busId(), bus));
 
@@ -78,7 +78,7 @@ class ManejadoresFleetTest {
     @Test
     void busActualizadoGuardaElBus() {
         ManejadorBusActualizado manejador = new ManejadorBusActualizado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 50, "EN_TALLER", FOTO_BUS);
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-123ABC", 50, "EN_TALLER", new BigDecimal("12500.00"), FOTO_BUS);
 
         manejador.manejar(evento("BusActualizado", bus.busId(), bus));
 
@@ -105,7 +105,7 @@ class ManejadoresFleetTest {
     @Test
     void choferCreadoGuardaElChofer() {
         ManejadorChoferCreado manejador = new ManejadorChoferCreado(proyecciones);
-        ChoferEvento chofer = new ChoferEvento(UUID.randomUUID(), XELA, "Juan Perez", new BigDecimal("350.00"),
+        ChoferEvento chofer = new ChoferEvento(UUID.randomUUID(), UUID.randomUUID(), XELA, "Juan Perez", new BigDecimal("350.00"),
                 "ACTIVO");
 
         manejador.manejar(evento("ChoferCreado", chofer.choferId(), chofer));
@@ -119,7 +119,7 @@ class ManejadoresFleetTest {
     @Test
     void choferActualizadoGuardaElChofer() {
         ManejadorChoferActualizado manejador = new ManejadorChoferActualizado(proyecciones);
-        ChoferEvento chofer = new ChoferEvento(UUID.randomUUID(), XELA, "Juan Pérez", new BigDecimal("400.00"),
+        ChoferEvento chofer = new ChoferEvento(UUID.randomUUID(), UUID.randomUUID(), XELA, "Juan Pérez", new BigDecimal("400.00"),
                 "ACTIVO");
 
         manejador.manejar(evento("ChoferActualizado", chofer.choferId(), chofer));
@@ -145,7 +145,7 @@ class ManejadoresFleetTest {
     @Test
     void sinAggregateVersionPasaNulo() {
         ManejadorBusCreado manejador = new ManejadorBusCreado(proyecciones);
-        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-999XYZ", 40, "ACTIVO", FOTO_BUS);
+        BusEvento bus = new BusEvento(UUID.randomUUID(), XELA, "P-999XYZ", 40, "ACTIVO", new BigDecimal("12500.00"), FOTO_BUS);
 
         manejador.manejar(new EventoRecibido<>(UUID.randomUUID(), "BusCreado", 1, bus.busId(), null,
                 Instant.now(), FECHA, UUID.randomUUID(), bus));

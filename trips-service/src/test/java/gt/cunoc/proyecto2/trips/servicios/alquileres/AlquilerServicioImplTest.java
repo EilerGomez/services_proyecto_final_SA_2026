@@ -68,7 +68,8 @@ class AlquilerServicioImplTest {
 
     private static final OffsetDateTime SALIDA = OffsetDateTime.parse("2026-11-05T07:00:00-06:00");
     private static final OffsetDateTime RETORNO = OffsetDateTime.parse("2026-11-05T19:00:00-06:00");
-    private static final OffsetDateTime LLEGADA_ESTIMADA = OffsetDateTime.parse("2026-11-05T11:00:00-06:00");
+    /** Después del retorno que pide el alquiler (19:00): el bus no puede estar de vuelta antes. */
+    private static final OffsetDateTime LLEGADA_ESTIMADA = OffsetDateTime.parse("2026-11-05T23:00:00-06:00");
 
     private final AlquilerPrivadoRepositorio repositorio = mock(AlquilerPrivadoRepositorio.class);
     private final ConfiguracionAlquilerServicio precios = mock(ConfiguracionAlquilerServicio.class);
@@ -430,6 +431,24 @@ class AlquilerServicioImplTest {
 
     // asignar bus y chofer a un alquiler pagado
 
+    /**
+     * El alquiler es de ida y vuelta: la llegada estimada del viaje no puede caer antes del retorno
+     * que pidió el cliente, porque a esa hora el bus todavía lo está ocupando.
+     */
+    @Test
+    void laLlegadaEstimadaNoPuedeSerAntesDelRetornoDelAlquiler() {
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquilerPagado();
+        existe(alquiler);
+        OffsetDateTime antesDelRetorno = alquiler.getFechaRetorno().minusHours(1);
+
+        VerificarError.lanza(() -> servicio.asignar(alquiler.getId(),
+                        new AsignarAlquilerSolicitud(UUID.randomUUID(), UUID.randomUUID(), antesDelRetorno, 0),
+                        DatosPrueba.adminSucursal(XELA)),
+                ErrorAlquiler.LLEGADA_ANTES_DEL_RETORNO);
+
+        verifyNoInteractions(asignaciones, viajeRepositorio, eventos);
+    }
+
     @Test
     void asignarCreaElViajePrivadoYAvisaAlCliente() {
         UsuarioActual admin = DatosPrueba.adminSucursal(XELA);
@@ -458,10 +477,11 @@ class AlquilerServicioImplTest {
 
     // el duenio del alquiler cancela su viaje
 
+    /** Ya pagado, el cliente sí lo puede cancelar por su cuenta (con el reembolso que toque). */
     @Test
-    void elDuenoCancelaSuAlquiler() {
+    void elDuenoCancelaSuAlquilerYaPagado() {
         UsuarioActual cliente = DatosPrueba.cliente();
-        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquiler(cliente.usuarioId());
+        AlquilerPrivadoEntidad alquiler = DatosPrueba.alquilerPagado(cliente.usuarioId());
         existe(alquiler);
         guardarDevuelveElMismo();
         laTarifaPermiteCancelar("0.00", 300);
@@ -474,6 +494,24 @@ class AlquilerServicioImplTest {
         assertThat(respuesta.fechaHoraCancelacion()).isNotNull();
         verify(repositorio).saveAndFlush(alquiler);
         verify(eventos).alquilerCancelado(eq(alquiler), any(AlquilerCancelado.class));
+    }
+
+    /**
+     * Mientras no esté pagado, el cliente no lo cancela: todavía se está cotizando y esa parte la
+     * maneja la sucursal, que es con quien está hablando.
+     */
+    @Test
+    void elClienteNoCancelaUnAlquilerQueTodaviaNoHaPagado() {
+        UsuarioActual cliente = DatosPrueba.cliente();
+        AlquilerPrivadoEntidad solicitado = DatosPrueba.alquiler(cliente.usuarioId());
+        existe(solicitado);
+
+        VerificarError.lanza(() -> servicio.cancelar(solicitado.getId(),
+                        new CancelarAlquilerSolicitud("Ya no", null, 0), cliente),
+                ErrorAlquiler.SOLO_LA_SUCURSAL_CANCELA);
+
+        assertThat(solicitado.getEstado()).isEqualTo(EstadoAlquiler.SOLICITADO);
+        verifyNoInteractions(eventos);
     }
 
     @Test

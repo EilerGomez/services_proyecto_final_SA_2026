@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.notification.messaging.consumer;
 
 import gt.cunoc.proyecto2.comun.eventos.recibido.EventoRecibido;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoReasignado;
+import gt.cunoc.proyecto2.notification.evento.recibido.ViajeProgramado;
 import gt.cunoc.proyecto2.notification.evento.recibido.ViajeReasignado;
 import gt.cunoc.proyecto2.notification.services.correo.CorreoViajesService;
 import java.time.Instant;
@@ -28,6 +29,7 @@ class ManejadoresReasignacionTest {
     @Mock private CorreoViajesService correos;
 
     @InjectMocks private ManejadorViajeReasignado manejadorViaje;
+    @InjectMocks private ManejadorViajeProgramado manejadorProgramado;
     @InjectMocks private ManejadorBoletoReasignado manejadorBoleto;
 
     private static <T> EventoRecibido<T> evento(String tipo, T payload) {
@@ -47,6 +49,20 @@ class ManejadoresReasignacionTest {
         assertEquals("ViajeReasignado", manejadorViaje.tipoEvento());
         assertEquals(ViajeReasignado.class, manejadorViaje.tipoPayload());
         verify(correos).viajeReasignado(recibido.eventId(), viaje);
+    }
+
+    @Test
+    void viajeProgramadoLeEscribeAlPiloto() {
+        ViajeProgramado viaje = new ViajeProgramado(UUID.randomUUID(), "REGULAR", UUID.randomUUID(),
+                "Quetzaltenango", "Guatemala", "P-123ABC", UUID.randomUUID(), "Juan Pérez", UUID.randomUUID(),
+                SALIDA, SALIDA.plusHours(4), "IDA");
+        EventoRecibido<ViajeProgramado> recibido = evento("ViajeProgramado", viaje);
+
+        manejadorProgramado.manejar(recibido);
+
+        assertEquals("ViajeProgramado", manejadorProgramado.tipoEvento());
+        assertEquals(ViajeProgramado.class, manejadorProgramado.tipoPayload());
+        verify(correos).viajeAsignadoAlPiloto(recibido.eventId(), viaje);
     }
 
     @Test

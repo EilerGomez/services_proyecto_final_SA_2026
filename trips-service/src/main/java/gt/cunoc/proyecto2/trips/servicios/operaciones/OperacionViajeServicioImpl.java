@@ -7,11 +7,13 @@ import gt.cunoc.proyecto2.trips.dtos.operaciones.RegistrarSalidaSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.errores.operaciones.ErrorOperacionViaje;
 import gt.cunoc.proyecto2.trips.eventos.PublicadorEventosTrips;
+import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
+import gt.cunoc.proyecto2.trips.repositorios.buses.VistaBusRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.LlegadaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.operaciones.SalidaViajeRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
@@ -20,6 +22,7 @@ import gt.cunoc.proyecto2.trips.servicios.viajes.ViajeServicio;
 import gt.cunoc.proyecto2.trips.utilidades.Fechas;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,18 +36,21 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
     private final LlegadaViajeRepositorio llegadas;
     private final VistaTarifaDepreciacionRepositorio tarifas;
     private final AlquilerPrivadoRepositorio alquileres;
+    private final VistaBusRepositorio buses;
     private final PublicadorEventosTrips eventos;
 
     public OperacionViajeServicioImpl(ViajeServicio viajes, ViajeRepositorio viajeRepositorio,
                                       SalidaViajeRepositorio salidas, LlegadaViajeRepositorio llegadas,
                                       VistaTarifaDepreciacionRepositorio tarifas,
-                                      AlquilerPrivadoRepositorio alquileres, PublicadorEventosTrips eventos) {
+                                      AlquilerPrivadoRepositorio alquileres, VistaBusRepositorio buses,
+                                      PublicadorEventosTrips eventos) {
         this.viajes = viajes;
         this.viajeRepositorio = viajeRepositorio;
         this.salidas = salidas;
         this.llegadas = llegadas;
         this.tarifas = tarifas;
         this.alquileres = alquileres;
+        this.buses = buses;
         this.eventos = eventos;
     }
 
@@ -57,6 +63,8 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
         verificarSinOtroViajeEnRuta(viaje);                                     // 409 bus o piloto ocupados
         verificarEsElMasProximo(viaje);                                         // 422 si hay uno anterior
         verificarIdaCompletada(viaje);                                          // 422 si la vuelta se adelanta
+        verificarFechaDeSalida(viaje, solicitud.fechaHoraSalida());             // 400 si se adelanta
+        verificarKilometraje(viaje, solicitud.kmInicial());                     // 422 si el odómetro baja
         viaje.iniciar();                                                        // 409 si ya salió
         SalidaViajeEntidad salida = salidas.saveAndFlush(solicitud.crearEntidad(viaje, usuario.usuarioId()));
         viaje = viajeRepositorio.saveAndFlush(viaje);
@@ -139,6 +147,37 @@ public class OperacionViajeServicioImpl implements OperacionViajeServicio {
         if (!idaCompletada) {
             throw ErrorOperacionViaje.IDA_SIN_COMPLETAR.excepcion();
         }
+    }
+
+    /**
+     * T14. El viaje no puede salir antes de la hora a la que estaba programado. Después sí: un bus
+     * se puede atrasar, y esa es justamente la hora real que se registra.
+     */
+    private static void verificarFechaDeSalida(ViajeEntidad viaje, OffsetDateTime fechaHoraSalida) {
+        if (fechaHoraSalida.isBefore(viaje.getFechaSalidaProgramada())) {
+            throw ErrorOperacionViaje.SALIDA_ANTES_DE_LO_PROGRAMADO.excepcion(
+                    Fechas.enGuatemala(viaje.getFechaSalidaProgramada()));
+        }
+    }
+
+    /**
+     * T14. El odómetro no camina para atrás: el kilometraje inicial no puede ser menor al que ya
+     * trae el bus. Se toma el mayor entre el que manda Fleet (que lo sube con cada viaje completado)
+     * y la última salida registrada aquí, por si ese evento todavía viene en camino.
+     */
+    private void verificarKilometraje(ViajeEntidad viaje, BigDecimal kmInicial) {
+        BigDecimal actual = kilometrajeDelBus(viaje.getBusId());
+        if (kmInicial.compareTo(actual) < 0) {
+            throw ErrorOperacionViaje.KM_MENOR_AL_DEL_BUS.excepcion(kmInicial, actual);
+        }
+    }
+
+    private BigDecimal kilometrajeDelBus(UUID busId) {
+        BigDecimal deFleet = buses.findById(busId)
+                .map(VistaBusEntidad::getKilometrajeActual)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal deLaUltimaSalida = salidas.ultimoKilometrajeDelBus(busId);
+        return deLaUltimaSalida == null ? deFleet : deFleet.max(deLaUltimaSalida);
     }
 
     private BigDecimal tarifaVigente(LocalDate fecha) {

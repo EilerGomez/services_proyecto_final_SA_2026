@@ -37,6 +37,9 @@ public final class DatosPrueba {
 
     public static final LocalDate FECHA = LocalDate.of(2026, 10, 20);
     /** 25-oct 06:00 y 10:30 en Guatemala. */
+    /** Odómetro del bus de prueba: las salidas registran 1000 km, así que no lo estorba. */
+    public static final BigDecimal KM_DEL_BUS = new BigDecimal("1000.00");
+
     public static final OffsetDateTime SALIDA = OffsetDateTime.parse("2026-10-25T06:00:00-06:00");
     public static final OffsetDateTime LLEGADA = OffsetDateTime.parse("2026-10-25T10:30:00-06:00");
 
@@ -153,6 +156,14 @@ public final class DatosPrueba {
         return alquiler(UUID.randomUUID());
     }
 
+    /** Alquiler ya PAGADO de ese cliente (SOLICITADO → COTIZADO 2600 → PAGADO). */
+    public static AlquilerPrivadoEntidad alquilerPagado(UUID clienteUsuarioId) {
+        AlquilerPrivadoEntidad alquiler = alquiler(clienteUsuarioId);
+        alquiler.cotizar(new BigDecimal("2600.00"), UUID.randomUUID());
+        alquiler.marcarPagado();
+        return alquiler;
+    }
+
     /** Alquiler ya PAGADO (SOLICITADO → COTIZADO 2600 → PAGADO). */
     public static AlquilerPrivadoEntidad alquilerPagado() {
         AlquilerPrivadoEntidad alquiler = alquiler();
@@ -197,7 +208,15 @@ public final class DatosPrueba {
         ReflectionTestUtils.setField(bus, "placa", placa);
         ReflectionTestUtils.setField(bus, "capacidadPasajeros", 45);
         ReflectionTestUtils.setField(bus, "estado", "ACTIVO");
+        ReflectionTestUtils.setField(bus, "kilometrajeActual", KM_DEL_BUS);
         ReflectionTestUtils.setField(bus, "fotoUrl", FOTO_BUS);
+        return bus;
+    }
+
+    /** El mismo bus con el odómetro en otro valor (para la validación del kilometraje de salida). */
+    public static VistaBusEntidad vistaBusCon(UUID id, String kilometraje) {
+        VistaBusEntidad bus = vistaBus(id, "P-123ABC");
+        ReflectionTestUtils.setField(bus, "kilometrajeActual", new BigDecimal(kilometraje));
         return bus;
     }
 
@@ -208,6 +227,7 @@ public final class DatosPrueba {
         ReflectionTestUtils.setField(chofer, "nombreCompleto", nombre);
         ReflectionTestUtils.setField(chofer, "salarioBaseViaje", SALARIO);
         ReflectionTestUtils.setField(chofer, "estado", "ACTIVO");
+        ReflectionTestUtils.setField(chofer, "usuarioId", UUID.randomUUID());
         return chofer;
     }
 

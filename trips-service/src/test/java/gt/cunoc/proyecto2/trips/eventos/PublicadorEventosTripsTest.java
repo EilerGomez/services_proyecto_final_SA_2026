@@ -65,7 +65,7 @@ class PublicadorEventosTripsTest {
         return new ViajeRespuesta(viaje, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
                 Map.of(XELA, "Xela", GUATE, "Guate"),
                 Map.of(viaje.getBusId(), DatosPrueba.vistaBus(viaje.getBusId(), "P-123ABC")),
-                Map.of(viaje.getChoferId(), "Juan Perez")));
+                Map.of(viaje.getChoferId(), DatosPrueba.vistaChofer(viaje.getChoferId(), "Juan Perez"))));
     }
 
     /** Viaje regular que sale el 25-oct a las 21:00 de Guatemala (26-oct en UTC). */

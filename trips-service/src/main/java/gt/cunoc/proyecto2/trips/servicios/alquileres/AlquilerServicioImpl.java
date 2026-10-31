@@ -88,6 +88,9 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         boolean enMostrador = usuario.tieneAlgunRol(Roles.CAJERO, Roles.ADMIN_SUCURSAL);
         sucursales.verificarActiva(solicitud.sucursalId());
         solicitud.recorrido();                                                   // 400 si el retorno es antes
+        if (solicitud.fechaSalida().isBefore(Fechas.ahora())) {                  // 400 si ya pasó la hora
+            throw ErrorAlquiler.SALIDA_EN_EL_PASADO.excepcion(Fechas.enGuatemala(solicitud.fechaSalida()));
+        }
         LocalDate hoy = Fechas.hoy();
         if (solicitud.fechaSolicitud().isBefore(hoy)) {                          // 400 si la fecha ya pasó
             throw ErrorAlquiler.FECHA_SOLICITUD_PASADA.excepcion(solicitud.fechaSolicitud(), hoy);
@@ -173,6 +176,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         if (!EstadoAlquiler.CANCELABLES.contains(alquiler.getEstado())) {
             throw ErrorAlquiler.ESTADO_NO_CANCELABLE.excepcion(alquiler.getEstado());     // 422
         }
+        verificarPuedeCancelarlo(alquiler, usuario);                                      // 403
         OffsetDateTime cuando = cuandoSeCancela(alquiler, solicitud.fechaHoraCancelacion());
         PoliticaCancelacionRespuesta politica = politicas.para(alquiler, cuando);
         if (!politica.permiteCancelacion()) {
@@ -225,6 +229,7 @@ public class AlquilerServicioImpl implements AlquilerServicio {
         usuario.verificarAccesoSucursal(alquiler.getSucursalId());
         VerificadorVersion.verificar(alquiler.getVersion(), solicitud.version());
         alquiler.verificarPagado();                                             // antes de llamar a Fleet
+        verificarLlegadaCubreElRetorno(alquiler, solicitud.fechaLlegadaEstimada());
         AsignacionViaje asignacion = asignaciones.validarNueva(alquiler.getSucursalId(), solicitud.busId(),
                 solicitud.choferId(), alquiler.getFechaSalida(), solicitud.fechaLlegadaEstimada());
         if (asignacion.capacidadBus() < alquiler.getCantidadPasajeros()) {
@@ -252,6 +257,31 @@ public class AlquilerServicioImpl implements AlquilerServicio {
                         alquilerId, alquiler.getEstado());
             }
         }, () -> log.warn("AlquilerPagado ignorado: el alquiler {} no existe", alquilerId));
+    }
+
+    /**
+     * T22. El viaje privado tiene que cubrir el retorno que pidió el cliente: si el alquiler es de
+     * ida y vuelta, el bus no puede estar de regreso antes de la hora a la que lo van a ocupar.
+     */
+    private static void verificarLlegadaCubreElRetorno(AlquilerPrivadoEntidad alquiler,
+                                                       OffsetDateTime fechaLlegadaEstimada) {
+        OffsetDateTime retorno = alquiler.getFechaRetorno();
+        if (retorno != null && fechaLlegadaEstimada.isBefore(retorno)) {
+            throw ErrorAlquiler.LLEGADA_ANTES_DEL_RETORNO.excepcion(Fechas.enGuatemala(retorno));
+        }
+    }
+
+    /**
+     * T21. Mientras el alquiler no esté pagado (SOLICITADO o COTIZADO), solo lo cancela la sucursal
+     * que lo atiende: el cliente todavía está negociando el precio y una cancelación suya ahí deja
+     * la cotización a medias. Ya pagado o asignado sí puede cancelarlo él, con su reembolso.
+     */
+    private static void verificarPuedeCancelarlo(AlquilerPrivadoEntidad alquiler, UsuarioActual usuario) {
+        boolean sinPagar = alquiler.getEstado() == EstadoAlquiler.SOLICITADO
+                || alquiler.getEstado() == EstadoAlquiler.COTIZADO;
+        if (sinPagar && !esAdminDeLaSucursal(alquiler, usuario)) {
+            throw ErrorAlquiler.SOLO_LA_SUCURSAL_CANCELA.excepcion(alquiler.getEstado());
+        }
     }
 
     private AlquilerPrivadoEntidad obtenerPorId(UUID id) {

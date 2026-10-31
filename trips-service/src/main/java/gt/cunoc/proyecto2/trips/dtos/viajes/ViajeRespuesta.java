@@ -31,8 +31,12 @@ public record ViajeRespuesta(
         String busPlaca,
         /** Foto del bus (de vista_buses): el pasajero la ve al comprar, sin necesitar sesión. */
         String busFotoUrl,
+        /** Odómetro del bus: el piso del kilometraje inicial al registrar la salida. */
+        @JsonInclude(JsonInclude.Include.NON_NULL) BigDecimal busKilometrajeActual,
         UUID choferId,
         String choferNombre,
+        /** Cuenta del piloto en Identity: con ella Notification le avisa que tiene un viaje nuevo. */
+        @JsonInclude(JsonInclude.Include.NON_NULL) UUID choferUsuarioId,
         int capacidad,
         BigDecimal precioBoleto,
         OffsetDateTime fechaSalidaProgramada,
@@ -64,8 +68,10 @@ public record ViajeRespuesta(
                 viaje.getBusId(),
                 nombres.placa(viaje),
                 nombres.fotoBus(viaje),
+                nombres.kilometrajeBus(viaje),
                 viaje.getChoferId(),
                 nombres.chofer(viaje),
+                nombres.choferUsuarioId(viaje),
                 viaje.getCapacidadBus(),
                 viaje.getPrecioBoleto(),
                 Fechas.enGuatemala(viaje.getFechaSalidaProgramada()),

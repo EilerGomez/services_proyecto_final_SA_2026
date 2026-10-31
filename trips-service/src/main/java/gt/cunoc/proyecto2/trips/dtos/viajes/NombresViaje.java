@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.trips.dtos.viajes;
 
 import gt.cunoc.proyecto2.trips.modelos.alquileres.AlquilerPrivadoEntidad;
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
+import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import java.math.BigDecimal;
@@ -19,7 +20,7 @@ public record NombresViaje(
         Map<UUID, AlquilerPrivadoEntidad> alquileres,
         Map<UUID, String> sucursales,
         Map<UUID, VistaBusEntidad> buses,
-        Map<UUID, String> choferes) {
+        Map<UUID, VistaChoferEntidad> choferes) {
 
     /** El alquiler del viaje, solo si es PRIVADO (un REGULAR va por ruta, no por alquiler). */
     private AlquilerPrivadoEntidad alquilerDe(ViajeEntidad viaje) {
@@ -111,6 +112,15 @@ public record NombresViaje(
         return bus == null ? null : bus.getPlaca();
     }
 
+    /**
+     * Odómetro del bus según Fleet. Va en la respuesta para que quien registre la salida vea de
+     * cuánto parte y no escriba un kilometraje menor, que el backend rechaza.
+     */
+    public BigDecimal kilometrajeBus(ViajeEntidad viaje) {
+        VistaBusEntidad bus = buses.get(viaje.getBusId());
+        return bus == null ? null : bus.getKilometrajeActual();
+    }
+
     /** Foto del bus del viaje: la ve el pasajero al comprar para reconocerlo en la terminal. */
     public String fotoBus(ViajeEntidad viaje) {
         VistaBusEntidad bus = buses.get(viaje.getBusId());
@@ -118,6 +128,16 @@ public record NombresViaje(
     }
 
     public String chofer(ViajeEntidad viaje) {
-        return choferes.get(viaje.getChoferId());
+        VistaChoferEntidad chofer = choferes.get(viaje.getChoferId());
+        return chofer == null ? null : chofer.getNombreCompleto();
+    }
+
+    /**
+     * La cuenta del piloto en Identity. Viaja en el evento para que Notification le pueda escribir
+     * sin que Trips guarde correos; null si su copia todavía no trae la cuenta (eventos viejos).
+     */
+    public UUID choferUsuarioId(ViajeEntidad viaje) {
+        VistaChoferEntidad chofer = choferes.get(viaje.getChoferId());
+        return chofer == null ? null : chofer.getUsuarioId();
     }
 }

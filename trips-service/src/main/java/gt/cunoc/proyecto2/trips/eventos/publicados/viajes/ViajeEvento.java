@@ -9,7 +9,8 @@ import java.util.UUID;
 
 /**
  * Payload de ViajeProgramado y ViajeActualizado (mismo contenido).
- * Consumen: Sales (crea o ajusta los asientos; ignora los PRIVADO) y Reporting.
+ * Consumen: Sales (crea o ajusta los asientos; ignora los PRIVADO), Reporting y Notification
+ * (le avisa al piloto del viaje que se le asignó, por eso viaja su cuenta de Identity).
  * REGULAR: rutaId y precioBoleto, alquilerId null. PRIVADO: alquilerId, sin ruta ni precio de boleto.
  */
 public record ViajeEvento(
@@ -23,6 +24,9 @@ public record ViajeEvento(
         UUID busId,
         String busPlaca,
         UUID choferId,
+        String choferNombre,
+        /** Cuenta del piloto en Identity: Notification resuelve con ella su correo. Puede ser null. */
+        UUID choferUsuarioId,
         int capacidad,
         BigDecimal precioBoleto,
         OffsetDateTime fechaSalida,
@@ -36,7 +40,8 @@ public record ViajeEvento(
     public static ViajeEvento desde(ViajeRespuesta viaje) {
         return new ViajeEvento(viaje.viajeId(), viaje.tipo(), viaje.rutaId(), viaje.alquilerId(),
                 viaje.sucursalId(), viaje.origenNombre(), viaje.destinoNombre(), viaje.busId(), viaje.busPlaca(),
-                viaje.choferId(), viaje.capacidad(), viaje.precioBoleto(), viaje.fechaSalidaProgramada(),
-                viaje.fechaLlegadaEstimada(), viaje.sentido(), viaje.ventaPorChofer());
+                viaje.choferId(), viaje.choferNombre(), viaje.choferUsuarioId(), viaje.capacidad(),
+                viaje.precioBoleto(), viaje.fechaSalidaProgramada(), viaje.fechaLlegadaEstimada(),
+                viaje.sentido(), viaje.ventaPorChofer());
     }
 }

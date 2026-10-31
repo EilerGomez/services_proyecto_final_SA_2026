@@ -36,6 +36,10 @@ public class VistaChoferEntidad {
     @Column(nullable = false, length = 10)
     private String estado;
 
+    /** V19: su cuenta en Identity, para poder avisarle por correo cuando se le asigna un viaje. */
+    @Column(name = "usuario_id")
+    private UUID usuarioId;
+
     @Column(nullable = false)
     private int version;
 }

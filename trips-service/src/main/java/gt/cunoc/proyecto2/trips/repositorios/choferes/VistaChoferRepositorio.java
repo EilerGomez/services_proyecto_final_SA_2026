@@ -16,13 +16,16 @@ public interface VistaChoferRepositorio extends JpaRepository<VistaChoferEntidad
     /** ChoferCreado / ChoferActualizado: upsert con el estado completo; ignora versiones viejas (devuelve 0). */
     @Modifying
     @Query(value = """
-            INSERT INTO vista_choferes (id, sucursal_id, nombre_completo, salario_base_viaje, estado, version)
-            VALUES (:id, :sucursalId, :nombre, :salario, :estado, :version)
+            INSERT INTO vista_choferes (id, sucursal_id, usuario_id, nombre_completo, salario_base_viaje,
+                                        estado, version)
+            VALUES (:id, :sucursalId, :usuarioId, :nombre, :salario, :estado, :version)
             ON CONFLICT (id) DO UPDATE SET sucursal_id = EXCLUDED.sucursal_id,
+                usuario_id = EXCLUDED.usuario_id,
                 nombre_completo = EXCLUDED.nombre_completo, salario_base_viaje = EXCLUDED.salario_base_viaje,
                 estado = EXCLUDED.estado, version = EXCLUDED.version
             WHERE vista_choferes.version <= EXCLUDED.version""", nativeQuery = true)
-    int guardar(@Param("id") UUID id, @Param("sucursalId") UUID sucursalId, @Param("nombre") String nombre,
+    int guardar(@Param("id") UUID id, @Param("sucursalId") UUID sucursalId,
+                @Param("usuarioId") UUID usuarioId, @Param("nombre") String nombre,
                 @Param("salario") BigDecimal salario, @Param("estado") String estado,
                 @Param("version") long version);
 

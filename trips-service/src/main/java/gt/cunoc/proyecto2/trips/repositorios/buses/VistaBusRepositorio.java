@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.trips.repositorios.buses;
 
 import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,15 +16,18 @@ public interface VistaBusRepositorio extends JpaRepository<VistaBusEntidad, UUID
     /** BusCreado / BusActualizado: upsert con el estado completo; ignora versiones viejas y nos (devuelve 0). */
     @Modifying
     @Query(value = """
-            INSERT INTO vista_buses (id, sucursal_id, placa, capacidad_pasajeros, estado, foto_url, version)
-            VALUES (:id, :sucursalId, :placa, :capacidad, :estado, :fotoUrl, :version)
+            INSERT INTO vista_buses (id, sucursal_id, placa, capacidad_pasajeros, estado, kilometraje_actual,
+                                     foto_url, version)
+            VALUES (:id, :sucursalId, :placa, :capacidad, :estado, :kilometraje, :fotoUrl, :version)
             ON CONFLICT (id) DO UPDATE SET sucursal_id = EXCLUDED.sucursal_id, placa = EXCLUDED.placa,
                 capacidad_pasajeros = EXCLUDED.capacidad_pasajeros, estado = EXCLUDED.estado,
+                kilometraje_actual = EXCLUDED.kilometraje_actual,
                 foto_url = EXCLUDED.foto_url, version = EXCLUDED.version
             WHERE vista_buses.version <= EXCLUDED.version""", nativeQuery = true)
     int guardar(@Param("id") UUID id, @Param("sucursalId") UUID sucursalId, @Param("placa") String placa,
                 @Param("capacidad") int capacidad, @Param("estado") String estado,
-                @Param("fotoUrl") String fotoUrl, @Param("version") long version);
+                @Param("kilometraje") BigDecimal kilometraje, @Param("fotoUrl") String fotoUrl,
+                @Param("version") long version);
 
     /** BusDesactivado: estado INACTIVO si el evento no es viejo (devuelve 0 si no cambió). */
     @Modifying

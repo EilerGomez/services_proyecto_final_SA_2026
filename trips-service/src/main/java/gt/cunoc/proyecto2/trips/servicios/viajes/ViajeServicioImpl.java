@@ -314,13 +314,14 @@ public class ViajeServicioImpl implements ViajeServicio {
                 .collect(Collectors.toSet());
         Map<UUID, VistaBusEntidad> busesPorId = buses.findAllById(idsDe(viajes, ViajeEntidad::getBusId)).stream()
                 .collect(Collectors.toMap(VistaBusEntidad::getId, Function.identity()));
-        Map<UUID, String> nombresChoferes = choferes.findAllById(idsDe(viajes, ViajeEntidad::getChoferId)).stream()
-                .collect(Collectors.toMap(VistaChoferEntidad::getId, VistaChoferEntidad::getNombreCompleto));
+        Map<UUID, VistaChoferEntidad> choferesPorId = choferes
+                .findAllById(idsDe(viajes, ViajeEntidad::getChoferId)).stream()
+                .collect(Collectors.toMap(VistaChoferEntidad::getId, Function.identity()));
         Map<UUID, AlquilerPrivadoEntidad> alquileresPorId = alquileres
                 .findAllById(idsDe(viajes, ViajeEntidad::getAlquilerId)).stream()
                 .collect(Collectors.toMap(AlquilerPrivadoEntidad::getId, Function.identity()));
         NombresViaje nombres = new NombresViaje(rutasPorId, alquileresPorId, sucursales.nombres(sucursalIds),
-                busesPorId, nombresChoferes);
+                busesPorId, choferesPorId);
         return viajes.stream().map(viaje -> new ViajeRespuesta(viaje, nombres)).toList();
     }
 

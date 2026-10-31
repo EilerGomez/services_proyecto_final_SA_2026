@@ -208,7 +208,7 @@ class CorreoVentasServiceTest {
         // Arrange
         AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 "Colegio San José", "colegio@correo.com", "Quetzaltenango", "Antigua Guatemala",
-                SALIDA, SALIDA.plusHours(10), "P-123ABC", "Juan Pérez");
+                SALIDA, SALIDA.plusHours(10), "P-123ABC", "Juan Pérez", UUID.randomUUID());
 
         // Act
         servicio.alquilerAsignado(EVENTO_ID, asignado);
@@ -228,7 +228,7 @@ class CorreoVentasServiceTest {
     void alquilerAsignadoSinPlacaNiPilotoMuestraGuion() {
         // Arrange
         AlquilerAsignado asignado = new AlquilerAsignado(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "Colegio", null, "Quetzaltenango", "Antigua", SALIDA, null, null, null);
+                "Colegio", null, "Quetzaltenango", "Antigua", SALIDA, null, null, null, null);
 
         // Act
         servicio.alquilerAsignado(EVENTO_ID, asignado);

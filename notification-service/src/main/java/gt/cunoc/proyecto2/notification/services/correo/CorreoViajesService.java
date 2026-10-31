@@ -1,10 +1,15 @@
 package gt.cunoc.proyecto2.notification.services.correo;
 
+import gt.cunoc.proyecto2.notification.clientes.ClienteIdentity;
+import gt.cunoc.proyecto2.notification.clientes.ContactoUsuario;
+import gt.cunoc.proyecto2.notification.evento.recibido.AlquilerAsignado;
 import gt.cunoc.proyecto2.notification.evento.recibido.BoletoReasignado;
+import gt.cunoc.proyecto2.notification.evento.recibido.ViajeProgramado;
 import gt.cunoc.proyecto2.notification.evento.recibido.ViajeReasignado;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -22,16 +27,122 @@ import tools.jackson.databind.json.JsonMapper;
 public class CorreoViajesService {
 
     public static final String VIAJE_REASIGNADO = "VIAJE_REASIGNADO";
+    /** Aviso al piloto de que le tocó un viaje (regular o un alquiler privado). */
+    public static final String VIAJE_ASIGNADO_PILOTO = "VIAJE_ASIGNADO_PILOTO";
 
     private static final int LARGO_ASUNTO = 200;
     private static final String SIN_DATO = "-";
 
     private final EnvioCorreoService correos;
+    private final ClienteIdentity identity;
     private final JsonMapper json;
 
-    public CorreoViajesService(EnvioCorreoService correos, JsonMapper json) {
+    public CorreoViajesService(EnvioCorreoService correos, ClienteIdentity identity, JsonMapper json) {
         this.correos = correos;
+        this.identity = identity;
         this.json = json;
+    }
+
+    /*
+     * ViajeProgramado (Trips): al piloto se le avisa que tiene un viaje nuevo, con el recorrido, la
+     * unidad y la hora a la que sale. El correo no viene en el evento (Trips no guarda correos): se
+     * pide a Identity con la cuenta del piloto, igual que el recordatorio de licencia.
+     */
+    public void viajeAsignadoAlPiloto(UUID eventoId, ViajeProgramado viaje) {
+        Optional<ContactoUsuario> piloto = contactoDelPiloto(viaje.choferUsuarioId());
+        if (piloto.isEmpty()) {
+            return;
+        }
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("viajeId", texto(viaje.viajeId()));
+        datos.put("tipo", viaje.tipo());
+        datos.put("sentido", viaje.sentido());
+        datos.put("busPlaca", viaje.busPlaca());
+        datos.put("origenNombre", viaje.origenNombre());
+        datos.put("destinoNombre", viaje.destinoNombre());
+
+        String recorrido = valor(viaje.origenNombre()) + " → " + valor(viaje.destinoNombre());
+        String cuerpo = """
+                Hola %s:
+
+                Se te asignó un viaje nuevo.
+
+                %s: %s
+                Sale: %s
+                Llegada estimada: %s
+                Bus: %s
+
+                Recuerda registrar la salida al arrancar y la llegada al terminar, desde Mis viajes.
+
+                ¡Buen viaje!""".formatted(
+                valor(piloto.get().nombre()),
+                claseDeViaje(viaje), recorrido,
+                CorreoVentasService.fechaHora(viaje.fechaSalida()),
+                CorreoVentasService.fechaHora(viaje.fechaLlegadaEstimada()),
+                valor(viaje.busPlaca()));
+
+        correos.enviarPlantilla(eventoId, piloto.get().correo(), VIAJE_ASIGNADO_PILOTO,
+                recortar("Viaje asignado: " + recorrido), json.writeValueAsString(datos), cuerpo);
+    }
+
+    /*
+     * AlquilerAsignado (Trips): el mismo aviso, pero para el piloto del alquiler privado. Va aparte
+     * del correo del cliente (ese lo manda CorreoVentasService) porque son dos destinatarios.
+     */
+    public void alquilerAsignadoAlPiloto(UUID eventoId, AlquilerAsignado alquiler) {
+        Optional<ContactoUsuario> piloto = contactoDelPiloto(alquiler.choferUsuarioId());
+        if (piloto.isEmpty()) {
+            return;
+        }
+        Map<String, Object> datos = new LinkedHashMap<>();
+        datos.put("alquilerId", texto(alquiler.alquilerId()));
+        datos.put("viajeId", texto(alquiler.viajeId()));
+        datos.put("busPlaca", alquiler.busPlaca());
+        datos.put("origen", alquiler.origen());
+        datos.put("destino", alquiler.destino());
+
+        String recorrido = valor(alquiler.origen()) + " → " + valor(alquiler.destino());
+        String cuerpo = """
+                Hola %s:
+
+                Se te asignó un alquiler privado.
+
+                Recorrido: %s
+                Sale: %s
+                Retorno: %s
+                Bus: %s
+                Cliente: %s
+
+                Recuerda registrar la salida al arrancar y la llegada al terminar, desde Mis viajes.
+
+                ¡Buen viaje!""".formatted(
+                valor(piloto.get().nombre()),
+                recorrido,
+                CorreoVentasService.fechaHora(alquiler.fechaSalida()),
+                alquiler.fechaRetorno() == null ? "solo ida"
+                        : CorreoVentasService.fechaHora(alquiler.fechaRetorno()),
+                valor(alquiler.busPlaca()),
+                valor(alquiler.clienteNombre()));
+
+        correos.enviarPlantilla(eventoId, piloto.get().correo(), VIAJE_ASIGNADO_PILOTO,
+                recortar("Alquiler privado asignado: " + recorrido), json.writeValueAsString(datos), cuerpo);
+    }
+
+    /** El contacto del piloto en Identity; vacío si el evento no trae su cuenta o si ya no existe. */
+    private Optional<ContactoUsuario> contactoDelPiloto(UUID usuarioId) {
+        if (usuarioId == null) {
+            return Optional.empty();
+        }
+        return identity.contacto(usuarioId)
+                .filter(contacto -> contacto.correo() != null && !contacto.correo().isBlank());
+    }
+
+    /** Cómo nombrarle el viaje al piloto: el de vuelta se avisa como tal para no confundirlo. */
+    private static String claseDeViaje(ViajeProgramado viaje) {
+        if (viaje.esPrivado()) {
+            return "Alquiler privado";
+        }
+        return viaje.esRegreso() ? "Viaje de regreso" : "Viaje";
     }
 
     /* BoletoReasignado (Sales): al pasajero de un viaje regular le cambiaron el bus o el piloto. */

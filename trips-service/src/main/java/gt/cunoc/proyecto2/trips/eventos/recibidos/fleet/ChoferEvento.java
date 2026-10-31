@@ -8,6 +8,8 @@ import java.util.UUID;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChoferEvento(
         UUID choferId,
+        /** Su cuenta en Identity: con ella Notification le escribe cuando se le asigna un viaje. */
+        UUID usuarioId,
         UUID sucursalId,
         String nombreCompleto,
         BigDecimal salarioBaseViaje,

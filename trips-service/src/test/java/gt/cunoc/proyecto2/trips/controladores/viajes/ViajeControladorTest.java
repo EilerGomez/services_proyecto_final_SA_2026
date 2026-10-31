@@ -45,7 +45,7 @@ class ViajeControladorTest {
     private final ViajeRespuesta respuesta = new ViajeRespuesta(viaje, new NombresViaje(Map.of(ruta.getId(), ruta),
             Map.of(), Map.of(XELA, "Xela", GUATE, "Guate"),
             Map.of(viaje.getBusId(), DatosPrueba.vistaBus(viaje.getBusId(), "P-123ABC")),
-            Map.of(viaje.getChoferId(), "Juan Perez")));
+            Map.of(viaje.getChoferId(), DatosPrueba.vistaChofer(viaje.getChoferId(), "Juan Perez"))));
     private final UUID rutaId = ruta.getId();
 
     // ----- T8: el filtro depende de quién busca -----

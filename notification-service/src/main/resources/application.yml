@@ -57,7 +57,7 @@ comun:
     suscripciones:
       "[identity.eventos]": [CuentaCreada, RecuperacionContrasenaSolicitada, CodigoDobleFactorSolicitado, RolAsignado]
       "[fleet.eventos]": [LicenciaChoferActualizada]
-      "[trips.eventos]": [CotizacionAlquilerConfirmada, AlquilerAsignado, RutaActualizada, ViajeReasignado]
+      "[trips.eventos]": [CotizacionAlquilerConfirmada, AlquilerAsignado, RutaActualizada, ViajeReasignado, ViajeProgramado]
       "[sales.eventos]": [BoletoVendido, VentaCancelada, VentaReembolsada, AlquilerPagado, BoletoReasignado]
 
 app:

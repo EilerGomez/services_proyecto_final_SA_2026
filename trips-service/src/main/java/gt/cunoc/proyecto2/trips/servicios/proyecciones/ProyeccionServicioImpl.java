@@ -13,6 +13,7 @@ import gt.cunoc.proyecto2.trips.repositorios.choferes.VistaChoferRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.sucursales.VistaSucursalRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaDepreciacionRepositorio;
 import gt.cunoc.proyecto2.trips.repositorios.tarifas.VistaTarifaReembolsoRepositorio;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,7 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     @Transactional
     public void guardarBus(BusEvento bus, Long version) {
         int filas = buses.guardar(bus.busId(), bus.sucursalId(), bus.placa(), bus.capacidadPasajeros(),
-                bus.estado(), bus.fotoUrl(), versionDe(version));
+                bus.estado(), kilometrajeDe(bus.kilometrajeActual()), bus.fotoUrl(), versionDe(version));
         registrarSiIgnorado(filas, "bus", bus.busId(), version);
     }
 
@@ -74,8 +75,8 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     @Override
     @Transactional
     public void guardarChofer(ChoferEvento chofer, Long version) {
-        int filas = choferes.guardar(chofer.choferId(), chofer.sucursalId(), chofer.nombreCompleto(),
-                chofer.salarioBaseViaje(), chofer.estado(), versionDe(version));
+        int filas = choferes.guardar(chofer.choferId(), chofer.sucursalId(), chofer.usuarioId(),
+                chofer.nombreCompleto(), chofer.salarioBaseViaje(), chofer.estado(), versionDe(version));
         registrarSiIgnorado(filas, "chofer", chofer.choferId(), version);
     }
 
@@ -127,6 +128,11 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
             log.info("Cliente {}: {} alquileres con el NIT {} quedaron enlazados a su cuenta",
                     usuarioId, enlazados, nit);
         }
+    }
+
+    /** La columna es NOT NULL: un Fleet que todavía no mande el odómetro deja el bus en 0 km. */
+    private static BigDecimal kilometrajeDe(BigDecimal kilometraje) {
+        return kilometraje == null ? BigDecimal.ZERO : kilometraje;
     }
 
     /** Fleet siempre manda aggregateVersion; si faltara, 0 (solo entra si la fila no existe o también es 0). */

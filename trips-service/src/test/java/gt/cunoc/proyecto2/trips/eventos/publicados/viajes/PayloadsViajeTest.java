@@ -41,7 +41,7 @@ class PayloadsViajeTest {
         ViajeRespuesta respuesta = new ViajeRespuesta(vuelta, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
                 Map.of(XELA, "Xela", GUATE, "Guate"),
                 Map.of(vuelta.getBusId(), DatosPrueba.vistaBus(vuelta.getBusId(), "P-123ABC")),
-                Map.of(vuelta.getChoferId(), "Juan Perez")));
+                Map.of(vuelta.getChoferId(), DatosPrueba.vistaChofer(vuelta.getChoferId(), "Juan Perez"))));
 
         ViajeEvento evento = ViajeEvento.desde(respuesta);
 
@@ -58,7 +58,7 @@ class PayloadsViajeTest {
         ViajeRespuesta respuesta = new ViajeRespuesta(regular, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
                 Map.of(XELA, "Xela", GUATE, "Guate"),
                 Map.of(regular.getBusId(), DatosPrueba.vistaBus(regular.getBusId(), "P-123ABC")),
-                Map.of(regular.getChoferId(), "Juan Perez")));
+                Map.of(regular.getChoferId(), DatosPrueba.vistaChofer(regular.getChoferId(), "Juan Perez"))));
 
         ViajeEvento evento = ViajeEvento.desde(respuesta);
 

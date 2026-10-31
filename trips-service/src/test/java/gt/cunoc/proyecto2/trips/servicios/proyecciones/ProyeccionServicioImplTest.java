@@ -54,12 +54,15 @@ class ProyeccionServicioImplTest {
         return new SucursalEvento(XELA, "Xela Central", LATITUD, LONGITUD, true);
     }
 
+    private static final BigDecimal KILOMETRAJE = new BigDecimal("12500.00");
+    private static final UUID USUARIO_DEL_CHOFER = UUID.randomUUID();
+
     private static BusEvento bus(UUID busId) {
-        return new BusEvento(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS);
+        return new BusEvento(busId, XELA, "P-123ABC", 45, "ACTIVO", KILOMETRAJE, FOTO_BUS);
     }
 
     private static ChoferEvento chofer(UUID choferId) {
-        return new ChoferEvento(choferId, XELA, "Juan Pérez", SALARIO, "ACTIVO");
+        return new ChoferEvento(choferId, USUARIO_DEL_CHOFER, XELA, "Juan Pérez", SALARIO, "ACTIVO");
     }
 
     //  Sucursales 
@@ -92,11 +95,11 @@ class ProyeccionServicioImplTest {
     @Test
     void guardarBusPasaTodosLosDatosYLaVersion() {
         UUID busId = UUID.randomUUID();
-        when(buses.guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 2L)).thenReturn(1);
+        when(buses.guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", KILOMETRAJE, FOTO_BUS, 2L)).thenReturn(1);
 
         servicio.guardarBus(bus(busId), 2L);
 
-        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 2L);
+        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", KILOMETRAJE, FOTO_BUS, 2L);
     }
 
     @Test
@@ -104,7 +107,7 @@ class ProyeccionServicioImplTest {
         UUID busId = UUID.randomUUID();
 
         assertThatCode(() -> servicio.guardarBus(bus(busId), null)).doesNotThrowAnyException();
-        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", FOTO_BUS, 0L);
+        verify(buses).guardar(busId, XELA, "P-123ABC", 45, "ACTIVO", KILOMETRAJE, FOTO_BUS, 0L);
     }
 
     @Test
@@ -130,11 +133,12 @@ class ProyeccionServicioImplTest {
     @Test
     void guardarChoferPasaTodosLosDatosYLaVersion() {
         UUID choferId = UUID.randomUUID();
-        when(choferes.guardar(choferId, XELA, "Juan Pérez", SALARIO, "ACTIVO", 3L)).thenReturn(1);
+        when(choferes.guardar(choferId, XELA, USUARIO_DEL_CHOFER, "Juan Pérez", SALARIO, "ACTIVO", 3L))
+                .thenReturn(1);
 
         servicio.guardarChofer(chofer(choferId), 3L);
 
-        verify(choferes).guardar(choferId, XELA, "Juan Pérez", SALARIO, "ACTIVO", 3L);
+        verify(choferes).guardar(choferId, XELA, USUARIO_DEL_CHOFER, "Juan Pérez", SALARIO, "ACTIVO", 3L);
     }
 
     @Test
@@ -142,7 +146,7 @@ class ProyeccionServicioImplTest {
         UUID choferId = UUID.randomUUID();
 
         assertThatCode(() -> servicio.guardarChofer(chofer(choferId), null)).doesNotThrowAnyException();
-        verify(choferes).guardar(choferId, XELA, "Juan Pérez", SALARIO, "ACTIVO", 0L);
+        verify(choferes).guardar(choferId, XELA, USUARIO_DEL_CHOFER, "Juan Pérez", SALARIO, "ACTIVO", 0L);
     }
 
     @Test
