@@ -16,6 +16,7 @@ import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.sucursales.VistaSucursalEntidad;
 import gt.cunoc.proyecto2.trips.modelos.tarifas.VistaTarifaDepreciacionEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -98,7 +99,7 @@ public final class DatosPrueba {
 
     /** Viaje REGULAR PROGRAMADO de la ruta, version 0. */
     public static ViajeEntidad viajeRegular(RutaEntidad ruta, AsignacionViaje asignacion) {
-        return conVersion(ViajeEntidad.programarRegular(ruta, asignacion, UUID.randomUUID()), 0);
+        return conVersion(ViajeEntidad.programarRegular(ruta, asignacion, UUID.randomUUID(), SentidoViaje.IDA, false), 0);
     }
 
     public static ViajeEntidad viajeRegular() {
@@ -200,6 +201,13 @@ public final class DatosPrueba {
         ReflectionTestUtils.setField(chofer, "nombreCompleto", nombre);
         ReflectionTestUtils.setField(chofer, "salarioBaseViaje", SALARIO);
         ReflectionTestUtils.setField(chofer, "estado", "ACTIVO");
+        return chofer;
+    }
+
+    /** Chofer de la copia local en el estado indicado ("ACTIVO" o "INACTIVO"). */
+    public static VistaChoferEntidad vistaChoferEnEstado(UUID id, String estado) {
+        VistaChoferEntidad chofer = vistaChofer(id, "Juan Perez");
+        ReflectionTestUtils.setField(chofer, "estado", estado);
         return chofer;
     }
 

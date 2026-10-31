@@ -25,7 +25,7 @@ class ViajeEntidadTest {
         AsignacionViaje asignacion = DatosPrueba.asignacion(busId, choferId, 45);
         UUID creadoPor = UUID.randomUUID();
 
-        ViajeEntidad viaje = ViajeEntidad.programarRegular(ruta, asignacion, creadoPor);
+        ViajeEntidad viaje = ViajeEntidad.programarRegular(ruta, asignacion, creadoPor, SentidoViaje.IDA, false);
 
         assertThat(viaje.getId()).isNotNull();
         assertThat(viaje.getTipo()).isEqualTo(TipoViaje.REGULAR);
@@ -201,5 +201,52 @@ class ViajeEntidadTest {
     void estadosActivosSonProgramadoYEnRuta() {
         assertThat(EstadoViaje.ACTIVOS).containsExactlyInAnyOrder(EstadoViaje.PROGRAMADO, EstadoViaje.EN_RUTA);
         assertThat(EstadoViaje.ACTIVOS).doesNotContain(EstadoViaje.COMPLETADO);
+    }
+
+    // ----- Sentido y venta por el piloto (V17) -----
+
+    @Test
+    void unViajeNaceDeIdaYSinVentaPorElPiloto() {
+        ViajeEntidad viaje = DatosPrueba.viajeRegular(DatosPrueba.ruta(), DatosPrueba.asignacion());
+
+        assertThat(viaje.getSentido()).isEqualTo(SentidoViaje.IDA);
+        assertThat(viaje.esRegreso()).isFalse();
+        assertThat(viaje.isVentaPorChofer()).isFalse();
+    }
+
+    @Test
+    void elViajeDeVueltaQuedaComoRegreso() {
+        ViajeEntidad vuelta = ViajeEntidad.programarRegular(DatosPrueba.ruta(), DatosPrueba.asignacion(),
+                UUID.randomUUID(), SentidoViaje.REGRESO, true);
+
+        assertThat(vuelta.esRegreso()).isTrue();
+        assertThat(vuelta.isVentaPorChofer()).isTrue();
+    }
+
+    /** Vende el piloto asignado, y solo mientras el viaje no haya salido. */
+    @Test
+    void soloElPilotoAsignadoVendeYSoloAntesDeSalir() {
+        ViajeEntidad viaje = DatosPrueba.viajeRegular(DatosPrueba.ruta(), DatosPrueba.asignacion());
+
+        assertThat(viaje.puedeVenderElChofer(viaje.getChoferId())).isFalse();   // sin la casilla, nadie vende
+
+        viaje.permitirVentaPorChofer(true);
+
+        assertThat(viaje.puedeVenderElChofer(viaje.getChoferId())).isTrue();
+        assertThat(viaje.puedeVenderElChofer(UUID.randomUUID())).isFalse();     // otro piloto, no
+
+        viaje.iniciar();
+
+        assertThat(viaje.puedeVenderElChofer(viaje.getChoferId())).isFalse();   // ya salió
+    }
+
+    /** Un viaje PRIVADO sale de un alquiler: ni es de regreso ni lo vende el piloto. */
+    @Test
+    void elViajePrivadoNoEsDeRegresoNiLoVendeElPiloto() {
+        ViajeEntidad privado = DatosPrueba.viajePrivado(DatosPrueba.alquilerPagado(), DatosPrueba.asignacion());
+
+        assertThat(privado.getSentido()).isEqualTo(SentidoViaje.IDA);
+        assertThat(privado.isVentaPorChofer()).isFalse();
+        assertThat(privado.puedeVenderElChofer(privado.getChoferId())).isFalse();
     }
 }

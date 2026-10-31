@@ -26,7 +26,7 @@ public class ClienteControlador {
     }
 
     @GetMapping
-    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL, Roles.ADMIN_SISTEMA})
+    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL, Roles.ADMIN_SISTEMA, Roles.CHOFER})
     @Operation(summary = "S4 · Busca clientes con cuenta por NIT, nombre o correo (máximo 20)")
     public ResponseEntity<List<ClienteRespuesta>> buscar(
             @Parameter(description = "NIT, nombre o correo. Vacío devuelve los primeros en orden alfabético.")

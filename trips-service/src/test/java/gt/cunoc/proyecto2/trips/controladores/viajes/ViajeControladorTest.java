@@ -164,7 +164,7 @@ class ViajeControladorTest {
     void programarResponde201() {
         UsuarioActual admin = DatosPrueba.adminSucursal(XELA);
         NuevoViajeSolicitud solicitud = new NuevoViajeSolicitud(rutaId, viaje.getBusId(), viaje.getChoferId(),
-                DatosPrueba.SALIDA, DatosPrueba.LLEGADA);
+                DatosPrueba.SALIDA, DatosPrueba.LLEGADA, false, null);
         when(servicio.programar(solicitud, admin)).thenReturn(respuesta);
 
         ResponseEntity<ViajeRespuesta> programado = controlador.programar(solicitud, admin);
@@ -179,7 +179,7 @@ class ViajeControladorTest {
     void actualizarRespondeOk() {
         UsuarioActual admin = DatosPrueba.adminSucursal(XELA);
         ActualizarViajeSolicitud solicitud = new ActualizarViajeSolicitud(viaje.getBusId(), viaje.getChoferId(),
-                DatosPrueba.SALIDA.plusHours(1), DatosPrueba.LLEGADA.plusHours(1), 0);
+                DatosPrueba.SALIDA.plusHours(1), DatosPrueba.LLEGADA.plusHours(1), null, 0);
         when(servicio.actualizar(viaje.getId(), solicitud, admin)).thenReturn(respuesta);
 
         ResponseEntity<ViajeRespuesta> actualizado = controlador.actualizar(viaje.getId(), solicitud, admin);

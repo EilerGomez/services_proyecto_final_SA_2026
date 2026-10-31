@@ -14,5 +14,10 @@ public record ActualizarViajeSolicitud(
         @NotNull UUID choferId,
         @NotNull OffsetDateTime fechaSalidaProgramada,
         @NotNull OffsetDateTime fechaLlegadaEstimada,
+        /**
+         * Si el piloto asignado puede vender boletos presenciales. Null deja la marca como está, para
+         * que un cliente viejo que no manda el campo no se la apague sin querer.
+         */
+        Boolean ventaPorChofer,
         @NotNull @PositiveOrZero Integer version) {
 }

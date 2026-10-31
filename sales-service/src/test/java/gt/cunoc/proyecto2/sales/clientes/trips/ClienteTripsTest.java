@@ -57,13 +57,15 @@ class ClienteTripsTest {
     @Test
     void unViajeVendibleTraeSusDatos() {
         UUID sucursalId = UUID.randomUUID();
+        UUID choferId = UUID.randomUUID();
         trips.expect(requestTo(urlVendible()))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("""
                         {"viajeId":"%s","vendible":true,"motivo":null,"estado":"PROGRAMADO","tipo":"REGULAR",
                          "fechaSalidaProgramada":"2026-11-05T08:00:00-06:00","precioBoleto":75.00,
-                         "capacidad":40,"sucursalOrigenId":"%s","otroCampo":"se ignora"}
-                        """.formatted(viajeId, sucursalId), MediaType.APPLICATION_JSON));
+                         "capacidad":40,"sucursalOrigenId":"%s","ventaPorChofer":true,"choferId":"%s",
+                         "otroCampo":"se ignora"}
+                        """.formatted(viajeId, sucursalId, choferId), MediaType.APPLICATION_JSON));
 
         VendibleRespuesta respuesta = cliente.consultarVendible(viajeId);
 
@@ -77,6 +79,8 @@ class ClienteTripsTest {
         assertThat(respuesta.precioBoleto()).isEqualByComparingTo("75.00");
         assertThat(respuesta.capacidad()).isEqualTo(40);
         assertThat(respuesta.sucursalOrigenId()).isEqualTo(sucursalId);
+        assertThat(respuesta.permiteVentaPorChofer()).isTrue();
+        assertThat(respuesta.choferId()).isEqualTo(choferId);
         trips.verify();
     }
 
@@ -94,6 +98,10 @@ class ClienteTripsTest {
         assertThat(respuesta.vendible()).isFalse();
         assertThat(respuesta.motivo()).isEqualTo("VIAJE_YA_INICIO");
         assertThat(respuesta.capacidad()).isNull();
+        // Respuesta sin la marca de venta a bordo (un Trips que todavía no la manda): no revienta y
+        // vale como "el piloto no puede vender".
+        assertThat(respuesta.ventaPorChofer()).isNull();
+        assertThat(respuesta.permiteVentaPorChofer()).isFalse();
         trips.verify();
     }
 

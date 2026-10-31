@@ -85,11 +85,16 @@ public class VentaServicioImpl implements VentaServicio {
     @Transactional
     public VentaRespuesta venderEnMostrador(NuevaVentaMostradorSolicitud solicitud, UsuarioActual usuario) {
         VistaViajeEntidad viaje = viajes.obtenerALaVenta(solicitud.viajeId());              // 404
-        if (!viaje.getSucursalOrigenId().equals(usuario.sucursalId())) {
+        // La ventanilla vende lo que sale de su sucursal; se comprueba antes de ir a Trips.
+        boolean esVentanilla = usuario.tieneAlgunRol(Roles.CAJERO, Roles.ADMIN_SUCURSAL);
+        if (esVentanilla && !viaje.getSucursalOrigenId().equals(usuario.sucursalId())) {
             throw ErrorVenta.OTRA_SUCURSAL.excepcion();                                      // 403
         }
         List<Integer> numeros = solicitud.asientosValidados(viaje.getCapacidad());          // 400
-        verificarVendible(viaje);                                                            // R2: 422 / 503
+        VendibleRespuesta vendible = verificarVendible(viaje);                               // R2: 422 / 503
+        if (!esVentanilla) {
+            verificarPuedeVenderElPiloto(vendible, usuario);                                 // 403
+        }
 
         boolean sinNit = solicitud.clienteNit() == null
                 || ClienteVenta.CONSUMIDOR_FINAL_NIT.equals(solicitud.clienteNit());
@@ -303,10 +308,26 @@ public class VentaServicioImpl implements VentaServicio {
     }
 
     /** R2: la copia local puede ir atrasada; Trips tiene la última palabra antes de vender. */
-    private void verificarVendible(VistaViajeEntidad viaje) {
+    private VendibleRespuesta verificarVendible(VistaViajeEntidad viaje) {
         VendibleRespuesta respuesta = trips.consultarVendible(viaje.getViajeId());
         if (!respuesta.vendible()) {
             throw ErrorViaje.VIAJE_NO_VENDIBLE.excepcion(respuesta.motivo());
+        }
+        return respuesta;
+    }
+
+    /**
+     * Venta de a bordo: el piloto vende boletos del viaje que él maneja, para la punta de la ruta
+     * donde no hay ventanilla. Quien decide es Trips, que en la misma respuesta de R2 dice si el
+     * viaje tiene la venta habilitada —comprobando también que el piloto siga ACTIVO en Flota— y
+     * quién es el piloto asignado. Que el viaje no haya salido ya lo cubre `vendible`.
+     */
+    private static void verificarPuedeVenderElPiloto(VendibleRespuesta vendible, UsuarioActual usuario) {
+        if (!vendible.permiteVentaPorChofer()) {
+            throw ErrorVenta.VENTA_POR_CHOFER_NO_HABILITADA.excepcion();
+        }
+        if (usuario.choferId() == null || !usuario.choferId().equals(vendible.choferId())) {
+            throw ErrorVenta.CHOFER_NO_ASIGNADO.excepcion();
         }
     }
 

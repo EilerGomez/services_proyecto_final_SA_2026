@@ -1,6 +1,7 @@
 package gt.cunoc.proyecto2.trips.eventos.publicados.viajes;
 
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -25,13 +26,17 @@ public record ViajeEvento(
         int capacidad,
         BigDecimal precioBoleto,
         OffsetDateTime fechaSalida,
-        OffsetDateTime fechaLlegadaEstimada) {
+        OffsetDateTime fechaLlegadaEstimada,
+        /** IDA o REGRESO. El origen y el destino ya vienen en el orden en que se recorren. */
+        SentidoViaje sentido,
+        /** Sales lo necesita para dejar vender al piloto del viaje. */
+        boolean ventaPorChofer) {
 
     /** Desde la respuesta ya armada: trae origen, destino y placa (fechas ya en -06:00). */
     public static ViajeEvento desde(ViajeRespuesta viaje) {
         return new ViajeEvento(viaje.viajeId(), viaje.tipo(), viaje.rutaId(), viaje.alquilerId(),
                 viaje.sucursalId(), viaje.origenNombre(), viaje.destinoNombre(), viaje.busId(), viaje.busPlaca(),
                 viaje.choferId(), viaje.capacidad(), viaje.precioBoleto(), viaje.fechaSalidaProgramada(),
-                viaje.fechaLlegadaEstimada());
+                viaje.fechaLlegadaEstimada(), viaje.sentido(), viaje.ventaPorChofer());
     }
 }

@@ -12,6 +12,7 @@ import gt.cunoc.proyecto2.trips.modelos.operaciones.LlegadaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import java.math.BigDecimal;
@@ -28,6 +29,29 @@ class PayloadsViajeTest {
 
     private final RutaEntidad ruta = DatosPrueba.ruta();
     private final ViajeEntidad regular = DatosPrueba.viajeRegular(ruta, DatosPrueba.asignacion());
+
+    /**
+     * El viaje de vuelta comparte la ruta con su ida: lo que cambia es el sentido, y el recorrido ya
+     * sale invertido en el evento. Así Sales y Reporting lo leen bien sin saber de la columna.
+     */
+    @Test
+    void viajeEventoDeRegresoInvierteElRecorrido() {
+        ViajeEntidad vuelta = ViajeEntidad.programarRegular(ruta, DatosPrueba.asignacion(), UUID.randomUUID(),
+                SentidoViaje.REGRESO, true);
+        ViajeRespuesta respuesta = new ViajeRespuesta(vuelta, new NombresViaje(Map.of(ruta.getId(), ruta), Map.of(),
+                Map.of(XELA, "Xela", GUATE, "Guate"),
+                Map.of(vuelta.getBusId(), DatosPrueba.vistaBus(vuelta.getBusId(), "P-123ABC")),
+                Map.of(vuelta.getChoferId(), "Juan Perez")));
+
+        ViajeEvento evento = ViajeEvento.desde(respuesta);
+
+        assertThat(evento.origenNombre()).isEqualTo("Guate");          // al revés que la ida
+        assertThat(evento.destinoNombre()).isEqualTo("Xela");
+        assertThat(evento.rutaId()).isEqualTo(ruta.getId());           // la misma ruta
+        assertThat(evento.sucursalId()).isEqualTo(XELA);               // la sucursal que lo opera no cambia
+        assertThat(evento.sentido()).isEqualTo(SentidoViaje.REGRESO);
+        assertThat(evento.ventaPorChofer()).isTrue();
+    }
 
     @Test
     void viajeEventoRegularLlevaRutaPrecioYNombres() {

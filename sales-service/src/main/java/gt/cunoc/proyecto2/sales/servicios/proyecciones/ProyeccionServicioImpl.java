@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.sales.servicios.proyecciones;
 
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEvento;
 import gt.cunoc.proyecto2.sales.modelos.ventas.ClienteVenta;
+import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.asientos.AsientoViajeRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.viajes.VistaViajeRepositorio;
@@ -23,12 +24,14 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
     private final VistaViajeRepositorio viajes;
     private final AsientoViajeRepositorio asientos;
     private final VistaClienteRepositorio clientes;
+    private final OrdenAlquilerRepositorio ordenes;
 
     public ProyeccionServicioImpl(VistaViajeRepositorio viajes, AsientoViajeRepositorio asientos,
-                                  VistaClienteRepositorio clientes) {
+                                  VistaClienteRepositorio clientes, OrdenAlquilerRepositorio ordenes) {
         this.viajes = viajes;
         this.asientos = asientos;
         this.clientes = clientes;
+        this.ordenes = ordenes;
     }
 
     @Override
@@ -70,6 +73,16 @@ public class ProyeccionServicioImpl implements ProyeccionServicio {
         // Mismas reglas que la venta: sin NIT es "CF", sin nombre "Consumidor final"
         ClienteVenta cliente = new ClienteVenta(usuarioId, nit, nombre, correo);
         clientes.guardar(usuarioId, cliente.nit(), cliente.nombre(), cliente.correo());
+        // Y adopta las órdenes que quedaron a su NIT sin cuenta (alquileres pedidos en ventanilla
+        // antes de que se registrara), igual que Trips hace con los alquileres. "CF" no identifica.
+        if (cliente.esConsumidorFinal()) {
+            return;
+        }
+        int enlazadas = ordenes.enlazarPorNit(usuarioId, cliente.nit());
+        if (enlazadas > 0) {
+            log.info("Cliente {}: {} orden(es) de alquiler enlazadas por el NIT {}", usuarioId, enlazadas,
+                    cliente.nit());
+        }
     }
 
     private static long versionDe(Long version) {

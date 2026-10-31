@@ -22,9 +22,17 @@ public record VendibleRespuesta(
         OffsetDateTime fechaSalidaProgramada,
         BigDecimal precioBoleto,
         Integer capacidad,
-        UUID sucursalOrigenId) {
+        UUID sucursalOrigenId,
+        /**
+         * El piloto asignado puede vender boletos presenciales de este viaje: la marca del viaje
+         * está activa y el piloto sigue ACTIVO en Flota. Lo demás (que el viaje no haya salido) ya
+         * lo dice vendible.
+         */
+        boolean ventaPorChofer,
+        /** Piloto asignado, para que Ventas compruebe que quien vende es él. */
+        UUID choferId) {
 
-    public VendibleRespuesta(ViajeEntidad viaje) {
+    public VendibleRespuesta(ViajeEntidad viaje, boolean choferActivo) {
         this(viaje.getId(),
                 viaje.motivoNoVendible() == null,
                 viaje.motivoNoVendible(),
@@ -33,11 +41,13 @@ public record VendibleRespuesta(
                 Fechas.enGuatemala(viaje.getFechaSalidaProgramada()),
                 viaje.getPrecioBoleto(),
                 viaje.getCapacidadBus(),
-                viaje.getSucursalId());
+                viaje.getSucursalId(),
+                viaje.isVentaPorChofer() && choferActivo,
+                viaje.getChoferId());
     }
 
     public static VendibleRespuesta noExiste(UUID viajeId) {
         return new VendibleRespuesta(viajeId, false, MotivoNoVendible.VIAJE_NO_EXISTE,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, false, null);
     }
 }

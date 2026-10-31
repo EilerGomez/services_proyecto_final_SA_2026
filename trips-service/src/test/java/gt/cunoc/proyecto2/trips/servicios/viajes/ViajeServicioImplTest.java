@@ -20,6 +20,7 @@ import gt.cunoc.proyecto2.trips.VerificarError;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ActualizarViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.FiltroViajes;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NuevoViajeSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRegresoSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.VendibleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
@@ -36,6 +37,7 @@ import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.MotivoNoVendible;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
@@ -48,6 +50,7 @@ import gt.cunoc.proyecto2.trips.repositorios.viajes.ViajeRepositorio;
 import gt.cunoc.proyecto2.trips.servicios.rutas.RutaServicio;
 import gt.cunoc.proyecto2.trips.servicios.sucursales.VistaSucursalServicio;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -239,7 +242,87 @@ class ViajeServicioImplTest {
     //T10: programar 
 
     private NuevoViajeSolicitud nuevoViaje(UUID busId, UUID choferId) {
-        return new NuevoViajeSolicitud(ruta.getId(), busId, choferId, SALIDA, LLEGADA);
+        return new NuevoViajeSolicitud(ruta.getId(), busId, choferId, SALIDA, LLEGADA, false, null);
+    }
+
+    /** La ida de siempre, más el bloque del viaje de vuelta por la misma ruta. */
+    private NuevoViajeSolicitud idaYRegreso(UUID busId, UUID choferId, OffsetDateTime salidaRegreso) {
+        return new NuevoViajeSolicitud(ruta.getId(), busId, choferId, SALIDA, LLEGADA, false,
+                new ViajeRegresoSolicitud(busId, choferId, salidaRegreso, salidaRegreso.plusHours(4), true));
+    }
+
+    /**
+     * Con la casilla marcada se crean los dos viajes y sale un ViajeProgramado por cada uno. El de
+     * vuelta usa la misma ruta y queda con sentido REGRESO.
+     */
+    @Test
+    void programarIdaYRegresoCreaLosDosViajes() {
+        when(rutas.obtenerPorId(ruta.getId())).thenReturn(ruta);
+        when(asignaciones.validarNueva(eq(XELA), any(), any(), any(), any()))
+                .thenReturn(DatosPrueba.asignacion());
+        guardarDevuelveElMismo();
+        UUID bus = UUID.randomUUID();
+        UUID chofer = UUID.randomUUID();
+
+        servicio.programar(idaYRegreso(bus, chofer, LLEGADA.plusHours(2)), adminXela);
+
+        ArgumentCaptor<ViajeEntidad> guardados = ArgumentCaptor.forClass(ViajeEntidad.class);
+        verify(repositorio, org.mockito.Mockito.times(2)).saveAndFlush(guardados.capture());
+        assertThat(guardados.getAllValues()).extracting(ViajeEntidad::getSentido)
+                .containsExactly(SentidoViaje.IDA, SentidoViaje.REGRESO);
+        assertThat(guardados.getAllValues()).extracting(ViajeEntidad::getRutaId)
+                .containsOnly(ruta.getId());
+        // El regreso lleva la casilla de venta del piloto que marcó el administrador
+        assertThat(guardados.getAllValues().get(1).isVentaPorChofer()).isTrue();
+        verify(eventos, org.mockito.Mockito.times(2)).viajeProgramado(any(ViajeRespuesta.class));
+    }
+
+    /** El regreso no puede salir antes que la ida: no se crea ninguno de los dos. */
+    @Test
+    void elRegresoNoPuedeSalirAntesQueLaIda() {
+        when(rutas.obtenerPorId(ruta.getId())).thenReturn(ruta);
+        when(asignaciones.validarNueva(eq(XELA), any(), any(), any(), any()))
+                .thenReturn(DatosPrueba.asignacion());
+        guardarDevuelveElMismo();
+
+        VerificarError.lanza(
+                () -> servicio.programar(idaYRegreso(UUID.randomUUID(), UUID.randomUUID(), SALIDA.minusHours(1)),
+                        adminXela),
+                ErrorViaje.REGRESO_ANTES_DE_LA_IDA);
+    }
+
+    /** Sin la casilla, todo sigue como antes: un solo viaje y un solo evento. */
+    @Test
+    void sinRegresoSoloSeProgramaLaIda() {
+        when(rutas.obtenerPorId(ruta.getId())).thenReturn(ruta);
+        when(asignaciones.validarNueva(eq(XELA), any(), any(), any(), any()))
+                .thenReturn(DatosPrueba.asignacion());
+        guardarDevuelveElMismo();
+
+        servicio.programar(nuevoViaje(UUID.randomUUID(), UUID.randomUUID()), adminXela);
+
+        verify(repositorio, org.mockito.Mockito.times(1)).saveAndFlush(any(ViajeEntidad.class));
+        verify(eventos, org.mockito.Mockito.times(1)).viajeProgramado(any(ViajeRespuesta.class));
+    }
+
+    /** El piloto de un viaje marcado puede vender; si el piloto está de baja en Flota, no. */
+    @Test
+    void vendiblePermiteLaVentaDelPilotoSoloSiSigueActivo() {
+        ViajeEntidad conVenta = DatosPrueba.viajeRegular(ruta, DatosPrueba.asignacion());
+        conVenta.permitirVentaPorChofer(true);
+        when(repositorio.findById(conVenta.getId())).thenReturn(Optional.of(conVenta));
+        when(choferes.findById(conVenta.getChoferId()))
+                .thenReturn(Optional.of(DatosPrueba.vistaChoferEnEstado(conVenta.getChoferId(), "ACTIVO")));
+
+        VendibleRespuesta activo = servicio.consultarVendible(conVenta.getId());
+
+        assertThat(activo.ventaPorChofer()).isTrue();
+        assertThat(activo.choferId()).isEqualTo(conVenta.getChoferId());
+
+        when(choferes.findById(conVenta.getChoferId()))
+                .thenReturn(Optional.of(DatosPrueba.vistaChoferEnEstado(conVenta.getChoferId(), "INACTIVO")));
+
+        assertThat(servicio.consultarVendible(conVenta.getId()).ventaPorChofer()).isFalse();
     }
 
     @Test
@@ -266,7 +349,7 @@ class ViajeServicioImplTest {
     // T11: actualizar 
 
     private ActualizarViajeSolicitud cambio(UUID busId, int version) {
-        return new ActualizarViajeSolicitud(busId, viaje.getChoferId(), SALIDA, LLEGADA, version);
+        return new ActualizarViajeSolicitud(busId, viaje.getChoferId(), SALIDA, LLEGADA, null, version);
     }
 
     @Test

@@ -15,8 +15,8 @@ import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.CotizacionAlquilerConfir
 import gt.cunoc.proyecto2.sales.modelos.alquileres.EstadoOrdenAlquiler;
 import gt.cunoc.proyecto2.sales.modelos.alquileres.OrdenAlquilerEntidad;
 import gt.cunoc.proyecto2.sales.modelos.clientes.VistaClienteEntidad;
-import gt.cunoc.proyecto2.sales.modelos.tarifas.EstadoAlquilerTarifa;
 import gt.cunoc.proyecto2.sales.modelos.ventas.ClienteVenta;
+import gt.cunoc.proyecto2.sales.modelos.tarifas.EstadoAlquilerTarifa;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.EspecificacionesOrden;
 import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
@@ -25,6 +25,7 @@ import gt.cunoc.proyecto2.sales.utilidades.Fechas;
 import gt.cunoc.proyecto2.sales.utilidades.VerificadorVersion;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,12 +60,29 @@ public class OrdenAlquilerServicioImpl implements OrdenAlquilerServicio {
                 .toList();
     }
 
+    /**
+     * Las órdenes de la cuenta y, además, las que quedaron a su NIT sin enlazar: un alquiler pedido
+     * en ventanilla antes de que el cliente tuviera cuenta genera una orden sin clienteUsuarioId, y
+     * sin esto el cliente vería el alquiler en su lista pero no su orden de pago ni su reembolso.
+     */
     @Override
     @Transactional(readOnly = true)
     public List<OrdenAlquilerRespuesta> mias(UsuarioActual usuario) {
-        return repositorio.findByClienteUsuarioIdOrderByFechaCreacionDesc(usuario.usuarioId()).stream()
+        return repositorio.mias(usuario.usuarioId(), nitDeLaCuenta(usuario.usuarioId())).stream()
                 .map(OrdenAlquilerRespuesta::new)
                 .toList();
+    }
+
+    /**
+     * NIT del perfil del cliente (copia de Identity), en mayúsculas porque la consulta compara
+     * contra upper(cliente_nit). Null si no tiene o si es "CF": no identifica a nadie.
+     */
+    private String nitDeLaCuenta(UUID usuarioId) {
+        String nit = clientes.findById(usuarioId).map(VistaClienteEntidad::getNit).orElse(null);
+        if (nit == null || nit.isBlank() || ClienteVenta.CONSUMIDOR_FINAL_NIT.equalsIgnoreCase(nit.strip())) {
+            return null;
+        }
+        return nit.strip().toUpperCase(Locale.ROOT);
     }
 
     @Override

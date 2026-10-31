@@ -2,6 +2,7 @@ package gt.cunoc.proyecto2.trips.dtos.viajes;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.utilidades.Fechas;
@@ -42,6 +43,10 @@ public record ViajeRespuesta(
          */
         @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime fechaRetorno,
         EstadoViaje estado,
+        /** IDA o REGRESO: en un REGRESO el origen y el destino ya vienen invertidos. */
+        SentidoViaje sentido,
+        /** El piloto asignado puede vender boletos presenciales de este viaje. */
+        boolean ventaPorChofer,
         Integer version) {
 
     public ViajeRespuesta(ViajeEntidad viaje, NombresViaje nombres) {
@@ -67,6 +72,8 @@ public record ViajeRespuesta(
                 Fechas.enGuatemala(viaje.getFechaLlegadaEstimada()),
                 Fechas.enGuatemala(nombres.fechaRetorno(viaje)),
                 viaje.getEstado(),
+                viaje.getSentido(),
+                viaje.isVentaPorChofer(),
                 viaje.getVersion());
     }
 }

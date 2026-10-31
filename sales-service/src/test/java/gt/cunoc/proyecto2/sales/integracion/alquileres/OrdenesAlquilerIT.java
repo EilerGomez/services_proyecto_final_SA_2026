@@ -7,6 +7,7 @@ import gt.cunoc.proyecto2.sales.integracion.soporte.PruebaIntegracion;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -146,6 +147,25 @@ class OrdenesAlquilerIT extends PruebaIntegracion {
 
         esError(get(ORDENES + "/mias", tokenCajero(xela)),
                 403, "ROL_INSUFICIENTE");
+    }
+
+    /**
+     * Un alquiler pedido en ventanilla deja la orden sin cuenta enlazada. Si el NIT es el del
+     * cliente, "Mis órdenes" se la muestra igual —es su orden de pago— sin importar mayúsculas.
+     */
+    @Test
+    void elClienteVeLaOrdenQueQuedoASuNitSinCuenta() {
+        insertarCliente(cliente, NIT, "Colegio San José", "colegio@correo.com");
+        UUID conCuenta = insertarOrden(xela, cliente, NIT);
+        UUID sinCuenta = insertarOrden(xela, null, NIT.toLowerCase(Locale.ROOT));
+        UUID deOtroNit = insertarOrden(xela, null, "999999-9");
+
+        ResponseEntity<String> respuesta = get(ORDENES + "/mias", tokenCliente(cliente));
+
+        esStatus(respuesta, 200);
+        assertThat(PruebaIntegracion.<List<String>>json(respuesta, "$[*].ordenId"))
+                .containsExactlyInAnyOrder(conCuenta.toString(), sinCuenta.toString())
+                .doesNotContain(deOtroNit.toString());
     }
 
     @Test

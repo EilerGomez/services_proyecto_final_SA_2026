@@ -108,12 +108,11 @@ class OrdenAlquilerServicioImplTest {
     }
 
     @Test
-    void miasDevuelveLasOrdenesDelCliente() {
+    void miasDevuelveLasOrdenesDelClienteYLasDeSuNit() {
         OrdenAlquilerEntidad primera = DatosPrueba.orden(clienteId);
         OrdenAlquilerEntidad segunda = DatosPrueba.orden(clienteId);
-
-        when(repositorio.findByClienteUsuarioIdOrderByFechaCreacionDesc(clienteId))
-                .thenReturn(List.of(primera, segunda));
+        when(clientes.findById(clienteId)).thenReturn(Optional.of(DatosPrueba.vistaCliente(clienteId)));
+        when(repositorio.mias(clienteId, "1234567-8")).thenReturn(List.of(primera, segunda));
 
         List<OrdenAlquilerRespuesta> respuesta =
                 servicio.mias(DatosPrueba.cliente(clienteId));
@@ -121,6 +120,43 @@ class OrdenAlquilerServicioImplTest {
         assertThat(respuesta)
                 .extracting(OrdenAlquilerRespuesta::ordenId)
                 .containsExactly(primera.getId(), segunda.getId());
+    }
+
+    /**
+     * El NIT viaja en mayúsculas porque la consulta compara contra upper(cliente_nit): si se mandara
+     * tal cual, una orden guardada con el NIT en minúsculas no aparecería.
+     */
+    @Test
+    void miasBuscaElNitEnMayusculas() {
+        when(clientes.findById(clienteId))
+                .thenReturn(Optional.of(DatosPrueba.vistaCliente(clienteId, " 1234567-k ", "Ana", null)));
+        when(repositorio.mias(clienteId, "1234567-K")).thenReturn(List.of());
+
+        servicio.mias(DatosPrueba.cliente(clienteId));
+
+        verify(repositorio).mias(clienteId, "1234567-K");
+    }
+
+    /** Sin perfil no hay NIT que buscar: solo salen las órdenes ya enlazadas a la cuenta. */
+    @Test
+    void miasSinPerfilBuscaSoloPorCuenta() {
+        when(clientes.findById(clienteId)).thenReturn(Optional.empty());
+        when(repositorio.mias(clienteId, null)).thenReturn(List.of(DatosPrueba.orden(clienteId)));
+
+        assertThat(servicio.mias(DatosPrueba.cliente(clienteId))).hasSize(1);
+        verify(repositorio).mias(clienteId, null);
+    }
+
+    /** "CF" no identifica a nadie: no se puede usar para reclamar órdenes. */
+    @Test
+    void miasConNitDeConsumidorFinalNoBuscaPorNit() {
+        when(clientes.findById(clienteId))
+                .thenReturn(Optional.of(DatosPrueba.vistaCliente(clienteId, "CF", "Consumidor final", null)));
+        when(repositorio.mias(clienteId, null)).thenReturn(List.of());
+
+        servicio.mias(DatosPrueba.cliente(clienteId));
+
+        verify(repositorio).mias(clienteId, null);
     }
 
     @Test

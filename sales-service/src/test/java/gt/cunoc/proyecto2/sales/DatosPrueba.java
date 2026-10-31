@@ -60,6 +60,11 @@ public final class DatosPrueba {
         return new UsuarioActual(UUID.randomUUID(), "cajero@sucursal.gt", Set.of(Roles.CAJERO), sucursalId, null);
     }
 
+    /** Piloto: no tiene sucursal propia, su permiso para vender sale del viaje que maneja. */
+    public static UsuarioActual chofer(UUID choferId) {
+        return new UsuarioActual(UUID.randomUUID(), "piloto@sucursal.gt", Set.of(Roles.CHOFER), null, choferId);
+    }
+
     public static UsuarioActual cliente(UUID usuarioId) {
         return new UsuarioActual(usuarioId, "cliente@correo.com", Set.of(Roles.CLIENTE), null, null);
     }

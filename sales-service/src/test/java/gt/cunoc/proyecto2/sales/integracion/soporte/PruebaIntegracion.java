@@ -198,7 +198,7 @@ public abstract class PruebaIntegracion {
         TRIPS.responder("GET", rutaVendible(viajeId), 200, """
                 {"viajeId":"%s","vendible":%s,"motivo":%s,"estado":"PROGRAMADO","tipo":"REGULAR",
                  "fechaSalidaProgramada":"2026-11-20T06:00:00-06:00","precioBoleto":75.00,"capacidad":40,
-                 "sucursalOrigenId":null}
+                 "sucursalOrigenId":null,"ventaPorChofer":false,"choferId":null}
                 """.formatted(viajeId, vendible, motivo == null ? "null" : "\"" + motivo + "\""));
     }
 

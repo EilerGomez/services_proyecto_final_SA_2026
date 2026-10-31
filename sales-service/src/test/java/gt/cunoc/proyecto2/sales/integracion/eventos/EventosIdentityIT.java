@@ -92,6 +92,27 @@ class EventosIdentityIT extends PruebaIntegracion {
                 String.class, usuario)).isEqualTo("1234567-8");
     }
 
+    /**
+     * La orden que quedó a su NIT sin cuenta (alquiler de ventanilla) se enlaza al registrarse, para
+     * que pueda pagarla con su billetera y verla en "Mis alquileres".
+     */
+    @Test
+    void clienteRegistradoAdoptaLaOrdenQueQuedoASuNit() {
+        UUID usuario = UUID.randomUUID();
+        UUID orden = insertarOrden(UUID.randomUUID(), null, "7777777-k");
+
+        publicarEvento(IDENTITY_EVENTOS, "ClienteRegistrado", usuario, null,
+                clienteRegistrado(usuario, "7777777-K", "Ana Pérez", "ana@correo.com"));
+
+        await().atMost(ESPERA).untilAsserted(() -> assertThat(duenoDeLaOrden(orden))
+                .isEqualTo(usuario.toString()));
+    }
+
+    private String duenoDeLaOrden(UUID ordenId) {
+        return jdbc.queryForObject("SELECT cliente_usuario_id::text FROM ordenes_alquiler WHERE id = ?",
+                String.class, ordenId);
+    }
+
     // ----- PerfilActualizado -----
 
     @Test

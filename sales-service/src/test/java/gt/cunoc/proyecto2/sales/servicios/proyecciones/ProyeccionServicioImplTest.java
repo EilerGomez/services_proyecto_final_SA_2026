@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import gt.cunoc.proyecto2.sales.eventos.recibidos.trips.ViajeEvento;
+import gt.cunoc.proyecto2.sales.repositorios.alquileres.OrdenAlquilerRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.asientos.AsientoViajeRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.clientes.VistaClienteRepositorio;
 import gt.cunoc.proyecto2.sales.repositorios.viajes.VistaViajeRepositorio;
@@ -22,6 +23,7 @@ class ProyeccionServicioImplTest {
     private final VistaViajeRepositorio viajes = mock(VistaViajeRepositorio.class);
     private final AsientoViajeRepositorio asientos = mock(AsientoViajeRepositorio.class);
     private final VistaClienteRepositorio clientes = mock(VistaClienteRepositorio.class);
+    private final OrdenAlquilerRepositorio ordenes = mock(OrdenAlquilerRepositorio.class);
 
     private final UUID viajeId = UUID.randomUUID();
     private final UUID rutaId = UUID.randomUUID();
@@ -31,7 +33,7 @@ class ProyeccionServicioImplTest {
 
     @BeforeEach
     void preparar() {
-        servicio = new ProyeccionServicioImpl(viajes, asientos, clientes);
+        servicio = new ProyeccionServicioImpl(viajes, asientos, clientes, ordenes);
     }
 
     private ViajeEvento viaje(int capacidad) {
@@ -113,12 +115,15 @@ class ProyeccionServicioImplTest {
     // ----- Clientes -----
 
     @Test
-    void guardarClientePasaSusDatos() {
+    void guardarClientePasaSusDatosYAdoptaSusOrdenesViejas() {
         UUID usuarioId = UUID.randomUUID();
+        when(ordenes.enlazarPorNit(usuarioId, "1234567-8")).thenReturn(2);
 
         servicio.guardarCliente(usuarioId, "1234567-8", "Ana López", "ana@correo.com");
 
         verify(clientes).guardar(usuarioId, "1234567-8", "Ana López", "ana@correo.com");
+        // Un alquiler pedido en ventanilla antes de registrarse dejó su orden sin cuenta: se enlaza
+        verify(ordenes).enlazarPorNit(usuarioId, "1234567-8");
         verifyNoInteractions(viajes, asientos);
     }
 
@@ -129,6 +134,8 @@ class ProyeccionServicioImplTest {
         servicio.guardarCliente(usuarioId, null, "Ana López", "ana@correo.com");
 
         verify(clientes).guardar(usuarioId, "CF", "Ana López", "ana@correo.com");
+        // "CF" no identifica a nadie: no se puede adoptar ninguna orden con ese NIT
+        verifyNoInteractions(ordenes);
     }
 
 }

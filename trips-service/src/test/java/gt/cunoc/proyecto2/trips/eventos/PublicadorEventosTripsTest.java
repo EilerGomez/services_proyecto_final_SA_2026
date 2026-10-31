@@ -28,6 +28,7 @@ import gt.cunoc.proyecto2.trips.modelos.operaciones.SalidaViajeEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.TipoViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -165,7 +166,7 @@ class PublicadorEventosTripsTest {
 
     @Test
     void viajeEliminadoSinVersionPublicaVersionNula() {
-        ViajeEntidad viaje = ViajeEntidad.programarRegular(ruta, DatosPrueba.asignacion(), UUID.randomUUID());
+        ViajeEntidad viaje = ViajeEntidad.programarRegular(ruta, DatosPrueba.asignacion(), UUID.randomUUID(), SentidoViaje.IDA, false);
 
         eventos.viajeEliminado(viaje, null);
 

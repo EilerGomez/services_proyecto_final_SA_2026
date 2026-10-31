@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.trips.dtos.viajes.ActualizarViajeSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.FiltroViajes;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NombresViaje;
 import gt.cunoc.proyecto2.trips.dtos.viajes.NuevoViajeSolicitud;
+import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRegresoSolicitud;
 import gt.cunoc.proyecto2.trips.dtos.viajes.VendibleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeDetalleRespuesta;
 import gt.cunoc.proyecto2.trips.dtos.viajes.ViajeRespuesta;
@@ -20,6 +21,7 @@ import gt.cunoc.proyecto2.trips.modelos.buses.VistaBusEntidad;
 import gt.cunoc.proyecto2.trips.modelos.choferes.VistaChoferEntidad;
 import gt.cunoc.proyecto2.trips.modelos.rutas.RutaEntidad;
 import gt.cunoc.proyecto2.trips.modelos.viajes.AsignacionViaje;
+import gt.cunoc.proyecto2.trips.modelos.viajes.SentidoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.EstadoViaje;
 import gt.cunoc.proyecto2.trips.modelos.viajes.ViajeEntidad;
 import gt.cunoc.proyecto2.trips.repositorios.alquileres.AlquilerPrivadoRepositorio;
@@ -52,6 +54,9 @@ public class ViajeServicioImpl implements ViajeServicio {
      * Listados de gestión: primero lo último programado o modificado. La fecha de salida es el
      * desempate, para que dos viajes tocados en el mismo instante siempre salgan en el mismo orden.
      */
+    /** Estado de un chofer vigente en vista_choferes (lo escribe el manejador de eventos de Flota). */
+    private static final String CHOFER_ACTIVO = "ACTIVO";
+
     private static final Sort RECIENTES = Sort.by(Sort.Direction.DESC, "fechaActualizacion", "fechaSalidaProgramada");
 
     private final ViajeRepositorio repositorio;
@@ -119,6 +124,15 @@ public class ViajeServicioImpl implements ViajeServicio {
                 .orElseThrow(() -> ErrorViaje.VIAJE_NO_EXISTE.excepcion());
     }
 
+    /**
+     * T10. Programa el viaje de ida y, si la solicitud lo pide, también el de vuelta por la misma
+     * ruta. Los dos van en la misma transacción: si el regreso no pasa las validaciones (el bus o el
+     * piloto ya ocupados, o un horario que se traslapa con su propia ida) no se crea ninguno de los
+     * dos, que es lo que espera quien llenó el formulario completo.
+     *
+     * <p>La ida se guarda antes de validar el regreso a propósito: así la comprobación de choques
+     * del regreso la ve y rechaza un bus que todavía viene de camino.</p>
+     */
     @Override
     @Transactional
     public ViajeRespuesta programar(NuevoViajeSolicitud solicitud, UsuarioActual usuario) {
@@ -132,7 +146,27 @@ public class ViajeServicioImpl implements ViajeServicio {
         ViajeEntidad viaje = repositorio.saveAndFlush(solicitud.crearEntidad(ruta, asignacion, usuario.usuarioId()));
         ViajeRespuesta respuesta = respuesta(viaje);
         eventos.viajeProgramado(respuesta);
+
+        if (solicitud.pidioRegreso()) {
+            programarRegreso(ruta, solicitud.regreso(), viaje, usuario);
+        }
         return respuesta;
+    }
+
+    /**
+     * El viaje de vuelta: misma ruta, sentido REGRESO. No se le cambia el origen ni el destino en la
+     * base —son los de la ruta— porque quien invierte el recorrido al mostrarlo es NombresViaje.
+     */
+    private void programarRegreso(RutaEntidad ruta, ViajeRegresoSolicitud regreso, ViajeEntidad ida,
+                                  UsuarioActual usuario) {
+        if (!regreso.fechaSalidaProgramada().isAfter(ida.getFechaSalidaProgramada())) {
+            throw ErrorViaje.REGRESO_ANTES_DE_LA_IDA.excepcion();                       // 400
+        }
+        AsignacionViaje asignacion = asignaciones.validarNueva(ruta.getSucursalOrigenId(), regreso.busId(),
+                regreso.choferId(), regreso.fechaSalidaProgramada(), regreso.fechaLlegadaEstimada());
+        ViajeEntidad vuelta = repositorio.saveAndFlush(ViajeEntidad.programarRegular(ruta, asignacion,
+                usuario.usuarioId(), SentidoViaje.REGRESO, regreso.ventaPorChoferActiva()));
+        eventos.viajeProgramado(respuesta(vuelta));
     }
 
     @Override
@@ -146,6 +180,9 @@ public class ViajeServicioImpl implements ViajeServicio {
                 solicitud.fechaSalidaProgramada(), solicitud.fechaLlegadaEstimada());
         ViajeRespuesta antes = respuesta(viaje);   // placa y piloto de ahora, para contar el cambio
         viaje.reprogramar(asignacion);
+        if (solicitud.ventaPorChofer() != null) {
+            viaje.permitirVentaPorChofer(solicitud.ventaPorChofer());
+        }
         ViajeRespuesta respuesta = respuesta(repositorio.saveAndFlush(viaje));
         eventos.viajeActualizado(respuesta);
         avisarSiCambioLaUnidad(viaje, antes, respuesta);
@@ -203,8 +240,18 @@ public class ViajeServicioImpl implements ViajeServicio {
     @Transactional(readOnly = true)
     public VendibleRespuesta consultarVendible(UUID id) {
         return repositorio.findById(id)
-                .map(VendibleRespuesta::new)
+                .map(viaje -> new VendibleRespuesta(viaje, choferActivo(viaje.getChoferId())))
                 .orElseGet(() -> VendibleRespuesta.noExiste(id));
+    }
+
+    /**
+     * ¿El piloto sigue ACTIVO en Flota? Se mira en la copia local (vista_choferes), que la mantiene
+     * ChoferDesactivado. Un piloto dado de baja deja de poder vender aunque el viaje siga marcado.
+     */
+    private boolean choferActivo(UUID choferId) {
+        return choferes.findById(choferId)
+                .map(chofer -> CHOFER_ACTIVO.equals(chofer.getEstado()))
+                .orElse(false);
     }
 
     @Override

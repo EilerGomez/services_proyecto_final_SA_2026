@@ -19,5 +19,19 @@ public record VendibleRespuesta(
         OffsetDateTime fechaSalidaProgramada,
         BigDecimal precioBoleto,
         Integer capacidad,
-        UUID sucursalOrigenId) {
+        UUID sucursalOrigenId,
+        /**
+         * El piloto asignado puede vender boletos presenciales de este viaje: Trips ya comprobó que
+         * la marca del viaje está activa y que el piloto sigue ACTIVO en Flota. Es Boolean y no
+         * boolean a propósito: un Trips que todavía no mande el campo (un despliegue a medias) deja
+         * la respuesta en null en vez de reventar la lectura del JSON, y eso vale como "no permitida".
+         */
+        Boolean ventaPorChofer,
+        /** Piloto asignado al viaje, para comprobar que quien vende es él. */
+        UUID choferId) {
+
+    /** True solo si Trips dijo expresamente que el piloto puede vender boletos de este viaje. */
+    public boolean permiteVentaPorChofer() {
+        return Boolean.TRUE.equals(ventaPorChofer);
+    }
 }

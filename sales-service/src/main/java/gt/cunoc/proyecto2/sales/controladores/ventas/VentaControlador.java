@@ -50,7 +50,9 @@ public class VentaControlador {
     }
 
     @PostMapping("/mostrador")
-    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL})
+    // El piloto también, cuando su viaje tiene habilitada la venta: el servicio comprueba que sea el
+    // suyo. Es la venta de a bordo, para la punta de la ruta donde no hay ventanilla.
+    @RequiereRol({Roles.CAJERO, Roles.ADMIN_SUCURSAL, Roles.CHOFER})
     @Operation(summary = "S4 · Venta en mostrador (efectivo, confirmada al instante)")
     public ResponseEntity<VentaRespuesta> venderEnMostrador(@RequestBody @Valid NuevaVentaMostradorSolicitud solicitud,
                                                             @Parameter(hidden = true) UsuarioActual usuario) {

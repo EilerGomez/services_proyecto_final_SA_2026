@@ -75,6 +75,19 @@ public class ViajeEntidad {
     private EstadoViaje estado;
 
     /**
+     * V17. Hacia dónde va dentro de su ruta. Un REGRESO comparte la ruta con su ida y solo se lee al
+     * revés; no cambia después de programarse, porque cambiarlo invertiría el recorrido de boletos
+     * ya vendidos.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 8, updatable = false)
+    private SentidoViaje sentido;
+
+    /** V17. El piloto asignado puede vender boletos presenciales de este viaje. */
+    @Column(name = "venta_por_chofer", nullable = false)
+    private boolean ventaPorChofer;
+
+    /**
      * La maneja la BD (trigger de V7): acá solo se lee, para poder ordenar los listados por lo
      * último que se programó o se tocó. insertable/updatable = false para no pisar al trigger.
      */
@@ -87,14 +100,25 @@ public class ViajeEntidad {
     @Version
     private Integer version;
 
-    public static ViajeEntidad programarRegular(RutaEntidad ruta, AsignacionViaje asignacion, UUID creadoPor) {
+    /**
+     * T10. Viaje regular sobre una ruta.
+     *
+     * @param sentido         IDA, o REGRESO para el viaje de vuelta por la misma ruta
+     * @param ventaPorChofer  si el piloto asignado puede vender boletos presenciales de este viaje
+     */
+    public static ViajeEntidad programarRegular(RutaEntidad ruta, AsignacionViaje asignacion, UUID creadoPor,
+                                                SentidoViaje sentido, boolean ventaPorChofer) {
         ViajeEntidad viaje = new ViajeEntidad();
         viaje.id = UUID.randomUUID();
         viaje.tipo = TipoViaje.REGULAR;
         viaje.rutaId = ruta.getId();
+        // La sucursal que opera el viaje es siempre la de origen de la ruta, vaya o venga: es la que
+        // lo programó y la que responde por él en los listados y en los reportes.
         viaje.sucursalId = ruta.getSucursalOrigenId();
         viaje.precioBoleto = ruta.getPrecioBoleto();
         viaje.estado = EstadoViaje.PROGRAMADO;
+        viaje.sentido = sentido == null ? SentidoViaje.IDA : sentido;
+        viaje.ventaPorChofer = ventaPorChofer;
         viaje.creadoPor = creadoPor;
         viaje.aplicar(asignacion);
         return viaje;
@@ -108,6 +132,9 @@ public class ViajeEntidad {
         viaje.alquilerId = alquiler.getId();
         viaje.sucursalId = alquiler.getSucursalId();
         viaje.estado = EstadoViaje.PROGRAMADO;
+        // Un privado nace de un alquiler y no tiene vuelta propia: su retorno va en el alquiler.
+        viaje.sentido = SentidoViaje.IDA;
+        viaje.ventaPorChofer = false;
         viaje.creadoPor = creadoPor;
         viaje.aplicar(asignacion);
         return viaje;
@@ -168,6 +195,32 @@ public class ViajeEntidad {
             return MotivoNoVendible.VIAJE_YA_INICIO;
         }
         return null;
+    }
+
+    /** El viaje de vuelta de su ruta: el recorrido se lee al revés (destino → origen). */
+    public boolean esRegreso() {
+        return sentido != null && sentido.esRegreso();
+    }
+
+    /**
+     * T11. Habilita o quita la venta de boletos por el piloto. Solo mientras el viaje no haya salido:
+     * después ya nadie vende, ni el piloto ni la ventanilla.
+     */
+    public void permitirVentaPorChofer(boolean permitida) {
+        verificarProgramado();
+        this.ventaPorChofer = permitida;
+    }
+
+    /**
+     * ¿Este piloto puede vender boletos de este viaje? Lo pregunta Sales por el endpoint interno
+     * antes de dejarlo vender: tiene que estar habilitada la venta, ser el chofer asignado y no
+     * haber salido todavía.
+     */
+    public boolean puedeVenderElChofer(UUID choferConsultado) {
+        return ventaPorChofer
+                && esRegular()
+                && estado == EstadoViaje.PROGRAMADO
+                && this.choferId.equals(choferConsultado);
     }
 
     public boolean esRegular() {

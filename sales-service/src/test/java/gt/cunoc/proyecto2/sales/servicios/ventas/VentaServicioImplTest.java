@@ -5,9 +5,11 @@ import static gt.cunoc.proyecto2.sales.DatosPrueba.GUATE;
 import static gt.cunoc.proyecto2.sales.DatosPrueba.SALIDA;
 import static gt.cunoc.proyecto2.sales.DatosPrueba.XELA;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.inOrder;
@@ -99,11 +101,20 @@ class VentaServicioImplTest {
     }
 
     private void tripsDiceVendible(boolean vendible, String motivo) {
+        tripsResponde(vendible, motivo, false, null);
+    }
+
+    /** R2 con la venta de a bordo habilitada para ese piloto. */
+    private void tripsDiceQueVendeElPiloto(UUID choferId) {
+        tripsResponde(true, null, true, choferId);
+    }
+
+    private void tripsResponde(boolean vendible, String motivo, boolean ventaPorChofer, UUID choferId) {
         when(trips.consultarVendible(viaje.getViajeId())).thenReturn(
                 new VendibleRespuesta(
                         viaje.getViajeId(), vendible, motivo,
                         "PROGRAMADO", "REGULAR", SALIDA,
-                        DatosPrueba.PRECIO_BOLETO, 40, XELA));
+                        DatosPrueba.PRECIO_BOLETO, 40, XELA, ventaPorChofer, choferId));
     }
 
     private void guardarDevuelveElMismo() {
@@ -167,6 +178,69 @@ class VentaServicioImplTest {
                 ErrorVenta.OTRA_SUCURSAL);
 
         verifyNoInteractions(trips, repositorio, asientos, eventos);
+    }
+
+    // ----- Venta de a bordo: el piloto vende boletos del viaje que maneja -----
+
+    /**
+     * El piloto no tiene sucursal propia: su permiso sale del viaje. Si Trips dice que ese viaje
+     * tiene la venta habilitada y que el piloto es el asignado, vende igual que la ventanilla.
+     */
+    @Test
+    void elPilotoDelViajeVendeCuandoEstaHabilitado() {
+        UUID choferId = UUID.randomUUID();
+        viajeALaVenta();
+        tripsDiceQueVendeElPiloto(choferId);
+        guardarDevuelveElMismo();
+        when(asientos.vender(eq(viaje.getViajeId()), anyList(), any(UUID.class))).thenReturn(1);
+
+        VentaRespuesta venta = servicio.venderEnMostrador(
+                mostradorConsumidorFinal(List.of(5)), DatosPrueba.chofer(choferId));
+
+        assertThat(venta.boletos()).hasSize(1);
+        verify(eventos).boletoVendido(any(VentaEntidad.class), anyList(), eq(viaje));
+    }
+
+    /** La sucursal del viaje no le importa al piloto: él viaja en el bus. */
+    @Test
+    void elPilotoVendeAunqueElViajeSalgaDeOtraSucursal() {
+        UUID choferId = UUID.randomUUID();
+        viajeALaVenta();
+        tripsDiceQueVendeElPiloto(choferId);
+        guardarDevuelveElMismo();
+        when(asientos.vender(eq(viaje.getViajeId()), anyList(), any(UUID.class))).thenReturn(1);
+
+        assertThatCode(() -> servicio.venderEnMostrador(
+                mostradorConsumidorFinal(List.of(6)), DatosPrueba.chofer(choferId)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void unPilotoQueNoEsElDelViajeNoVende() {
+        viajeALaVenta();
+        tripsDiceQueVendeElPiloto(UUID.randomUUID());          // el asignado es otro
+
+        VerificarError.lanza(
+                () -> servicio.venderEnMostrador(
+                        mostradorConsumidorFinal(List.of(1)), DatosPrueba.chofer(UUID.randomUUID())),
+                ErrorVenta.CHOFER_NO_ASIGNADO);
+
+        verifyNoInteractions(repositorio, asientos, eventos);
+    }
+
+    /** Sin la casilla del viaje —o con el piloto dado de baja en Flota— Trips responde que no. */
+    @Test
+    void elPilotoNoVendeSiElViajeNoLoTieneHabilitado() {
+        UUID choferId = UUID.randomUUID();
+        viajeALaVenta();
+        tripsDiceVendible(true, null);                          // vendible, pero sin venta por el piloto
+
+        VerificarError.lanza(
+                () -> servicio.venderEnMostrador(
+                        mostradorConsumidorFinal(List.of(1)), DatosPrueba.chofer(choferId)),
+                ErrorVenta.VENTA_POR_CHOFER_NO_HABILITADA);
+
+        verifyNoInteractions(repositorio, asientos, eventos);
     }
 
     @Test

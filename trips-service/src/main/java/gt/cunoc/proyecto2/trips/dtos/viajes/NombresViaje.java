@@ -26,24 +26,39 @@ public record NombresViaje(
         return viaje.esPrivado() ? alquileres.get(viaje.getAlquilerId()) : null;
     }
 
-    /*nombre de la sucursal de origen de la ruta. PRIVADO: el origen que escribió el cliente. */
+    /**
+     * Dónde empieza el viaje. PRIVADO: el origen que escribió el cliente. REGULAR: la sucursal de
+     * origen de su ruta, o la de destino si el viaje es de REGRESO, porque la vuelta recorre la
+     * misma ruta al revés.
+     *
+     * <p>El cambio se hace aquí a propósito: así el recorrido sale ya en el orden correcto en la
+     * respuesta, en los eventos y en todo lo que viva de ellos (Sales, Reporting, los correos), sin
+     * que ninguno de ellos tenga que saber que existe la columna sentido.</p>
+     */
     public String origenNombre(ViajeEntidad viaje) {
         if (viaje.esPrivado()) {
             AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
             return alquiler == null ? null : alquiler.getOrigen();
         }
-        RutaEntidad ruta = rutas.get(viaje.getRutaId());
-        return ruta == null ? null : sucursales.get(ruta.getSucursalOrigenId());
+        return puntaDeLaRuta(viaje, viaje.esRegreso());
     }
 
-    /*nombre de la sucursal de destino de la ruta. PRIVADO: el destino que escribió el cliente. */
+    /** Dónde termina el viaje: la otra punta de la ruta, con el mismo criterio que el origen. */
     public String destinoNombre(ViajeEntidad viaje) {
         if (viaje.esPrivado()) {
             AlquilerPrivadoEntidad alquiler = alquilerDe(viaje);
             return alquiler == null ? null : alquiler.getDestino();
         }
+        return puntaDeLaRuta(viaje, !viaje.esRegreso());
+    }
+
+    /** Una de las dos puntas de la ruta del viaje: la de destino si {@code destino}, si no la de origen. */
+    private String puntaDeLaRuta(ViajeEntidad viaje, boolean destino) {
         RutaEntidad ruta = rutas.get(viaje.getRutaId());
-        return ruta == null ? null : sucursales.get(ruta.getSucursalDestinoId());
+        if (ruta == null) {
+            return null;
+        }
+        return sucursales.get(destino ? ruta.getSucursalDestinoId() : ruta.getSucursalOrigenId());
     }
 
     /*

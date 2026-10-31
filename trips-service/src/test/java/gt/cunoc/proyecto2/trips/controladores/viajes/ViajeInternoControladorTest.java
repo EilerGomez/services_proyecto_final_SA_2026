@@ -26,7 +26,7 @@ class ViajeInternoControladorTest {
     void vendibleSiempreResponde200() {
         ViajeEntidad viaje = DatosPrueba.viajeRegular();
         UUID inexistente = UUID.randomUUID();
-        when(servicio.consultarVendible(viaje.getId())).thenReturn(new VendibleRespuesta(viaje));
+        when(servicio.consultarVendible(viaje.getId())).thenReturn(new VendibleRespuesta(viaje, true));
         when(servicio.consultarVendible(inexistente)).thenReturn(VendibleRespuesta.noExiste(inexistente));
 
         ResponseEntity<VendibleRespuesta> si = controlador.vendible(viaje.getId());
