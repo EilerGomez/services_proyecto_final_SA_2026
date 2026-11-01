@@ -3,6 +3,9 @@ package gt.cunoc.proyecto2.wallet.clientes;
 import com.sun.net.httpserver.HttpServer;
 import gt.cunoc.proyecto2.comun.cliente.ClientesInternos;
 import gt.cunoc.proyecto2.comun.errores.ServicioNoDisponibleException;
+import gt.cunoc.proyecto2.wallet.config.ConfiguracionCircuitos;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -109,7 +112,58 @@ class ClienteIdentityTest {
         ClientesInternos internos = mock(ClientesInternos.class);
         when(internos.crear(url)).thenReturn(RestClient.builder().baseUrl(url).build());
 
-        assertThat(new ClienteIdentity(internos, url).cuentaActiva(UUID.randomUUID())).isTrue();
+        assertThat(new ClienteIdentity(internos, url,
+                CircuitBreakerRegistry.of(ConfiguracionCircuitos.configuracion()))
+                .cuentaActiva(UUID.randomUUID())).isTrue();
+    }
+
+    @Test
+    void tras5FallasElCircuitoSeAbreYYaNoLlamaAIdentity() {
+        // Arrange: Identity responde 500 y el mínimo configurado para evaluar son 5 llamadas
+        status.set(500);
+        ClienteIdentity cliente = cliente();
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> cliente.cuentaActiva(UUID.randomUUID()))
+                    .isInstanceOf(ServicioNoDisponibleException.class);
+        }
+
+        // Act: la siguiente ya no debería salir a la red
+        rutaRecibida.set(null);
+        assertThatThrownBy(() -> cliente.cuentaActiva(UUID.randomUUID()))
+                .isInstanceOf(ServicioNoDisponibleException.class)
+                .extracting("codigo").isEqualTo("IDENTITY_NO_DISPONIBLE");
+
+        // Assert: el circuito la cortó, Identity no recibió nada
+        assertThat(rutaRecibida.get()).isNull();
+    }
+
+    @Test
+    void unaCuentaQueNoExisteNoAbreElCircuito() {
+        // Arrange: 404 está en ignoreExceptions, no es una caída del servicio
+        status.set(404);
+        ClienteIdentity cliente = cliente();
+        for (int i = 0; i < 10; i++) {
+            assertThat(cliente.cuentaActiva(UUID.randomUUID())).isFalse();
+        }
+
+        // Act + Assert: el circuito sigue cerrado y la siguiente llamada pasa normal
+        status.set(200);
+        assertThat(cliente.cuentaActiva(UUID.randomUUID())).isTrue();
+    }
+
+    @Test
+    void elCircuitoAbiertoCortaSinEsperarAIdentity() {
+        // Arrange: un circuito ya abierto a mano, para no depender de las 5 fallas
+        CircuitBreaker abierto = CircuitBreakerRegistry.of(ConfiguracionCircuitos.configuracion())
+                .circuitBreaker("identity");
+        abierto.transitionToOpenState();
+        ClienteIdentity cliente = new ClienteIdentity(RestClient.builder().baseUrl(url).build(), abierto);
+
+        // Act + Assert
+        assertThatThrownBy(() -> cliente.cuentaActiva(UUID.randomUUID()))
+                .isInstanceOf(ServicioNoDisponibleException.class)
+                .extracting("codigo").isEqualTo("IDENTITY_NO_DISPONIBLE");
+        assertThat(rutaRecibida.get()).isNull();
     }
 
     @Test

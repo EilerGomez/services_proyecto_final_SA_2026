@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import gt.cunoc.proyecto2.comun.eventos.propiedadesevento.PropiedadesEventos;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
@@ -20,9 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -32,6 +35,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
 class RelayOutboxTest {
+
+    private static final UUID CORRELACION = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final RabbitTemplate rabbit = mock(RabbitTemplate.class);
@@ -48,6 +53,11 @@ class RelayOutboxTest {
 
     /** Simula las filas pendientes de eventos_salida (ejecuta el RowMapper real del relay). */
     private void pendientes(UUID... ids) {
+        pendientesConCorrelacion(CORRELACION, ids);
+    }
+
+    /** Igual, eligiendo el id de correlación que trae la fila (null = evento guardado sin correlación). */
+    private void pendientesConCorrelacion(UUID correlacion, UUID... ids) {
         doAnswer(invocacion -> {
             RowMapper<?> mapper = invocacion.getArgument(1);
             List<Object> filas = new ArrayList<>();
@@ -56,6 +66,7 @@ class RelayOutboxTest {
                 when(rs.getObject("id", UUID.class)).thenReturn(id);
                 when(rs.getString("tipo_evento")).thenReturn("BoletoVendido");
                 when(rs.getString("datos")).thenReturn("{\"eventId\":\"" + id + "\"}");
+                when(rs.getObject("correlacion", UUID.class)).thenReturn(correlacion);
                 filas.add(mapper.mapRow(rs, filas.size()));
             }
             return filas;
@@ -128,5 +139,42 @@ class RelayOutboxTest {
         relay.publicarPendientes();
 
         verify(rabbit, never()).send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+    }
+
+    @Test
+    void dejaElIdDeCorrelacionEnElMdcMientrasPublicaYLoLimpiaDespues() {
+        // Arrange: se captura el MDC en el momento exacto del envío a RabbitMQ
+        UUID id = UUID.randomUUID();
+        pendientes(id);
+        AtomicReference<String> enElEnvio = new AtomicReference<>();
+        doAnswer(invocacion -> {
+            enElEnvio.set(MDC.get(ContextoCorrelacion.CLAVE_MDC));
+            CorrelationData confirmacion = invocacion.getArgument(3);
+            confirmacion.getFuture().complete(new CorrelationData.Confirm(true, null));
+            return null;
+        }).when(rabbit).send(anyString(), anyString(), any(Message.class), any(CorrelationData.class));
+
+        // Act
+        relay.publicarPendientes();
+
+        // Assert: durante el envío estaba, y al salir del lote ya no
+        assertThat(enElEnvio.get()).isEqualTo(CORRELACION.toString());
+        assertThat(MDC.get(ContextoCorrelacion.CLAVE_MDC)).isNull();
+    }
+
+    @Test
+    void unEventoGuardadoSinCorrelacionSePublicaIgual() {
+        // Arrange: fila cuyo sobre no trae correlationId
+        UUID id = UUID.randomUUID();
+        pendientesConCorrelacion(null, id);
+        rabbitConfirma(true);
+
+        // Act
+        relay.publicarPendientes();
+
+        // Assert
+        verify(rabbit).send(eq("sales.eventos"), eq("BoletoVendido"), any(Message.class),
+                any(CorrelationData.class));
+        verify(jdbc).update(contains("fecha_publicacion = now()"), eq(id));
     }
 }
