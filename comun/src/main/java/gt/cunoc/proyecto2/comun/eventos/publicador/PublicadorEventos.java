@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,9 @@ import tools.jackson.databind.json.JsonMapper;
 public class PublicadorEventos {
 
     public static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/Guatemala");
+
+    /** Las líneas "SAGA" permiten seguir un flujo completo con: p2 logs | grep SAGA */
+    private static final Logger log = LoggerFactory.getLogger(PublicadorEventos.class);
 
     private static final String INSERTAR = """
             INSERT INTO eventos_salida (id, tipo_agregado, agregado_id, tipo_evento, version_evento, datos)
@@ -80,6 +85,10 @@ public class PublicadorEventos {
 
         jdbc.update(INSERTAR, sobre.eventId(), tipoAgregado, agregadoId, tipoEvento, sobre.version(),
                 json.writeValueAsString(sobre));
+        // El id de correlación va explícito además del prefijo del patrón de log: este método también
+        // se llama desde trabajos programados, donde el MDC del hilo viene vacío.
+        log.info("SAGA corr={} evento={} id={} agregado={}/{} paso=guardado",
+                sobre.correlationId(), tipoEvento, sobre.eventId(), tipoAgregado, agregadoId);
         return sobre;
     }
 }

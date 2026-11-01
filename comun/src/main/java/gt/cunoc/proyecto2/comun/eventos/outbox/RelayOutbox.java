@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.comun.eventos.outbox;
 
+import gt.cunoc.proyecto2.comun.eventos.contextocorrelacion.ContextoCorrelacion;
 import gt.cunoc.proyecto2.comun.eventos.propiedadesevento.PropiedadesEventos;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -34,8 +35,10 @@ public class RelayOutbox {
     private static final Logger log = LoggerFactory.getLogger(RelayOutbox.class);
     private static final long ESPERA_CONFIRMACION_SEG = 5;
 
+    /* El correlationId se saca del propio sobre guardado en datos: este hilo es el del @Scheduled
+       y no tiene el id en el MDC, así que se recupera de la fila para poder seguir la saga. */
     private static final String PENDIENTES = """
-            SELECT id, tipo_evento, datos::text AS datos
+            SELECT id, tipo_evento, datos::text AS datos, (datos->>'correlationId')::uuid AS correlacion
             FROM eventos_salida
             WHERE fecha_publicacion IS NULL
             ORDER BY fecha_creacion
@@ -71,7 +74,8 @@ public class RelayOutbox {
                     (rs, fila) -> new Pendiente(
                             rs.getObject("id", UUID.class),
                             rs.getString("tipo_evento"),
-                            rs.getString("datos")),
+                            rs.getString("datos"),
+                            rs.getObject("correlacion", UUID.class)),
                     propiedades.outbox().lote());
 
             for (Pendiente pendiente : pendientes) {
@@ -82,7 +86,19 @@ public class RelayOutbox {
         });
     }
 
+    /** Deja el id de correlación en el MDC mientras se publica, para que las líneas lo lleven. */
     private boolean publicar(Pendiente pendiente) {
+        if (pendiente.correlacion() != null) {
+            ContextoCorrelacion.establecer(pendiente.correlacion());
+        }
+        try {
+            return enviar(pendiente);
+        } finally {
+            ContextoCorrelacion.limpiar();
+        }
+    }
+
+    private boolean enviar(Pendiente pendiente) {
         try {
             Message mensaje = MessageBuilder.withBody(pendiente.datos().getBytes(StandardCharsets.UTF_8))
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
@@ -102,7 +118,8 @@ public class RelayOutbox {
             }
 
             jdbc.update(MARCAR_PUBLICADO, pendiente.id());
-            log.debug("Evento {} {} publicado", pendiente.tipoEvento(), pendiente.id());
+            log.info("SAGA corr={} evento={} id={} paso=publicado exchange={}",
+                    pendiente.correlacion(), pendiente.tipoEvento(), pendiente.id(), propiedades.exchange());
             return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -115,11 +132,12 @@ public class RelayOutbox {
     }
 
     private void registrarFallo(Pendiente pendiente, Exception e) {
-        log.warn("No se pudo publicar el evento {} {}: {}", pendiente.tipoEvento(), pendiente.id(), e.toString());
+        log.warn("SAGA corr={} evento={} id={} paso=fallo-al-publicar causa={}",
+                pendiente.correlacion(), pendiente.tipoEvento(), pendiente.id(), e.toString());
         String error = e.toString();
         jdbc.update(MARCAR_FALLO, error.length() > 1000 ? error.substring(0, 1000) : error, pendiente.id());
     }
 
-    private record Pendiente(UUID id, String tipoEvento, String datos) {
+    private record Pendiente(UUID id, String tipoEvento, String datos, UUID correlacion) {
     }
 }

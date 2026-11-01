@@ -8,6 +8,7 @@ import gt.cunoc.proyecto2.comun.idempotencia.ProcesadorIdempotente;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -58,17 +59,31 @@ public class ConsumidorEventos {
 
         ManejadorEvento<?> manejador = manejadores.get(sobre.eventType());
         if (manejador == null) {
-            log.warn("No hay manejador para el evento {} ({}); se descarta", sobre.eventType(), sobre.eventId());
+            log.warn("SAGA corr={} evento={} id={} paso=sin-manejador; se descarta",
+                    sobre.correlationId(), sobre.eventType(), sobre.eventId());
             return;
         }
 
-        ContextoCorrelacion.establecer(sobre.correlationId() != null ? sobre.correlationId() : UUID.randomUUID());
+        UUID correlacion = sobre.correlationId() != null ? sobre.correlationId() : UUID.randomUUID();
+        ContextoCorrelacion.establecer(correlacion);
+        long inicio = System.nanoTime();
         try {
             boolean procesado = idempotente.procesar(sobre.eventId(), sobre.eventType(),
                     () -> despachar(manejador, sobre));
-            if (!procesado) {
-                log.info("Evento duplicado ignorado: {} {}", sobre.eventType(), sobre.eventId());
+            if (procesado) {
+                log.info("SAGA corr={} evento={} id={} paso=procesado manejador={} ms={}",
+                        correlacion, sobre.eventType(), sobre.eventId(),
+                        manejador.getClass().getSimpleName(),
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicio));
+            } else {
+                log.info("SAGA corr={} evento={} id={} paso=duplicado-ignorado",
+                        correlacion, sobre.eventType(), sobre.eventId());
             }
+        } catch (RuntimeException falla) {
+            log.warn("SAGA corr={} evento={} id={} paso=fallo-al-procesar manejador={} causa={}",
+                    correlacion, sobre.eventType(), sobre.eventId(),
+                    manejador.getClass().getSimpleName(), falla.toString());
+            throw falla;
         } finally {
             ContextoCorrelacion.limpiar();
         }
