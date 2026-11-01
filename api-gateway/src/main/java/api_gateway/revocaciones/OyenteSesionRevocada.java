@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Escucha SesionRevocada (sobre de comun: {@code {eventType, payload: {usuarioId, tokensValidosDesde}}})
  * y lo pasa al registro: desde ese momento el gateway rechaza los JWT viejos de esa persona.
+ *
  * Un mensaje que no se puede leer se registra en el log y se descarta (sin reintentos infinitos).
  */
 @Component
@@ -24,11 +25,13 @@ public class OyenteSesionRevocada {
     private final RegistroRevocaciones registro;
     private final ObjectMapper json;
 
+    // Guarda dependencias para decodificar mensajes y registrar sesiones revocadas.
     public OyenteSesionRevocada(RegistroRevocaciones registro, ObjectMapper json) {
         this.registro = registro;
         this.json = json;
     }
 
+    // Lee SesionRevocada de RabbitMQ y la guarda, registra y descarta mensajes inválidos.
     @RabbitListener(queues = "#{colaRevocaciones.name}")
     public void recibir(Message mensaje) {
         try {

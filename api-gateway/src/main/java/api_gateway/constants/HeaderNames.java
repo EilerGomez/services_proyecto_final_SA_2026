@@ -8,5 +8,6 @@ public final class HeaderNames {
     public static final String SUCURSAL_ID = "X-Sucursal-Id";
     public static final String CHOFER_ID = "X-Chofer-Id";
 
+    // Impide instanciar esta clase de constantes.
     private HeaderNames() { }
 }

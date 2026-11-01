@@ -14,11 +14,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+/**
+ * Punto de salida de autenticación de Spring Security para respuestas 401.
+ *
+ * Distingue la revocación explícita de una sesión para que el cliente pueda solicitar un nuevo
+ * inicio de sesión; el resto de fallos usa el código genérico de token inválido.
+ */
 @Component
 @RequiredArgsConstructor
 public class JsonAuthenticationEntryPoint implements ServerAuthenticationEntryPoint {
     private final ErrorResponseWriter writer;
 
+    // Devuelve 401 JSON y usa SESION_REVOCADA cuando Identity invalidó el acceso anterior.
     @Override
     public Mono<Void> commence(ServerWebExchange exchange, AuthenticationException exception) {
         exchange.getResponse().getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
@@ -30,7 +37,7 @@ public class JsonAuthenticationEntryPoint implements ServerAuthenticationEntryPo
         return writer.write(exchange, HttpStatus.UNAUTHORIZED);
     }
 
-    /** El validador de revocación falla con su código; llega envuelto (InvalidBearerTokenException → JwtValidationException). */
+    // Busca el código de revocación, es necesario porque el error del validador puede llegar envuelto en excepciones OAuth/JWT.
     static boolean esSesionRevocada(Throwable error) {
         for (Throwable actual = error; actual != null; actual = actual.getCause()) {
             if (actual instanceof JwtValidationException validacion && validacion.getErrors().stream()

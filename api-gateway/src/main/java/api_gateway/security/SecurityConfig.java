@@ -15,13 +15,21 @@ import org.springframework.security.web.server.context.NoOpServerSecurityContext
 import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 
+/**
+ * Define las cadenas reactivas de seguridad que protegen las solicitudes del gateway.
+ *
+ * Con seguridad habilitada, las rutas públicas continúan anónimas y las demás requieren un JWT,
+ * la opción de desarrollo deshabilita la autenticación del borde, pero no cambia el enrutamiento.
+ *
+ * Se excluye la autoconfiguración JWT para controlar cuándo se crea el decoder.
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableWebFluxSecurity
-// Own decoder lifecycle: even configured JWT properties must not activate JWT when security is off.
 @EnableAutoConfiguration(exclude = ReactiveOAuth2ResourceServerAutoConfiguration.class)
 public class SecurityConfig {
-    private static ServerHttpSecurity base(ServerHttpSecurity http,
-            JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
+
+    // Construye la base común, sin autenticación por formulario, con CORS y con manejadores JSON uniformes.
+    private static ServerHttpSecurity base(ServerHttpSecurity http, JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
@@ -30,27 +38,25 @@ public class SecurityConfig {
                 .requestCache(cache -> cache.requestCache(NoOpServerRequestCache.getInstance()))
                 .cors(Customizer.withDefaults())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(entryPoint)
-                        .accessDeniedHandler(deniedHandler));
+                .accessDeniedHandler(deniedHandler));
     }
 
-    /** Solo con GATEWAY_SECURITY_ENABLED=false (gateway transparente, para desarrollo). */
+    // Permite todas las solicitudes en Spring Security, no desactiva el ruteo ni el bloqueo independiente de las rutas internas.
     @Bean
     @ConditionalOnProperty(prefix = "gateway.security", name = "enabled", havingValue = "false")
-    SecurityWebFilterChain publicSecurity(ServerHttpSecurity http,
-            JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
+    SecurityWebFilterChain publicSecurity(ServerHttpSecurity http, JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
         return base(http, entryPoint, deniedHandler)
                 .authorizeExchange(exchanges -> exchanges.anyExchange().permitAll()).build();
     }
 
-    /** Seguridad activada por defecto: también si la propiedad no está definida. */
+    // Configuración JWT activada por defecto, incluso cuando la propiedad no está definida.
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = "gateway.security", name = "enabled", havingValue = "true",
-            matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "gateway.security", name = "enabled", havingValue = "true", matchIfMissing = true)
     static class JwtSecurity {
+
+        // Permite las rutas públicas y exige una autenticación JWT válida en las demás.
         @Bean
-        SecurityWebFilterChain jwtSecurity(ServerHttpSecurity http, ReactiveJwtDecoder decoder,
-                JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
-            // El mismo matcher decide permitAll y cuándo ignorar el Bearer token.
+        SecurityWebFilterChain jwtSecurity(ServerHttpSecurity http, ReactiveJwtDecoder decoder, JsonAuthenticationEntryPoint entryPoint, JsonAccessDeniedHandler deniedHandler) {
             ServerWebExchangeMatcher rutasPublicas = PublicEndpoints.matcher();
             return base(http, entryPoint, deniedHandler)
                     .authorizeExchange(exchanges -> exchanges

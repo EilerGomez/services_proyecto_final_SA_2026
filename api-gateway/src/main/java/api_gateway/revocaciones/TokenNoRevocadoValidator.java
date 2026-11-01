@@ -18,10 +18,12 @@ public class TokenNoRevocadoValidator implements OAuth2TokenValidator<Jwt> {
 
     private final RegistroRevocaciones registro;
 
+    // Conserva el registro consultado durante la validación del token.
     public TokenNoRevocadoValidator(RegistroRevocaciones registro) {
         this.registro = registro;
     }
 
+    // Rechaza tokens anteriores a la revocación o acepta los restantes.
     @Override
     public OAuth2TokenValidatorResult validate(Jwt token) {
         return registro.revocado(token.getSubject(), token.getIssuedAt())

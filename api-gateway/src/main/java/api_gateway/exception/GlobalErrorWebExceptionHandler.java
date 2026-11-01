@@ -20,6 +20,11 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.PrematureCloseException;
 
+/**
+ * Último manejador reactivo de errores no tratados por filtros o por el proxy HTTP.
+ * Convierte fallos de conectividad, timeout y errores HTTP conocidos al contrato JSON del gateway,
+ * evitando exponer detalles internos de excepciones al consumidor.
+ */
 @Slf4j
 @Component
 @Order(-2)
@@ -27,6 +32,10 @@ import reactor.netty.http.client.PrematureCloseException;
 public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler {
     private final ErrorResponseWriter writer;
 
+    /**
+     * Si la respuesta aún no se confirmó, determina el status y la escribe con el formato común.
+     * Los errores 5xx se registran con ruta y tipo de excepción para facilitar diagnóstico.
+     */
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable error) {
         if (exchange.getResponse().isCommitted()) {
@@ -40,6 +49,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
         return writer.write(exchange, status);
     }
 
+    // Traduce causas conocidas a 4xx/5xx y usa 500 cuando no hay clasificación aplicable.
     private HttpStatusCode statusOf(Throwable error) {
         Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Throwable cause = error; cause != null && visited.add(cause); cause = cause.getCause()) {

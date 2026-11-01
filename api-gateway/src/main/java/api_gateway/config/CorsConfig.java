@@ -16,9 +16,19 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Mono;
 
+/**
+ * Configura CORS para los navegadores y adapta sus rechazos al formato de error del gateway.
+ * Las llamadas entre microservicios no dependen de CORS, esta configuración controla solicitudes
+ * de frontend que incluyen el origen del navegador.
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(GatewayProperties.class)
 public class CorsConfig {
+    /**
+     * Registra las reglas CORS globales que Spring Security aplica a las solicitudes de navegador.
+     * Los orígenes proceden de GatewayProperties, el frontend puede leer los headers de correlación
+     * y de descarga de documentos, como Content-Disposition.
+     */
     @Bean
     CorsConfigurationSource corsConfigurationSource(GatewayProperties properties) {
         CorsConfiguration cors = new CorsConfiguration();
@@ -33,7 +43,10 @@ public class CorsConfig {
         return source;
     }
 
-    // Spring's CORS processor rejects requests with an empty 403, outside access-denied handling.
+    /**
+     * Agrega el cuerpo JSON común cuando Spring rechaza CORS con 403 antes del manejador de
+     * autorización y la respuesta todavía no se ha confirmado.
+     */
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE + 1)
     WebFilter corsRejectionJsonFilter(ErrorResponseWriter writer) {
