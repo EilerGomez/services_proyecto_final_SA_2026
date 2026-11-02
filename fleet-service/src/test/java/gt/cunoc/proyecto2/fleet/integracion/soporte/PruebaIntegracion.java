@@ -58,7 +58,16 @@ import org.testcontainers.rabbitmq.RabbitMQContainer;
 public abstract class PruebaIntegracion {
 
     protected static final LocalDate FECHA = LocalDate.of(2026, 10, 20);
-    protected static final String CUENTA_FOTOS = "https://cuentapruebas.blob.core.windows.net";
+    /**
+     * Almacenamiento de fotos de mentira: un {@link ServidorFalso} que hace de Azure Blob. Así F22 sube
+     * de verdad (PUT Blob) y las fotos reemplazadas se borran de verdad (Delete Blob), sin salir a Azure.
+     */
+    protected static final ServidorFalso BLOBS = ServidorFalso.iniciar();
+
+    /** SAS de mentira: con SAS el cliente autoriza por la URL y no pide token a la identidad de la VM. */
+    protected static final String SAS_FOTOS = "sv=2021-08-06&se=2099-01-01&sp=cw&sig=firma-de-prueba";
+
+    protected static final String CUENTA_FOTOS = BLOBS.url();
     protected static final String FOTO_BUS = CUENTA_FOTOS + "/fotos/it/buses/bus.jpg";
     protected static final String FOTO_CHOFER = CUENTA_FOTOS + "/fotos/it/choferes/chofer.jpg";
 
@@ -93,6 +102,7 @@ public abstract class PruebaIntegracion {
         registro.add("app.fotos.cuenta-url", () -> CUENTA_FOTOS);
         registro.add("app.fotos.contenedor", () -> "fotos");
         registro.add("app.fotos.prefijo", () -> "it/");
+        registro.add("app.fotos.sas", () -> SAS_FOTOS);
     }
 
     @Autowired
@@ -131,6 +141,7 @@ public abstract class PruebaIntegracion {
 
         IDENTITY.reiniciar();
         TRIPS.reiniciar();
+        BLOBS.reiniciar();
         circuitos.circuitBreaker("identity").reset();
         circuitos.circuitBreaker("trips").reset();
     }
