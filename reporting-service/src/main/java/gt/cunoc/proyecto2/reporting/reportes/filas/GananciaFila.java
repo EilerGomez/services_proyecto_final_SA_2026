@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RG3: ganancia por sucursal, en orden alfabético. */
+/** Ganancia por sucursal, en orden alfabético. */
 @Value
 @Builder
 public class GananciaFila {

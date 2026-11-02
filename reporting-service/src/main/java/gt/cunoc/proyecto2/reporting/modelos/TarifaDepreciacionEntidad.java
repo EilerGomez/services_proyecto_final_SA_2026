@@ -11,7 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Tarifa vigente por fecha (TarifaDepreciacionCambiada de Identity). Solo lectura. */
+/**
+ * Tarifa de depreciación por kilómetro, vigente a partir de una fecha.
+ *
+ * <p>Se llena con el evento que publica Identity cuando cambia la tarifa. El servicio la usa como
+ * referencia; el costo de cada viaje se toma del evento de cierre que manda Trips.
+ */
 @Entity(name = "ReporteTarifaDepreciacion")
 @Table(name = "tarifas_depreciacion")
 @Getter

@@ -22,9 +22,9 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
 /**
- * RS6 agrupado · Gastos de taller por bus, sumados por categoría.
+ * Gastos de taller por bus, sumados por categoría.
  *
- * Los mismos gastos que lista RS6, pero sin el detalle: por cada bus va una línea por categoría con
+ * Los mismos gastos que lista el reporte de taller por bus, pero sin el detalle: por cada bus va una línea por categoría con
  * cuántos gastos hubo y cuánto suman, más el total del bus. Así se ve de un vistazo en qué se le va
  * el dinero a cada unidad, que es para lo que sirve el reporte: un bus que acumula en Motor es
  * candidato a desactivarse.
@@ -38,6 +38,7 @@ public class GeneradorTallerBusCategoria implements GeneradorReporte {
     private final GeneradorTallerBus detalle;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorTallerBusCategoria(GeneradorTallerBus detalle, CompiladorJasper compilador) {
         this.detalle = detalle;
         this.compilador = compilador;
@@ -48,6 +49,7 @@ public class GeneradorTallerBusCategoria implements GeneradorReporte {
         return TipoReporte.TALLER_BUS_CATEGORIA;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<TallerBusCategoriaFila> filas = filas(params);
@@ -66,6 +68,7 @@ public class GeneradorTallerBusCategoria implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         Map<UUID, List<Map<String, Object>>> porBus = new LinkedHashMap<>();
@@ -97,6 +100,7 @@ public class GeneradorTallerBusCategoria implements GeneradorReporte {
      * Une los gastos de un mismo bus y categoría. Dentro de cada bus las categorías salen de mayor
      * a menor gasto: arriba queda en lo que más se le ha invertido, que es lo que se anda buscando.
      */
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<TallerBusCategoriaFila> filas(ParametrosReporte params) {
         Map<UUID, Map<String, TallerBusCategoriaFila>> porBus = new LinkedHashMap<>();
         for (TallerBusFila gasto : detalle.filas(params)) {

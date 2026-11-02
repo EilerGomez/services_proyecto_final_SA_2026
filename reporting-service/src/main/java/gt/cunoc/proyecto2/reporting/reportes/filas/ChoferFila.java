@@ -4,7 +4,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS2: chofer de la sucursal. */
+/** Chofer de la sucursal. */
 @Value
 @Builder
 public class ChoferFila {

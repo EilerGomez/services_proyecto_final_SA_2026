@@ -20,23 +20,28 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Reportes globales (RG1–RG6). Cada ruta responde JSON o PDF según
- * {@code ?format=json|pdf} (por defecto PDF).
+ * Expone los reportes globales del sistema.
+ *
+ * <p>Todos los endpoints son de uso exclusivo del administrador del sistema y responden JSON o PDF
+ * según format=json|pdf, si no se indica, devuelven PDF. El archivo PDF se descarga con un
+ * nombre que incluye el rango de fechas solicitado.
  */
 @RestController
 @RequestMapping("/reports")
-@Tag(name = "Reportes del sistema", description = "RG1–RG6: globales (ADMIN_SISTEMA)")
+@Tag(name = "Reportes del sistema", description = "Reportes globales de ingresos, gastos, ganancias, rutas y taller")
 @RequiereRol(Roles.ADMIN_SISTEMA)
 public class ReporteSistemaControlador {
 
     private final FabricaGeneradores fabrica;
 
+    // Inyecta la fábrica que resuelve el generador de cada tipo de reporte.
     public ReporteSistemaControlador(FabricaGeneradores fabrica) {
         this.fabrica = fabrica;
     }
 
+    // Ingresos por sucursal en el rango de fechas, permite limitar a una sucursal.
     @GetMapping("/ingresos")
-    @Operation(summary = "RG1 · Ingresos por sucursal (json | pdf)")
+    @Operation(summary = "Ingresos por sucursal (json | pdf)")
     public ResponseEntity<?> ingresos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
@@ -51,8 +56,9 @@ public class ReporteSistemaControlador {
         return pdf(fabrica.obtener(TipoReporte.INGRESOS).generar(params), "ingresos", desde, hasta);
     }
 
+    // Gastos por sucursal y tipo de gasto en el rango de fechas.
     @GetMapping("/gastos")
-    @Operation(summary = "RG2 · Gastos por sucursal y tipo (json | pdf)")
+    @Operation(summary = "Gastos por sucursal y tipo (json | pdf)")
     public ResponseEntity<?> gastos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
@@ -67,8 +73,9 @@ public class ReporteSistemaControlador {
         return pdf(fabrica.obtener(TipoReporte.GASTOS).generar(params), "gastos", desde, hasta);
     }
 
+    // Ganancias por sucursal, calculadas como ingresos menos gastos.
     @GetMapping("/ganancias")
-    @Operation(summary = "RG3 · Ganancias por sucursal (json | pdf)")
+    @Operation(summary = "Ganancias por sucursal (json | pdf)")
     public ResponseEntity<?> ganancias(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
@@ -83,8 +90,9 @@ public class ReporteSistemaControlador {
         return pdf(fabrica.obtener(TipoReporte.GANANCIAS).generar(params), "ganancias", desde, hasta);
     }
 
+    // Rutas con más boletos vendidos; el límite controla cuántas se devuelven.
     @GetMapping("/rutas-demandadas")
-    @Operation(summary = "RG4 · Rutas más demandadas por boletos (json | pdf)")
+    @Operation(summary = "Rutas más demandadas por boletos (json | pdf)")
     public ResponseEntity<?> rutasDemandadas(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
@@ -102,8 +110,9 @@ public class ReporteSistemaControlador {
                 "rutas-demandadas", desde, hasta);
     }
 
+    // Gastos de taller agrupados por categoría, con filtro opcional de sucursal y bus.
     @GetMapping("/taller-por-categoria")
-    @Operation(summary = "RG5 · Gastos de taller por categoría (json | pdf)")
+    @Operation(summary = "Gastos de taller por categoría (json | pdf)")
     public ResponseEntity<?> tallerPorCategoria(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
@@ -120,8 +129,9 @@ public class ReporteSistemaControlador {
                 "taller-por-categoria", desde, hasta);
     }
 
+    // Mapa de sucursales y rutas: JSON para pintarlo con Leaflet o PDF como tabla de respaldo.
     @GetMapping("/mapa-rutas")
-    @Operation(summary = "RG6 · Sucursales con coordenadas y rutas, Leaflet (json) o tabla (pdf)")
+    @Operation(summary = "Sucursales con coordenadas y rutas, Leaflet (json) o tabla (pdf)")
     public ResponseEntity<?> mapaRutas(
             @RequestParam(required = false) UUID sucursalId,
             @Parameter(description = "json o pdf") @RequestParam(defaultValue = "pdf") String format)
@@ -134,6 +144,7 @@ public class ReporteSistemaControlador {
                 "mapa-rutas", null, null);
     }
 
+    // Envuelve el PDF en la respuesta de descarga y arma el nombre del archivo con el rango de fechas.
     static ResponseEntity<byte[]> pdf(byte[] contenido, String reporte, LocalDate desde, LocalDate hasta) {
         String archivo = reporte + "_" + (desde != null ? desde : "todos")
                 + "_" + (hasta != null ? hasta : "todos") + ".pdf";

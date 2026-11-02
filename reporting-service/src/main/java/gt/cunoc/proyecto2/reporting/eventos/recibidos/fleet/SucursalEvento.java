@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Payload de SucursalCreada y SucursalActualizada (mismo contenido). */
+/**
+ * Datos de una sucursal en los eventos de creación y actualización de Fleet.
+ *
+ * <p>Las coordenadas permiten pintar la sucursal en el mapa de rutas.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SucursalEvento(
         UUID sucursalId,

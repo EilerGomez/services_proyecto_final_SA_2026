@@ -11,7 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Réplica local del viaje (ViajeProgramado / ... / ViajeCompletado de Trips). */
+/**
+ * Copia local de un viaje, usada por los reportes de viajes y por el cálculo del chofer actual.
+ *
+ * <p>Se alimenta con los eventos de programación, actualización, inicio, cierre y eliminación de
+ * Trips. Guarda también los kilómetros y costos que llegan al cerrarse el viaje.
+ */
 @Entity(name = "ReporteViaje")
 @Table(name = "viajes")
 @Getter
@@ -29,7 +34,7 @@ public class ViajeEntidad {
     @Column(name = "ruta_id")
     private UUID rutaId;
 
-    /** Alquiler del que salió el viaje PRIVADO; null en un REGULAR. RS4 lo usa para la placa. */
+    /** Alquiler del que salió el viaje PRIVADO; queda nulo en un viaje REGULAR. */
     @Column(name = "alquiler_id")
     private UUID alquilerId;
 

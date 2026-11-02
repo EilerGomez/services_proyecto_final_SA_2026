@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS4: ingreso por alquiler de la sucursal. */
+/** Ingreso por alquiler de la sucursal. */
 @Value
 @Builder
 public class AlquilerFila {
@@ -18,7 +18,6 @@ public class AlquilerFila {
     String clienteNombre;
     String origen;
     String destino;
-    /** Placa del bus asignado al alquiler; "-" mientras no tenga viaje asignado. */
     String busPlaca;
     BigDecimal monto;
 }

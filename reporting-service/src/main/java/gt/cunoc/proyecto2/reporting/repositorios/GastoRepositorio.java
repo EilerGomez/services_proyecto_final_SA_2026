@@ -9,6 +9,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * Acceso a los gastos del modelo de lectura de reportes.
+ *
+ * <p>Agrupa las consultas que usan los reportes de gastos, ganancias y taller: comprobar si un gasto
+ * ya se registró, filtrar por sucursal, tipo, bus y fechas, y sumar por sucursal, tipo o categoría.
+ */
 public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
 
     @Query("""
@@ -65,7 +71,7 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
                                @Param("desde") LocalDate desde,
                                @Param("hasta") LocalDate hasta);
 
-    /** RG2: suma por sucursal y tipo (COMBUSTIBLE, MANO_OBRA, REPUESTO, DEPRECIACION, SALARIO_CHOFER). */
+    /** Suma por sucursal y tipo (COMBUSTIBLE, MANO_OBRA, REPUESTO, DEPRECIACION, SALARIO_CHOFER). */
     @Query("""
             SELECT g.sucursalId, g.tipo, COALESCE(SUM(g.monto), 0) FROM ReporteGasto g
             WHERE (:sucursalId IS NULL OR g.sucursalId = :sucursalId)
@@ -77,7 +83,7 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
                                         @Param("desde") LocalDate desde,
                                         @Param("hasta") LocalDate hasta);
 
-    /** RG5: detalle de cada gasto de taller (bus, fecha, descripción y monto) para agrupar por categoría. */
+    /** Detalle de cada gasto de taller (bus, fecha, descripción y monto) para agrupar por categoría. */
     @Query("""
             SELECT g.categoriaId, g.categoriaNombre, g.busId, g.fechaNegocio, g.descripcion, g.monto
             FROM ReporteGasto g
@@ -94,7 +100,7 @@ public interface GastoRepositorio extends JpaRepository<GastoEntidad, UUID> {
                                           @Param("hasta") LocalDate hasta);
 
     /**
-     * RS6: detalle de cada gasto de taller del bus (categoría, fecha, descripción, tipo y monto),
+     * Detalle de cada gasto de taller del bus (categoría, fecha, descripción, tipo y monto),
      * con filtro opcional por categoría. Sin agrupar: se ven las reparaciones repetidas del bus.
      */
     @Query("""

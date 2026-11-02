@@ -1,8 +1,10 @@
 package gt.cunoc.proyecto2.reporting.reportes;
 
 /**
- * Los reportes del spec: RG1–RG6 globales, RS1–RS6 por sucursal, más la vista agrupada de RS6
- * (los mismos gastos de taller sumados por categoría de cada bus).
+ * Tipos de reporte que puede producir el servicio.
+ *
+ * <p>Los primeros son globales y los siguientes son por sucursal; el último es la vista agrupada de
+ * gastos de taller por bus y categoría.
  */
 public enum TipoReporte {
 
@@ -18,6 +20,5 @@ public enum TipoReporte {
     INGRESOS_ALQUILER,
     DEPRECIACION,
     TALLER_POR_BUS,
-    /** RS6 agrupado: por cada bus, el subtotal de cada categoría y el total del bus. */
     TALLER_BUS_CATEGORIA
 }

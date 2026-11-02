@@ -6,9 +6,10 @@ import lombok.Builder;
 import lombok.Value;
 
 /**
- * RS6 agrupado: lo que un bus lleva gastado en una categoría. El monto ya es la suma de todos sus
- * gastos de esa categoría, y "gastos" dice cuántos fueron: dos números juntos que delatan al bus
- * que vuelve y vuelve al taller por lo mismo.
+ * Lo que un bus lleva gastado en una categoría de taller.
+ *
+ * <p>El monto ya es la suma de todos sus gastos de esa categoría y {@code gastos} dice cuántos
+ * fueron; con ambos se detecta un bus que vuelve al taller por lo mismo.
  */
 @Value
 @Builder
