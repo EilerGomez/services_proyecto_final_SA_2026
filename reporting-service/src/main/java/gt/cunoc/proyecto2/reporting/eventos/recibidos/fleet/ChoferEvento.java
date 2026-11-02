@@ -5,7 +5,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Payload de ChoferCreado y ChoferActualizado (mismo contenido). */
+/**
+ * Datos de un chofer en los eventos de creación y actualización de Fleet.
+ *
+ * <p>Incluye su licencia y vencimiento, que alimentan el reporte de choferes y los avisos de
+ * vencimiento.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChoferEvento(
         UUID choferId,

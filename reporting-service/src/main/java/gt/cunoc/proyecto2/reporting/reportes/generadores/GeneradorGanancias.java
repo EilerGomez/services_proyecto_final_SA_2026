@@ -22,7 +22,7 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RG3 · Ganancias por sucursal, en orden alfabético. */
+/** Ganancias por sucursal, en orden alfabético. */
 @Component
 public class GeneradorGanancias implements GeneradorReporte {
 
@@ -31,6 +31,7 @@ public class GeneradorGanancias implements GeneradorReporte {
     private final SucursalRepositorio sucursales;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorGanancias(IngresoRepositorio ingresos, GastoRepositorio gastos,
                               SucursalRepositorio sucursales, CompiladorJasper compilador) {
         this.ingresos = ingresos;
@@ -44,6 +45,7 @@ public class GeneradorGanancias implements GeneradorReporte {
         return TipoReporte.GANANCIAS;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<GananciaFila> filas = filas(params);
@@ -64,6 +66,7 @@ public class GeneradorGanancias implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<GananciaFila> filas = filas(params);
@@ -81,6 +84,7 @@ public class GeneradorGanancias implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<GananciaFila> filas(ParametrosReporte params) {
         Map<UUID, BigDecimal> porSucursalIngresos = mapa(
                 ingresos.sumarPorSucursal(params.getDesde(), params.getHasta()));

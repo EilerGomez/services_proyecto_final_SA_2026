@@ -6,7 +6,12 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/** Payload de AlquilerPagado. */
+/**
+ * Pago de un alquiler privado confirmado en Sales.
+ *
+ * <p>Trae el monto cobrado, el alquiler y la sucursal que lo atendió, además del rango de fechas en
+ * que el vehículo estuvo rentado. Reporting lo guarda como ingreso de tipo alquiler.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AlquilerPagado(
         UUID ordenId,

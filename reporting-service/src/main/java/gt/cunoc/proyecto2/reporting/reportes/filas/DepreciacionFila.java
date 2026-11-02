@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS5: viaje completado con su depreciación. */
+/** Viaje completado con su depreciación. */
 @Value
 @Builder
 public class DepreciacionFila {

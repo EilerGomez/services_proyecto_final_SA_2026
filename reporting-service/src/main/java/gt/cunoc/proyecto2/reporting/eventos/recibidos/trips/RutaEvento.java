@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Payload de RutaCreada y RutaActualizada. Upsert sin versión: gana el último. */
+/**
+ * Datos de una ruta en los eventos de creación y actualización de Trips.
+ *
+ * <p>El evento no trae número de versión, así que la proyección simplemente sobrescribe la ruta: el
+ * último mensaje que llega es el que queda.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RutaEvento(
         UUID rutaId,

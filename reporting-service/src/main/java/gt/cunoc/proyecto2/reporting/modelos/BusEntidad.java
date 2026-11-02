@@ -10,7 +10,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Réplica local del bus (BusCreado / BusActualizado / BusDesactivado de Fleet). */
+/**
+ * Copia local de un bus, usada por los reportes de flota.
+ *
+ * <p>Se alimenta con los eventos de creación, actualización y desactivación de Fleet. Además de los
+ * datos del bus guarda dos valores que calcula el propio servicio de reportes: el chofer que tiene
+ * asignado y el total de viajes completados.
+ */
 @Entity(name = "ReporteBus")
 @Table(name = "buses")
 @Getter

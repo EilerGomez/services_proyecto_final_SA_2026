@@ -5,8 +5,10 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Payload de VentaCancelada. No trae ruta, bus ni origen/destino: se copian de la fila
- * positiva de la misma venta.
+ * Cancelación de una venta de boletos, con el monto que se devuelve al cliente.
+ *
+ * <p>No trae ruta, bus ni origen/destino: Reporting los copia de la fila positiva de la misma venta
+ * y registra el reembolso como un ingreso negativo.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record VentaCancelada(

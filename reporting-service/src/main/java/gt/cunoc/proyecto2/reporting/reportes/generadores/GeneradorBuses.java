@@ -18,7 +18,7 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RS1 · Listado de buses de la sucursal. */
+/** Listado de buses de la sucursal. */
 @Component
 public class GeneradorBuses implements GeneradorReporte {
 
@@ -26,6 +26,7 @@ public class GeneradorBuses implements GeneradorReporte {
     private final ChoferRepositorio choferes;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorBuses(BusRepositorio buses, ChoferRepositorio choferes,
                           CompiladorJasper compilador) {
         this.buses = buses;
@@ -38,6 +39,7 @@ public class GeneradorBuses implements GeneradorReporte {
         return TipoReporte.BUSES;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<BusFila> filas = filas(params);
@@ -52,6 +54,7 @@ public class GeneradorBuses implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         return filas(params).stream().map(f -> {
@@ -69,6 +72,7 @@ public class GeneradorBuses implements GeneradorReporte {
         }).toList();
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<BusFila> filas(ParametrosReporte params) {
         Map<String, String> nombres = new HashMap<>();
         choferes.findAll().forEach(c -> nombres.put(c.getId().toString(), c.getNombreCompleto()));

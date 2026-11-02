@@ -10,7 +10,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Réplica local del chofer (ChoferCreado / ChoferActualizado / ChoferDesactivado de Fleet). */
+/**
+ * Copia local de un chofer, usada por los reportes de personal.
+ *
+ * <p>Se alimenta con los eventos de creación, actualización y desactivación de Fleet. Los reportes
+ * leen de aquí la licencia, su vencimiento y el total de viajes completados.
+ */
 @Entity(name = "ReporteChofer")
 @Table(name = "choferes")
 @Getter

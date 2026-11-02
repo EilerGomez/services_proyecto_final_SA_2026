@@ -23,7 +23,7 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
 /**
- * RG5 · Gastos de taller por categoría (filtro por sucursal o bus).
+ * Gastos de taller por categoría (filtro por sucursal o bus).
  * Muestra el detalle de cada gasto (bus, fecha, descripción y monto), con un
  * subtotal por categoría y un gran total.
  */
@@ -34,6 +34,7 @@ public class GeneradorTallerCategoria implements GeneradorReporte {
     private final BusRepositorio buses;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorTallerCategoria(GastoRepositorio gastos, BusRepositorio buses,
                                     CompiladorJasper compilador) {
         this.gastos = gastos;
@@ -46,6 +47,7 @@ public class GeneradorTallerCategoria implements GeneradorReporte {
         return TipoReporte.TALLER_POR_CATEGORIA;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<TallerCategoriaFila> filas = filas(params);
@@ -62,6 +64,7 @@ public class GeneradorTallerCategoria implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<TallerCategoriaFila> filas = filas(params);
@@ -81,6 +84,7 @@ public class GeneradorTallerCategoria implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<TallerCategoriaFila> filas(ParametrosReporte params) {
         Map<String, String> placas = new HashMap<>();
         buses.findAll().forEach(b -> placas.put(b.getId().toString(), b.getPlaca()));

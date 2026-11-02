@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RG4: ruta demandada por boletos (las cancelaciones restan). */
+/** Ruta demandada por boletos (las cancelaciones restan). */
 @Value
 @Builder
 public class RutaDemandaFila {

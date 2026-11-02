@@ -8,14 +8,17 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Configura la documentación OpenAPI/Swagger del servicio de reportes.
+ *
+ * <p>Declara el título, la versión, el servidor y el esquema de seguridad JWT con el que Swagger
+ * autoriza las peticiones desde su interfaz.
+ */
 @Configuration
-@OpenAPIDefinition(
-        info = @Info(
-                title = "Reporting Service",
-                version = "1.0",
-                description = "Modelo de lectura alimentado por eventos; reportes PDF y JSON"),
-        // "/" = mismo origen: "Try it out" llama al host desde donde se abrió Swagger (el gateway en :8080
-        // o el propio servicio), no a http://<servicio>:<puerto>, que el navegador no alcanza en Docker
+@OpenAPIDefinition(info = @Info(
+        title = "Reporting Service",
+        version = "1.0",
+        description = "Modelo de lectura alimentado por eventos; reportes PDF y JSON"),
         servers = @Server(url = "/", description = "Mismo origen (gateway o servicio)"),
         security = @SecurityRequirement(name = ConfiguracionOpenApi.ESQUEMA_JWT))
 @SecurityScheme(
@@ -25,5 +28,6 @@ import org.springframework.context.annotation.Configuration;
         bearerFormat = "JWT")
 public class ConfiguracionOpenApi {
 
+    // Nombre interno del esquema de seguridad que Swagger muestra como botón "Authorize".
     public static final String ESQUEMA_JWT = "jwt";
 }

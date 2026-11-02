@@ -11,12 +11,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * Acceso a los viajes del modelo de lectura de reportes.
+ *
+ * <p>Permite filtrar los viajes por sucursal, bus y rango de fechas, buscar los viajes de un
+ * alquiler para mostrar la placa del bus y resolver qué chofer tiene asignado un bus.
+ */
 public interface ViajeRepositorio extends JpaRepository<ViajeEntidad, UUID> {
 
     List<ViajeEntidad> findByBusIdAndFechaSalidaBetweenOrderByFechaSalidaDesc(
             UUID busId, OffsetDateTime desde, OffsetDateTime hasta);
 
-    /** RS4: los viajes PRIVADO de estos alquileres, para poner la placa del bus en el reporte. */
+    /** Los viajes PRIVADO de estos alquileres, para poner la placa del bus en el reporte. */
     List<ViajeEntidad> findByAlquilerIdIn(Collection<UUID> alquilerIds);
 
     // OJO: no usar "(:desde IS NULL OR ...)" con OffsetDateTime: PostgreSQL no infiere el tipo

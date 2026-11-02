@@ -1,6 +1,11 @@
 package gt.cunoc.proyecto2.reporting.eventos;
 
-/** Nombres de evento = routing keys. Deben coincidir con comun.eventos.suscripciones. */
+/**
+ * Nombres de los eventos que alimentan el modelo de lectura de reportes.
+ *
+ * El valor de cada constante es la routing key con la que viaja el mensaje y debe coincidir con
+ * las suscripciones declaradas en el módulo común, si no coincide, el evento nunca llega.
+ */
 public enum TipoEvento {
 
     // Identity

@@ -22,7 +22,7 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
-/** RG4 · Rutas más demandadas por boletos (las cancelaciones restan). */
+/** Rutas más demandadas por boletos (las cancelaciones restan). */
 @Component
 public class GeneradorRutasDemandadas implements GeneradorReporte {
 
@@ -30,6 +30,7 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
     private final RutaRepositorio rutas;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorRutasDemandadas(IngresoRepositorio ingresos, RutaRepositorio rutas,
                                     CompiladorJasper compilador) {
         this.ingresos = ingresos;
@@ -42,6 +43,7 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
         return TipoReporte.RUTAS_DEMANDADAS;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<RutaDemandaFila> filas = filas(params);
@@ -59,6 +61,7 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         return filas(params).stream().map(f -> {
@@ -74,6 +77,7 @@ public class GeneradorRutasDemandadas implements GeneradorReporte {
         }).toList();
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<RutaDemandaFila> filas(ParametrosReporte params) {
         Map<String, String[]> nombres = new HashMap<>();
         rutas.findAll().forEach(r -> nombres.put(r.getId().toString(),

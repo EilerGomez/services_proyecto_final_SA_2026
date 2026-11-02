@@ -23,7 +23,7 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RG1 · Ingresos por sucursal: listado, subtotal por sucursal y total global. */
+/** Ingresos por sucursal: listado, subtotal por sucursal y total global. */
 @Component
 public class GeneradorIngresosGlobales implements GeneradorReporte {
 
@@ -31,6 +31,7 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
     private final SucursalRepositorio sucursales;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorIngresosGlobales(IngresoRepositorio ingresos, SucursalRepositorio sucursales,
                                      CompiladorJasper compilador) {
         this.ingresos = ingresos;
@@ -43,6 +44,7 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         return TipoReporte.INGRESOS;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<IngresoGlobalFila> filas = filas(params);
@@ -67,6 +69,7 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         Map<String, String> nombres = new HashMap<>();
@@ -114,6 +117,7 @@ public class GeneradorIngresosGlobales implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<IngresoGlobalFila> filas(ParametrosReporte params) {
         Map<String, String> nombres = new HashMap<>();
         sucursales.findAll().forEach(s -> nombres.put(s.getId().toString(), s.getNombre()));

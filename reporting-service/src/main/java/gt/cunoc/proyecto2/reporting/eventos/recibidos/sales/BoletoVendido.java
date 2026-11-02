@@ -6,7 +6,12 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/** Payload de BoletoVendido. Campos según el catálogo (comun README §7). */
+/**
+ * Venta de boletos confirmada en Sales.
+ *
+ * <p>Incluye la venta, el viaje, la ruta, el bus y la sucursal, además de los datos del cliente y el
+ * monto total. Reporting lo usa para los reportes de ingresos y de rutas más demandadas.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BoletoVendido(
         UUID ventaId,
