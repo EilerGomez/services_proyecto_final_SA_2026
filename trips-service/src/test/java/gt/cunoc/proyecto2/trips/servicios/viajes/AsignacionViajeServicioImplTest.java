@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class AsignacionViajeServicioImplTest {
 
@@ -172,5 +173,90 @@ class AsignacionViajeServicioImplTest {
                 .thenReturn(true);
 
         VerificarError.lanza(this::nueva, ErrorViaje.CHOFER_OCUPADO);
+    }
+
+    // ----- validarCambio (reprogramar un viaje que ya existe) -----
+
+    /** El viaje que se reprograma: bus y chofer propios, 45 asientos, salario 350.00, salida el 25. */
+    private ViajeEntidad viajeExistente() {
+        return DatosPrueba.viajeRegular(DatosPrueba.ruta(), DatosPrueba.asignacion(busId, choferId, 45));
+    }
+
+    private AsignacionViaje cambio(ViajeEntidad viaje, UUID nuevoBus, UUID nuevoChofer,
+                                   OffsetDateTime salida, OffsetDateTime llegada) {
+        return servicio.validarCambio(viaje, nuevoBus, nuevoChofer, salida, llegada);
+    }
+
+    @Test
+    void cambiarSoloLaHoraDentroDelMismoDiaNoLePreguntaNadaAFleet() {
+        // Arrange: mismo bus, mismo chofer y el mismo día; solo se corre el horario
+        ViajeEntidad viaje = viajeExistente();
+
+        // Act
+        AsignacionViaje resultado = cambio(viaje, busId, choferId, SALIDA.plusHours(1), LLEGADA.plusHours(1));
+
+        // Assert: conserva capacidad y salario del viaje, y Fleet ni se entera
+        assertThat(resultado.capacidadBus()).isEqualTo(45);
+        assertThat(resultado.salarioBaseChofer()).isEqualByComparingTo(DatosPrueba.SALARIO);
+        assertThat(resultado.fechaSalidaProgramada()).isEqualTo(SALIDA.plusHours(1));
+        verifyNoInteractions(fleet);
+    }
+
+    @Test
+    void cambiarAUnBusConMenosAsientosSeRechazaAntesDePreguntarPorElChofer() {
+        // Arrange: el bus nuevo trae 30 asientos y el viaje ya se vendía con 45
+        ViajeEntidad viaje = viajeExistente();
+        UUID otroBus = UUID.randomUUID();
+        fleetTieneElBus(otroBus, XELA, 30);
+
+        // Act + Assert
+        lanza(() -> cambio(viaje, otroBus, choferId, SALIDA, LLEGADA), ErrorViaje.CAPACIDAD_MENOR, "30");
+        verify(fleet, never()).choferParaViaje(any(), any());
+        verifyNoInteractions(viajes);
+    }
+
+    @Test
+    void cambiarDeChoferTomaElSalarioDelNuevo() {
+        // Arrange: mismo bus, otro piloto
+        ViajeEntidad viaje = viajeExistente();
+        UUID otroChofer = UUID.randomUUID();
+        fleetTieneElChofer(otroChofer, DIA_SALIDA, SALARIO_NUEVO);
+
+        // Act
+        AsignacionViaje resultado = cambio(viaje, busId, otroChofer, SALIDA, LLEGADA);
+
+        // Assert: el salario es el del piloto nuevo y el bus no se revalidó
+        assertThat(resultado.salarioBaseChofer()).isEqualByComparingTo(SALARIO_NUEVO);
+        assertThat(resultado.capacidadBus()).isEqualTo(45);
+        verify(fleet, never()).disponibilidadDelBus(any());
+    }
+
+    @Test
+    void moverElViajeAOtroDiaRevalidaLaLicenciaDelMismoChoferSinCambiarleElSalario() {
+        // Arrange: mismo bus y mismo piloto, pero el viaje se corre al día siguiente
+        ViajeEntidad viaje = viajeExistente();
+        OffsetDateTime salida = SALIDA.plusDays(1);
+        fleetTieneElChofer(choferId, DIA_SALIDA.plusDays(1), SALARIO_NUEVO);
+
+        // Act
+        AsignacionViaje resultado = cambio(viaje, busId, choferId, salida, LLEGADA.plusDays(1));
+
+        // Assert: se preguntó por la licencia de ese día, pero el salario sigue siendo el del viaje
+        verify(fleet).choferParaViaje(choferId, DIA_SALIDA.plusDays(1));
+        assertThat(resultado.salarioBaseChofer()).isEqualByComparingTo(DatosPrueba.SALARIO);
+    }
+
+    @Test
+    void alReprogramarElChoqueDeHorarioNoCuentaElViajeQueSeEstaCambiando() {
+        // Arrange: el repositorio recibe el id del propio viaje para excluirlo, y aun así hay choque
+        ViajeEntidad viaje = viajeExistente();
+        UUID viajeId = UUID.randomUUID();
+        ReflectionTestUtils.setField(viaje, "id", viajeId);
+        when(viajes.existeChoqueDeBus(busId, viajeId, EstadoViaje.ACTIVOS, SALIDA, LLEGADA))
+                .thenReturn(true);
+
+        // Act + Assert
+        VerificarError.lanza(() -> cambio(viaje, busId, choferId, SALIDA, LLEGADA), ErrorViaje.BUS_OCUPADO);
+        verify(viajes, never()).existeChoqueDeChofer(any(), any(), any(), any(), any());
     }
 }
