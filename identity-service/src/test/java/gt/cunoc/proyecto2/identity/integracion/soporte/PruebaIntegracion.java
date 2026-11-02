@@ -28,6 +28,8 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -37,6 +39,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
@@ -58,6 +62,20 @@ public abstract class PruebaIntegracion {
 
     protected static final LocalDate FECHA = LocalDate.of(2026, 10, 20);
     protected static final String CONTRASENA = "Segura#2026";
+
+    /**
+     * Almacenamiento de fotos de mentira (Azure Blob). Así I10 sube de verdad y la foto reemplazada en I9
+     * se borra de verdad, sin salir a Azure.
+     */
+    protected static final BlobFalso BLOBS = BlobFalso.iniciar();
+
+    /** SAS de mentira: con SAS el cliente autoriza por la URL y no pide token a la identidad de la VM. */
+    protected static final String SAS_FOTOS = "sv=2021-08-06&se=2099-01-01&sp=cw&sig=firma-de-prueba";
+
+    protected static final String CUENTA_FOTOS = BLOBS.url();
+    /** Prefijo de los blobs de las pruebas: contenedor "fotos" + prefijo "it/". */
+    protected static final String PREFIJO_FOTOS = "/fotos/it/";
+    protected static final String FOTO_PERFIL = CUENTA_FOTOS + PREFIJO_FOTOS + "perfiles/perfil.jpg";
 
     /** Cola de la prueba enlazada a identity.eventos con "#": recibe todo lo que Identity publica. */
     protected static final String COLA_ESPIA = "pruebas.identity.eventos";
@@ -84,6 +102,10 @@ public abstract class PruebaIntegracion {
         registro.add("comun.eventos.outbox.intervalo-ms", () -> "200");
         registro.add("app.cuentas.normalizar-bloqueos-ms", () -> "3600000");
         registro.add("app.jwt.secret", () -> "secreto-de-pruebas-de-al-menos-32-caracteres-00");
+        registro.add("app.fotos.cuenta-url", () -> CUENTA_FOTOS);
+        registro.add("app.fotos.contenedor", () -> "fotos");
+        registro.add("app.fotos.prefijo", () -> "it/");
+        registro.add("app.fotos.sas", () -> SAS_FOTOS);
     }
 
     @Autowired
@@ -126,6 +148,7 @@ public abstract class PruebaIntegracion {
         amqp.declareBinding(BindingBuilder.bind(espia).to(new TopicExchange("identity.eventos")).with("#"));
         amqp.purgeQueue(COLA_ESPIA, false);
         amqp.purgeQueue(DLQ, false);
+        BLOBS.reiniciar();
 
         Usuario admin = new Usuario();
         admin.setCorreo("admin@pruebas.gt");
@@ -179,6 +202,29 @@ public abstract class PruebaIntegracion {
             peticion.contentType(MediaType.APPLICATION_JSON).body(json);
         }
         return peticion.retrieve().toEntity(String.class);
+    }
+
+    /**
+     * POST multipart con un archivo en la parte "archivo" (I10). El tipo de contenido va explícito porque
+     * {@link gt.cunoc.proyecto2.identity.archivos.AlmacenFotos} decide la extensión con él.
+     */
+    protected ResponseEntity<String> subirArchivo(String ruta, String token, String nombre, String tipoMime,
+                                                  byte[] contenido) {
+        HttpHeaders cabeceras = new HttpHeaders();
+        cabeceras.setContentType(MediaType.parseMediaType(tipoMime));
+        MultiValueMap<String, Object> partes = new LinkedMultiValueMap<>();
+        partes.add("archivo", new HttpEntity<>(new ByteArrayResource(contenido) {
+            @Override
+            public String getFilename() {
+                return nombre;
+            }
+        }, cabeceras));
+        return http.post().uri(ruta)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(partes)
+                .retrieve()
+                .toEntity(String.class);
     }
 
     /** Lee un valor del JSON de la respuesta, p. ej. {@code json(r, "$.codigo")}. */
