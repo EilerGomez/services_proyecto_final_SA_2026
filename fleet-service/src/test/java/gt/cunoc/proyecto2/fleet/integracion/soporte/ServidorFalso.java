@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -36,6 +37,7 @@ public final class ServidorFalso {
 
     private final HttpServer servidor;
     private final Map<String, Respuesta> respuestas = new ConcurrentHashMap<>();
+    private final Map<String, Respuesta> prefijos = new ConcurrentHashMap<>();
     private final List<Peticion> recibidas = new CopyOnWriteArrayList<>();
 
     private ServidorFalso() {
@@ -62,14 +64,35 @@ public final class ServidorFalso {
         respuestas.put(metodo + " " + ruta, new Respuesta(status, cuerpoJson));
     }
 
+    /**
+     * Lo que responde a cualquier ruta que empiece con ese prefijo. Sirve para las rutas que no se
+     * pueden saber de antemano, como el blob de una foto, que lleva un UUID en el nombre.
+     */
+    public void responderPrefijo(String metodo, String prefijoRuta, int status, String cuerpoJson) {
+        prefijos.put(metodo + " " + prefijoRuta, new Respuesta(status, cuerpoJson));
+    }
+
     public List<Peticion> peticiones() {
         return List.copyOf(recibidas);
+    }
+
+    /** Las peticiones que recibió con ese método, en orden. */
+    public List<Peticion> peticiones(String metodo) {
+        return recibidas.stream().filter(peticion -> peticion.metodo().equals(metodo)).toList();
     }
 
     /** Se llama antes de cada prueba. */
     public void reiniciar() {
         respuestas.clear();
+        prefijos.clear();
         recibidas.clear();
+    }
+
+    private Optional<Respuesta> porPrefijo(String metodo, String ruta) {
+        return prefijos.entrySet().stream()
+                .filter(regla -> (metodo + " " + ruta).startsWith(regla.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst();
     }
 
     private void atender(HttpExchange intercambio) throws IOException {
@@ -80,7 +103,10 @@ public final class ServidorFalso {
             recibidas.add(new Peticion(metodo, ruta, intercambio.getRequestURI().getQuery(),
                     intercambio.getRequestHeaders().getFirst("Authorization"), cuerpo));
 
-            Respuesta respuesta = respuestas.getOrDefault(metodo + " " + ruta, SIN_CONFIGURAR);
+            Respuesta respuesta = respuestas.get(metodo + " " + ruta);
+            if (respuesta == null) {
+                respuesta = porPrefijo(metodo, ruta).orElse(SIN_CONFIGURAR);
+            }
             byte[] bytes = respuesta.cuerpo().getBytes(StandardCharsets.UTF_8);
             intercambio.getResponseHeaders().set("Content-Type", "application/json");
             intercambio.sendResponseHeaders(respuesta.status(), bytes.length == 0 ? -1 : bytes.length);
