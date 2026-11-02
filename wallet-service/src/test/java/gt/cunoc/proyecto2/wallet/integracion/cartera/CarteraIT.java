@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 
 import gt.cunoc.proyecto2.wallet.integracion.soporte.PruebaIntegracion;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -62,6 +63,40 @@ class CarteraIT extends PruebaIntegracion {
     }
 
     @Test
+    void elHistorialSinFiltroDeFechasDevuelveTodosLosMovimientos() {
+        String token = tokenCliente(UUID.randomUUID());
+        post("/wallet/cartera/recargas", token, "{\"monto\":10.00,\"fechaMovimiento\":\"2026-10-20\"}");
+        post("/wallet/cartera/recargas", token, "{\"monto\":20.00,\"fechaMovimiento\":\"2027-03-15\"}");
+
+        // Sin desde ni hasta no hay tope: también sale el movimiento con fecha futura
+        ResponseEntity<String> historial = get("/wallet/cartera/movimientos", token);
+
+        assertThat(historial.getStatusCode().value()).as(historial.getBody()).isEqualTo(200);
+        assertThat(PruebaIntegracion.<List<Double>>json(historial, "$[*].monto")).containsExactly(20.0, 10.0);
+    }
+
+    @Test
+    void laRecargaSinFechaSeGuardaConLaDeHoy() {
+        ResponseEntity<String> recarga = post("/wallet/cartera/recargas", tokenCliente(UUID.randomUUID()),
+                "{\"monto\":50.00}");
+
+        assertThat(recarga.getStatusCode().value()).as(recarga.getBody()).isEqualTo(201);
+        assertThat(PruebaIntegracion.<String>json(recarga, "$.fechaMovimiento"))
+                .isEqualTo(LocalDate.now().toString());
+    }
+
+    @Test
+    void laRecargaQueSuperaElLimiteSeRechazaSinCobrarla() {
+        UUID usuarioId = UUID.randomUUID();
+        recargar(usuarioId, "9999999999.99");
+
+        // Se valida antes de llamar a la pasarela: no debe quedar un segundo movimiento
+        esError(post("/wallet/cartera/recargas", tokenCliente(usuarioId),
+                "{\"monto\":0.01,\"fechaMovimiento\":\"2026-10-20\"}"), 422, "SALDO_EXCEDE_LIMITE");
+        assertThat(contar("movimientos_cartera")).isEqualTo(1);
+    }
+
+    @Test
     void recargaSinMontoSeRechaza() {
         esError(post("/wallet/cartera/recargas", tokenCliente(UUID.randomUUID()),
                 "{\"monto\":0,\"fechaMovimiento\":\"2026-10-20\"}"), 400, "VALIDACION");
@@ -86,6 +121,28 @@ class CarteraIT extends PruebaIntegracion {
                 """.formatted(cajero));
 
         await().atMost(Duration.ofSeconds(10)).until(() -> contar("eventos_procesados") == 2);
+        assertThat(jdbc.queryForList("SELECT usuario_id FROM carteras", UUID.class)).containsExactly(cliente);
+    }
+
+    @Test
+    void cuentaCreadaRepetidaOIncompletaNoDuplicaNiRompeLaCartera() {
+        UUID cliente = UUID.randomUUID();
+        String payload = """
+                {"usuarioId":"%s","correo":"ana@pruebas.gt","nombre":"Ana","roles":["CLIENTE"],"urlActivacion":null}
+                """.formatted(cliente);
+
+        // Identity reintentó: el mismo cliente dos veces (con otro eventId cada vez)
+        publicarEvento(IDENTITY_EVENTOS, "CuentaCreada", cliente, payload);
+        publicarEvento(IDENTITY_EVENTOS, "CuentaCreada", cliente, payload);
+        // Y dos eventos incompletos que no deben tumbar el consumidor
+        publicarEvento(IDENTITY_EVENTOS, "CuentaCreada", UUID.randomUUID(), """
+                {"usuarioId":null,"correo":"sin@pruebas.gt","nombre":"Sin cuenta","roles":["CLIENTE"]}
+                """);
+        publicarEvento(IDENTITY_EVENTOS, "CuentaCreada", UUID.randomUUID(), """
+                {"usuarioId":"%s","correo":"sin@pruebas.gt","nombre":"Sin rol","roles":null}
+                """.formatted(UUID.randomUUID()));
+
+        await().atMost(Duration.ofSeconds(10)).until(() -> contar("eventos_procesados") == 4);
         assertThat(jdbc.queryForList("SELECT usuario_id FROM carteras", UUID.class)).containsExactly(cliente);
     }
 }
