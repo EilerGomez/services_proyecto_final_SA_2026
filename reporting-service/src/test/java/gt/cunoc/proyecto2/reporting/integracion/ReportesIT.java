@@ -577,4 +577,139 @@ class ReportesIT {
         Integer total = jdbc.queryForObject("SELECT count(*) FROM " + tabla, Integer.class);
         return total == null ? 0 : total;
     }
+
+    // ----- Filtros y el séptimo reporte de sucursal -----
+
+    /** El agrupado por bus y categoría: no lo pide ninguna otra prueba. */
+    @Test
+    void tallerPorBusYCategoriaRespondeJsonYPdf() {
+        String token = tokenAdminSistema();
+        String ruta = "/reports/sucursales/" + sucursalPropia + "/taller-por-bus-categoria";
+
+        assertThat(getJson(ruta, token).getStatusCode().value()).isEqualTo(200);
+
+        ResponseEntity<byte[]> pdf = getPdf(ruta + "?format=pdf", token);
+        assertThat(pdf.getStatusCode().value()).isEqualTo(200);
+        assertThat(new String(pdf.getBody(), 0, 5)).isEqualTo("%PDF-");
+
+        // y respeta el scoping por sucursal igual que los otros seis
+        ResponseEntity<String> ajeno = getJson(ruta, tokenAdminSucursal(sucursalAjena));
+        assertThat(ajeno.getStatusCode().value()).isEqualTo(403);
+        assertThat(ajeno.getBody()).contains("SUCURSAL_AJENA");
+    }
+
+    /**
+     * Los mismos reportes globales pero CON filtros: las pruebas de arriba los piden sin ninguno, así
+     * que la rama del filtro presente nunca se recorría.
+     */
+    @Test
+    void losReportesGlobalesAceptanSusFiltros() {
+        String token = tokenAdminSistema();
+        String fechas = "desde=2026-10-01&hasta=2026-10-31";
+        String[] rutas = {
+            "/reports/ingresos?" + fechas + "&sucursalId=" + sucursalPropia,
+            "/reports/gastos?" + fechas + "&sucursalId=" + sucursalPropia,
+            "/reports/ganancias?" + fechas + "&sucursalId=" + sucursalPropia,
+            "/reports/rutas-demandadas?" + fechas + "&sucursalId=" + sucursalPropia + "&limite=3",
+            "/reports/taller-por-categoria?" + fechas + "&sucursalId=" + sucursalPropia
+                    + "&busId=" + UUID.randomUUID(),
+            "/reports/mapa-rutas?sucursalId=" + sucursalPropia,
+        };
+        for (String ruta : rutas) {
+            assertThat(getJson(ruta, token).getStatusCode().value()).as(ruta).isEqualTo(200);
+        }
+    }
+
+    /** Lo mismo del lado de la sucursal: estado, rango de fechas, ruta, bus y categoría. */
+    @Test
+    void losReportesDeSucursalAceptanSusFiltros() {
+        String token = tokenAdminSistema();
+        String base = "/reports/sucursales/" + sucursalPropia;
+        String fechas = "desde=2026-10-01&hasta=2026-10-31";
+        UUID bus = UUID.randomUUID();
+        String[] rutas = {
+            base + "/buses?estado=ACTIVO",
+            base + "/choferes?estado=ACTIVO",
+            base + "/ingresos-boletos?" + fechas + "&rutaId=" + UUID.randomUUID() + "&busId=" + bus,
+            base + "/ingresos-alquiler?" + fechas,
+            base + "/depreciacion?" + fechas + "&busId=" + bus,
+            base + "/taller-por-bus?" + fechas + "&busId=" + bus + "&categoriaId=" + UUID.randomUUID(),
+            base + "/taller-por-bus-categoria?" + fechas + "&busId=" + bus,
+        };
+        for (String ruta : rutas) {
+            assertThat(getJson(ruta, token).getStatusCode().value()).as(ruta).isEqualTo(200);
+        }
+    }
+
+    // ----- Guardas de la proyección: eventos a los que les faltan datos -----
+
+    /**
+     * Cada uno de estos cae en un {@code return} temprano de ProyeccionReportingServicio. Al final se
+     * publica uno válido: como la cola es FIFO con un solo consumidor, cuando ese llega los cinco de
+     * arriba ya se procesaron y se puede afirmar que no dejaron nada.
+     */
+    @Test
+    void losEventosSinLosDatosMinimosSeIgnoranYNoRompenLaCola() {
+        UUID bus = UUID.randomUUID();
+
+        publicar("sales.eventos", "BoletoVendido", UUID.randomUUID(),
+                boletoJson(null, new BigDecimal("150.00")));                 // sin sucursal
+        publicar("sales.eventos", "BoletoVendido", UUID.randomUUID(),
+                boletoJson(sucursalPropia, null));                           // sin monto
+        publicar("sales.eventos", "AlquilerPagado", UUID.randomUUID(),
+                "{\"ordenId\":\"" + UUID.randomUUID() + "\",\"alquilerId\":\"" + UUID.randomUUID() + "\","
+                        + "\"sucursalId\":null,\"monto\":300.00,\"montoTotal\":300.00,"
+                        + "\"fechaPago\":\"2026-10-20\"}");                   // sin sucursal
+        publicar("maintenance.eventos", "GastoTallerRegistrado", UUID.randomUUID(),
+                "{\"servicioId\":\"" + UUID.randomUUID() + "\",\"busId\":null,"
+                        + "\"sucursalId\":\"" + sucursalPropia + "\",\"fechaServicio\":\"2026-10-20\","
+                        + "\"lineas\":[]}");                                    // sin bus
+        publicar("maintenance.eventos", "GastoTallerRegistrado", UUID.randomUUID(),
+                "{\"servicioId\":\"" + UUID.randomUUID() + "\",\"busId\":\"" + bus + "\","
+                        + "\"sucursalId\":\"" + sucursalPropia + "\",\"fechaServicio\":\"2026-10-20\","
+                        + "\"lineas\":[]}");                                    // sin líneas
+        publicar("identity.eventos", "TarifaDepreciacionCambiada", UUID.randomUUID(),
+                "{\"tarifaId\":\"" + UUID.randomUUID() + "\",\"montoPorKm\":null,"
+                        + "\"vigenteDesde\":\"2026-10-01\"}");                // sin monto por km
+
+        // El válido que sirve de marca de agua
+        UUID tarifaBuena = UUID.randomUUID();
+        publicar("identity.eventos", "TarifaDepreciacionCambiada", tarifaBuena,
+                "{\"tarifaId\":\"" + tarifaBuena + "\",\"montoPorKm\":1.5000,"
+                        + "\"vigenteDesde\":\"2026-10-01\"}");
+
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(contar("tarifas_depreciacion")).isEqualTo(1));
+        assertThat(contar("ingresos")).isZero();
+        assertThat(contar("gastos")).isZero();
+
+        // y el servicio sigue atendiendo: la cola no se trabó
+        assertThat(getJson("/reports/ingresos", tokenAdminSistema()).getStatusCode().value()).isEqualTo(200);
+    }
+
+    /** AlquilerPagado sin monto cae al montoTotal: {@code monto != null ? monto : montoTotal}. */
+    @Test
+    void elAlquilerPagadoSinMontoUsaElMontoTotal() {
+        publicar("sales.eventos", "AlquilerPagado", UUID.randomUUID(),
+                "{\"ordenId\":\"" + UUID.randomUUID() + "\",\"alquilerId\":\"" + UUID.randomUUID() + "\","
+                        + "\"sucursalId\":\"" + sucursalPropia + "\",\"clienteNit\":\"CF\","
+                        + "\"clienteNombre\":\"Ana\",\"monto\":null,\"montoTotal\":500.00,"
+                        + "\"fechaPago\":\"2026-10-20\"}");
+
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(contar("ingresos")).isEqualTo(1));
+        assertThat(jdbc.queryForObject("SELECT monto FROM ingresos", BigDecimal.class))
+                .isEqualByComparingTo("500.00");
+    }
+
+    /** BoletoVendido con la sucursal y el monto que se le pasen (null incluido). */
+    private String boletoJson(UUID sucursalId, BigDecimal montoTotal) {
+        return "{\"ventaId\":\"" + UUID.randomUUID() + "\",\"viajeId\":\"" + UUID.randomUUID() + "\","
+                + "\"rutaId\":\"" + UUID.randomUUID() + "\",\"busId\":\"" + UUID.randomUUID() + "\","
+                + "\"sucursalId\":" + (sucursalId == null ? "null" : "\"" + sucursalId + "\"") + ","
+                + "\"clienteNit\":\"CF\",\"clienteNombre\":\"Consumidor Final\",\"cantidadBoletos\":1,"
+                + "\"montoTotal\":" + (montoTotal == null ? "null" : montoTotal.toPlainString()) + ","
+                + "\"fechaPago\":\"2026-10-20\",\"origenNombre\":\"Xela\",\"destinoNombre\":\"Guate\","
+                + "\"fechaSalida\":\"2026-10-20T08:00:00Z\"}";
+    }
 }
