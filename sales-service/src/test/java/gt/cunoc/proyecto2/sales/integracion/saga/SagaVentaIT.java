@@ -227,6 +227,8 @@ class SagaVentaIT extends PruebaIntegracion {
                 movimientoCartera("VENTA", ventaId, cliente, "75.00"));
 
         await().atMost(ESPERA).untilAsserted(() -> assertThat(estadoVenta(ventaId)).isEqualTo("REEMBOLSADA"));
+        // Notification se entera: el evento va en la misma transacción que el cambio de estado
+        assertThat(enOutbox("VentaReembolsada")).hasSize(1);
     }
 
     @Test

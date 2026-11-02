@@ -167,7 +167,13 @@ public class PagoCarteraServicioImpl implements PagoCarteraServicio {
             return;
         }
         venta.marcarReembolsada(Fechas.hoy());
-        ventas.saveAndFlush(venta);
+        VentaEntidad reembolsada = ventas.saveAndFlush(venta);
+        // Notification le avisa al cliente que su dinero ya volvió a la billetera. Es el mismo evento
+        // que publica el reembolso en efectivo de la ventanilla (S14), con la misma plantilla de correo.
+        eventos.ventaReembolsada(reembolsada,
+                boletos.findByVentaIdOrderByNumeroAsientoAsc(reembolsada.getId()),
+                viajes.findById(reembolsada.getViajeId()).orElse(null));
+        log.info("Venta {} reembolsada por la cartera", referenciaId);
     }
 
     /**
