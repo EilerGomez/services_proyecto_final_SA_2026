@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS1: bus de la sucursal. */
+/** Bus de la sucursal. */
 @Value
 @Builder
 public class BusFila {

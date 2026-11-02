@@ -22,7 +22,7 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RS3 · Ingresos por boletos de la sucursal (filtros ruta y bus). */
+/** Ingresos por boletos de la sucursal (filtros ruta y bus). */
 @Component
 public class GeneradorIngresosBoletos implements GeneradorReporte {
 
@@ -30,6 +30,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
     private final BusRepositorio buses;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorIngresosBoletos(IngresoRepositorio ingresos, BusRepositorio buses,
                                     CompiladorJasper compilador) {
         this.ingresos = ingresos;
@@ -42,6 +43,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
         return TipoReporte.INGRESOS_BOLETOS;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<BoletoFila> filas = filas(params);
@@ -64,6 +66,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<BoletoFila> filas = filas(params);
@@ -90,6 +93,7 @@ public class GeneradorIngresosBoletos implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<BoletoFila> filas(ParametrosReporte params) {
         Map<String, String> placas = new HashMap<>();
         buses.findAll().forEach(b -> placas.put(b.getId().toString(), b.getPlaca()));

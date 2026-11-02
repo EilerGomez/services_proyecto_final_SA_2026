@@ -28,7 +28,7 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RS4 · Ingresos por alquiler de la sucursal. */
+/** Ingresos por alquiler de la sucursal. */
 @Component
 public class GeneradorIngresosAlquiler implements GeneradorReporte {
 
@@ -39,6 +39,7 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
     private final BusRepositorio buses;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorIngresosAlquiler(IngresoRepositorio ingresos, ViajeRepositorio viajes,
                                      BusRepositorio buses, CompiladorJasper compilador) {
         this.ingresos = ingresos;
@@ -52,6 +53,7 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
         return TipoReporte.INGRESOS_ALQUILER;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<AlquilerFila> filas = filas(params);
@@ -70,6 +72,7 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<AlquilerFila> filas = filas(params);
@@ -94,6 +97,7 @@ public class GeneradorIngresosAlquiler implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<AlquilerFila> filas(ParametrosReporte params) {
         List<IngresoEntidad> cobros = ingresos
                 .buscar(params.getSucursalId(), "ALQUILER", params.getDesde(), params.getHasta());

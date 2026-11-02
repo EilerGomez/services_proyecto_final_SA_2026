@@ -14,7 +14,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Ingresos por boletos y alquileres (BoletoVendido / VentaCancelada / AlquilerPagado). */
+/**
+ * Ingreso que alimenta los reportes de ingresos y ganancias.
+ *
+ * <p>Se llena con las ventas de boletos, los reembolsos por ventas canceladas y los pagos de
+ * alquileres. El campo {@code tipo} indica de cuál de los tres viene cada fila.
+ */
 @Entity(name = "ReporteIngreso")
 @Table(name = "ingresos")
 @Getter
@@ -66,7 +71,7 @@ public class IngresoEntidad {
     @Column(name = "cantidad_boletos", nullable = false)
     private int cantidadBoletos;
 
-    /** RS4: fechas de salida y retorno del alquiler (solo ingresos de tipo ALQUILER). */
+    /** Fechas de salida y retorno del alquiler; solo se llenan en los ingresos de tipo ALQUILER. */
     @Column(name = "fecha_salida")
     private OffsetDateTime fechaSalida;
 

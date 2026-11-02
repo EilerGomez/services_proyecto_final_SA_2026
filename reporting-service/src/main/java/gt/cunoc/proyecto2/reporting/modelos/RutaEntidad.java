@@ -10,7 +10,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Réplica local de la ruta (RutaCreada / RutaActualizada / RutaEliminada de Trips). */
+/**
+ * Copia local de una ruta, usada por los reportes de rutas y por el mapa.
+ *
+ * <p>Se alimenta con los eventos de creación, actualización y eliminación de Trips. Guarda los
+ * nombres de origen y destino para no tener que resolverlos al generar el reporte.
+ */
 @Entity(name = "ReporteRuta")
 @Table(name = "rutas")
 @Getter

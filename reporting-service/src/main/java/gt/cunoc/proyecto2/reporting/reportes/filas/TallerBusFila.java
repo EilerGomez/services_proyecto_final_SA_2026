@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS6: un gasto de taller de un bus (cada pago aparece por separado). */
+/** Un gasto de taller de un bus (cada pago aparece por separado). */
 @Value
 @Builder
 public class TallerBusFila {

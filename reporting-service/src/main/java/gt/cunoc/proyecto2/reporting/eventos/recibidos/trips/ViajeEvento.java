@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-/** Payload de ViajeProgramado y ViajeActualizado (mismo contenido). */
+/**
+ * Datos de un viaje en los eventos de programación y actualización de Trips.
+ *
+ * <p>Indica la ruta, el bus, el chofer y la fecha de salida. El alquiler solo viene cuando el viaje
+ * es privado; en un viaje regular llega nulo.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ViajeEvento(
         UUID viajeId,

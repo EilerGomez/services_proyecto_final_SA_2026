@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RG1: una fila de ingreso (las cancelaciones llevan monto negativo). */
+/** Una fila de ingreso (las cancelaciones llevan monto negativo). */
 @Value
 @Builder
 public class IngresoGlobalFila {

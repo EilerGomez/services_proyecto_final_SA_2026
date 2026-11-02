@@ -10,7 +10,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Réplica local de la sucursal (SucursalCreada / SucursalActualizada de Fleet). */
+/**
+ * Copia local de una sucursal, usada en todos los reportes por sucursal y en el mapa de rutas.
+ *
+ * <p>Se alimenta con los eventos de creación y actualización de Fleet. Las coordenadas permiten
+ * ubicarla en el mapa.
+ */
 @Entity(name = "ReporteSucursal")
 @Table(name = "sucursales")
 @Getter

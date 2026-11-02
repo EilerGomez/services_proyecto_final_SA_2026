@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RG6: sucursal para el mapa (Leaflet). */
+/** Sucursal para el mapa (Leaflet). */
 @Value
 @Builder
 public class SucursalMapaFila {

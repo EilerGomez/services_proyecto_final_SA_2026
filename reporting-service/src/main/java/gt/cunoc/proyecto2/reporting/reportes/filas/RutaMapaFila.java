@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RG6: ruta para el mapa (Leaflet) y para el PDF. */
+/** Ruta para el mapa (Leaflet) y para el PDF. */
 @Value
 @Builder
 public class RutaMapaFila {

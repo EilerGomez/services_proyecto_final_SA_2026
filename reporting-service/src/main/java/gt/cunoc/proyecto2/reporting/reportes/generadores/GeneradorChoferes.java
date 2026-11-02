@@ -17,13 +17,14 @@ import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
-/** RS2 · Listado de choferes de la sucursal. */
+/** Listado de choferes de la sucursal. */
 @Component
 public class GeneradorChoferes implements GeneradorReporte {
 
     private final ChoferRepositorio choferes;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorChoferes(ChoferRepositorio choferes, CompiladorJasper compilador) {
         this.choferes = choferes;
         this.compilador = compilador;
@@ -34,6 +35,7 @@ public class GeneradorChoferes implements GeneradorReporte {
         return TipoReporte.CHOFERES;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<ChoferFila> filas = filas(params);
@@ -48,6 +50,7 @@ public class GeneradorChoferes implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         return filas(params).stream().map(f -> {
@@ -63,6 +66,7 @@ public class GeneradorChoferes implements GeneradorReporte {
         }).toList();
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<ChoferFila> filas(ParametrosReporte params) {
         return choferes.findBySucursalIdOrderByNombreCompletoAsc(params.getSucursalId()).stream()
                 .filter(c -> params.getEstado() == null || params.getEstado().equals(c.getEstado()))

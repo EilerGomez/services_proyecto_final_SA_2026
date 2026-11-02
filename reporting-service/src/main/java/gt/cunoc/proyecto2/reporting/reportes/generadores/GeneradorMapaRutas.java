@@ -22,7 +22,7 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
 /**
- * RG6 · Sucursales con coordenadas y rutas (Leaflet).
+ * Sucursales con coordenadas y rutas (Leaflet).
  * El PDF es la tabla de sucursales y rutas (el mapa se imprime desde el navegador).
  */
 @Component
@@ -32,6 +32,7 @@ public class GeneradorMapaRutas implements GeneradorReporte {
     private final RutaRepositorio rutas;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorMapaRutas(SucursalRepositorio sucursales, RutaRepositorio rutas,
                               CompiladorJasper compilador) {
         this.sucursales = sucursales;
@@ -44,6 +45,7 @@ public class GeneradorMapaRutas implements GeneradorReporte {
         return TipoReporte.MAPA_RUTAS;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<SucursalMapaFila> sucursalFilas = sucursalFilas();
@@ -60,6 +62,7 @@ public class GeneradorMapaRutas implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<Map<String, Object>> sucursalJson = sucursalFilas().stream().map(s -> {

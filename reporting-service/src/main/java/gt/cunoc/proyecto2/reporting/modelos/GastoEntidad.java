@@ -13,7 +13,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Gastos operativos (ViajeCompletado de Trips / GastoTallerRegistrado de Maintenance). */
+/**
+ * Gasto operativo que alimenta los reportes de gastos y ganancias.
+ *
+ * <p>Se llena con los costos de cada viaje completado (combustible, depreciación y salario) y con
+ * cada línea de un servicio de taller. El campo {@code tipo} distingue el origen del gasto.
+ */
 @Entity(name = "ReporteGasto")
 @Table(name = "gastos")
 @Getter

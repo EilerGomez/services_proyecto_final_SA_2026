@@ -37,9 +37,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Mantiene actualizado el modelo de lectura que alimenta los reportes.
+ *
+ * <p>Cada metodo recibe un evento de dominio y lo traduce a filas de las tablas de reportes. La
+ * escritura es idempotente: los eventos con identificador ya procesado se ignoran, y los que traen
+ * {@code aggregateVersion} se comparan contra la versión guardada para no retroceder cuando los
+ * mensajes llegan desordenados. Si falta un evento previo (por ejemplo, un viaje o una venta), se
+ * lanza una excepción para que el mensaje se reintente en lugar de perder información.
+ */
 @Service
 public class ProyeccionReportingServicioImpl implements ProyeccionReportingServicio {
 
+    // Identificador reservado para los gastos que no provienen de una línea de detalle.
     private static final UUID SIN_DETALLE = UUID.fromString("00000000-0000-0000-0000-000000000000");
     private static final Logger log = LoggerFactory.getLogger(ProyeccionReportingServicioImpl.class);
 
@@ -52,6 +62,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
     private final IngresoRepositorio ingresos;
     private final GastoRepositorio gastos;
 
+    // Inyecta los repositorios de las tablas que forman el modelo de lectura.
     public ProyeccionReportingServicioImpl(SucursalRepositorio sucursales,
                                           TarifaDepreciacionRepositorio tarifas,
                                           RutaRepositorio rutas,
@@ -86,6 +97,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         return recibida != null ? Math.toIntExact(recibida) : guardada;
     }
 
+    // Registra la tarifa de depreciación solo la primera vez; ignora eventos incompletos o repetidos.
     @Override
     @Transactional
     public void aplicarTarifa(TarifaDepreciacionCambiada evento) {
@@ -104,6 +116,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         tarifas.save(entidad);
     }
 
+    // Crea o actualiza la sucursal y descarta el evento si su versión es anterior a la guardada.
     @Override
     @Transactional
     public void aplicarSucursal(SucursalEvento evento, Long versionAgregado) {
@@ -122,6 +135,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         sucursales.save(entidad);
     }
 
+    // Crea o actualiza el bus; no toca los contadores que se calculan a partir de los viajes.
     @Override
     @Transactional
     public void aplicarBus(BusEvento evento, Long versionAgregado) {
@@ -145,6 +159,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         buses.save(entidad);
     }
 
+    // Marca el bus como inactivo sin borrar su historial; ignora versiones viejas.
     @Override
     @Transactional
     public void desactivarBus(UUID busId, Long versionAgregado) {
@@ -158,6 +173,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         });
     }
 
+    // Crea o actualiza el chofer; el total de viajes lo mantienen los eventos de viaje.
     @Override
     @Transactional
     public void aplicarChofer(ChoferEvento evento, Long versionAgregado) {
@@ -178,6 +194,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         choferes.save(entidad);
     }
 
+    // Marca el chofer como inactivo conservando su historial de viajes.
     @Override
     @Transactional
     public void desactivarChofer(UUID choferId, Long versionAgregado) {
@@ -191,6 +208,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         });
     }
 
+    // Crea o actualiza la ruta; si faltan los nombres, los completa con la proyección de sucursales.
     @Override
     @Transactional
     public void aplicarRuta(RutaEvento evento) {
@@ -210,12 +228,14 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         rutas.save(entidad);
     }
 
+    // Elimina la ruta de la proyección; el origen solo publica el evento si no tiene viajes.
     @Override
     @Transactional
     public void eliminarRuta(UUID rutaId) {
         rutas.deleteById(rutaId); // solo se eliminan rutas sin viajes
     }
 
+    // Crea o actualiza el viaje; no revive uno completado y refresca el chofer actual del bus.
     @Override
     @Transactional
     public void aplicarViaje(ViajeEvento evento, Long versionAgregado) {
@@ -233,7 +253,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         }
         entidad.setTipo(evento.tipo() != null ? evento.tipo() : "REGULAR");
         entidad.setRutaId(evento.rutaId());
-        entidad.setAlquilerId(evento.alquilerId());   // solo en un PRIVADO: RS4 saca la placa por aquí
+        entidad.setAlquilerId(evento.alquilerId());   // solo en un PRIVADO: de aquí sale la placa del bus
         entidad.setSucursalId(evento.sucursalId());
         entidad.setBusId(evento.busId());
         entidad.setChoferId(evento.choferId());
@@ -245,6 +265,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         recalcularChoferActual(entidad.getBusId());
     }
 
+    // Aplica la actualización y, si el viaje cambió de bus, recalcula también el bus anterior.
     @Override
     @Transactional
     public void aplicarViajeActualizado(ViajeEvento evento, Long versionAgregado) {
@@ -255,6 +276,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         }
     }
 
+    // Elimina el viaje y recalcula el chofer que queda al frente de su bus.
     @Override
     @Transactional
     public void eliminarViaje(UUID viajeId) {
@@ -265,6 +287,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         }
     }
 
+    // Pasa el viaje a EN_RUTA; si aún no existe en la proyección, falla para que el mensaje se reintente.
     @Override
     @Transactional
     public void marcarViajeEnRuta(UUID viajeId, UUID busId, Long versionAgregado) {
@@ -285,6 +308,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         recalcularChoferActual(busId != null ? busId : viaje.getBusId());
     }
 
+    // Cierra el viaje, registra sus gastos y suma los contadores de viajes del bus y del chofer.
     @Override
     @Transactional
     public void aplicarViajeCompletado(UUID eventoId, ViajeCompletado evento, Long versionAgregado,
@@ -326,6 +350,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         recalcularChoferActual(evento.busId());
     }
 
+    // Deja en el bus el chofer del viaje que está en curso o por salir, o null si no hay ninguno.
     @Override
     @Transactional
     public void recalcularChoferActual(UUID busId) {
@@ -339,6 +364,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         });
     }
 
+    // Registra el ingreso de una venta de boletos; se ignora si el evento ya estaba aplicado.
     @Override
     @Transactional
     public void aplicarBoletoVendido(UUID eventoId, BoletoVendido evento, LocalDate fechaNegocio) {
@@ -367,6 +393,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         ingresos.save(ingreso);
     }
 
+    // Registra el reembolso como ingreso negativo, copiando ruta y bus de la venta original.
     @Override
     @Transactional
     public void aplicarVentaCancelada(UUID eventoId, VentaCancelada evento, LocalDate fechaNegocio) {
@@ -402,6 +429,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         ingresos.save(reembolso);
     }
 
+    // Registra el pago de un alquiler privado, con su rango de fechas y el alquiler asociado.
     @Override
     @Transactional
     public void aplicarAlquilerPagado(UUID eventoId, AlquilerPagado evento, LocalDate fechaNegocio) {
@@ -432,6 +460,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         ingresos.save(ingreso);
     }
 
+    // Convierte cada línea del servicio de taller en una fila de gasto, sin duplicar líneas ya aplicadas.
     @Override
     @Transactional
     public void aplicarGastoTaller(UUID eventoId, GastoTallerRegistrado evento, LocalDate fechaNegocio) {
@@ -469,6 +498,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         }
     }
 
+    // Propaga el nuevo nombre de la categoría a todos los gastos que ya la usaban.
     @Override
     @Transactional
     public void aplicarCategoriaActualizada(UUID categoriaId, String nombre) {
@@ -482,6 +512,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         gastos.saveAll(afectados);
     }
 
+    // Resuelve el nombre de la sucursal o devuelve un guion si no está en la proyección.
     private String nombreSucursal(UUID sucursalId) {
         if (sucursalId == null) {
             return "-";
@@ -489,6 +520,7 @@ public class ProyeccionReportingServicioImpl implements ProyeccionReportingServi
         return sucursales.findById(sucursalId).map(SucursalEntidad::getNombre).orElse("-");
     }
 
+    // Guarda un gasto derivado del viaje solo si no existe todavía para ese evento y tipo.
     private void guardarGastoSiFalta(UUID eventoId, String tipo, UUID lineaId, UUID sucursalId, UUID busId,
                                      UUID viajeId, BigDecimal monto, LocalDate fecha, String descripcion) {
         if (monto == null || sucursalId == null || busId == null) {

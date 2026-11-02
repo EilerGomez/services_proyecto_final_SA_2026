@@ -27,7 +27,7 @@ import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.stereotype.Component;
 
 /**
- * RS5 · Depreciación por bus. Sale de `viajes` en estado COMPLETADO
+ * Depreciación por bus. Sale de los viajes en estado COMPLETADO
  * (km, tarifa y costo que mandó Trips).
  */
 @Component
@@ -38,6 +38,7 @@ public class GeneradorDepreciacion implements GeneradorReporte {
     private final TarifaDepreciacionRepositorio tarifas;
     private final CompiladorJasper compilador;
 
+    // Inyecta los repositorios y el compilador de plantillas Jasper.
     public GeneradorDepreciacion(ViajeRepositorio viajes, BusRepositorio buses,
                                  TarifaDepreciacionRepositorio tarifas,
                                  CompiladorJasper compilador) {
@@ -52,6 +53,7 @@ public class GeneradorDepreciacion implements GeneradorReporte {
         return TipoReporte.DEPRECIACION;
     }
 
+    // Genera el PDF del reporte con los datos y los filtros recibidos.
     @Override
     public byte[] generar(ParametrosReporte params) throws Exception {
         List<DepreciacionFila> filas = filas(params);
@@ -71,6 +73,7 @@ public class GeneradorDepreciacion implements GeneradorReporte {
         return JasperExportManager.exportReportToPdf(print);
     }
 
+    // Devuelve los mismos datos en JSON para la API.
     @Override
     public Object datos(ParametrosReporte params) {
         List<DepreciacionFila> filas = filas(params);
@@ -105,6 +108,7 @@ public class GeneradorDepreciacion implements GeneradorReporte {
         return resultado;
     }
 
+    // Arma las filas del reporte a partir de las consultas con los filtros.
     List<DepreciacionFila> filas(ParametrosReporte params) {
         OffsetDateTime desde = params.getDesde() != null
                 ? params.getDesde().atStartOfDay().atOffset(ZoneOffset.UTC) : null;

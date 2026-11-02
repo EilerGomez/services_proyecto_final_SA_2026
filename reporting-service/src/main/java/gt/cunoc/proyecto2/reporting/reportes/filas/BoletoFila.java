@@ -5,7 +5,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
 
-/** RS3: ingreso por boleto de la sucursal. */
+/** Ingreso por boleto de la sucursal. */
 @Value
 @Builder
 public class BoletoFila {

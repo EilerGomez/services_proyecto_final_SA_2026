@@ -9,6 +9,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * Acceso a los ingresos del modelo de lectura de reportes.
+ *
+ * <p>Reúne las consultas de los reportes de ingresos, ganancias y rutas más demandadas: verificar
+ * duplicados, buscar por sucursal, tipo y fechas, sumar importes y localizar la venta original de una
+ * cancelación.
+ */
 public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> {
 
     boolean existsByEventoOrigenId(UUID eventoOrigenId);
@@ -54,7 +61,7 @@ public interface IngresoRepositorio extends JpaRepository<IngresoEntidad, UUID> 
             """)
     List<IngresoEntidad> filasPositivasDe(@Param("referenciaId") UUID referenciaId);
 
-    /** RG4: boletos (las cancelaciones restan) e ingresos por ruta, orden descendente. */
+    /** Boletos (las cancelaciones restan) e ingresos por ruta, orden descendente. */
     @Query("""
             SELECT i.rutaId,
                    COALESCE(SUM(CASE WHEN i.cantidadBoletos > 0 THEN i.cantidadBoletos ELSE 0 END), 0),
