@@ -13,9 +13,18 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-/** Propaga el contexto del JWT (claims de comun) y elimina headers falsificados del cliente. */
+/**
+ * Prepara los encabezados de identidad que los servicios reciben desde el gateway.
+ *
+ * Primero elimina cualquier valor enviado por el cliente para impedir suplantación, después
+ * si Spring Security autenticó un JWT, copia sus claims verificados a los headers internos.
+ *
+ * En solicitudes públicas anónimas solo los elimina y reenvía el resto de la solicitud.
+ */
 @Component
 public class UserContextFilter implements GlobalFilter, Ordered {
+
+    // Elimina encabezados de contexto no confiables y propaga los claims del principal JWT autenticado.
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerWebExchange sanitized = exchange.mutate().request(request -> request.headers(headers -> {
@@ -44,12 +53,14 @@ public class UserContextFilter implements GlobalFilter, Ordered {
                 .flatMap(chain::filter);
     }
 
+    // Añade al request solo claims con valor no vacío.
     private void set(org.springframework.http.HttpHeaders headers, String name, Object value) {
         if (value != null && StringUtils.hasText(value.toString())) {
             headers.set(name, value.toString());
         }
     }
 
+    // Copia a un conjunto los roles de texto del claim recibido.
     private void addRoles(Set<String> roles, Object claim) {
         if (claim instanceof Collection<?> values) {
             values.stream().filter(String.class::isInstance).map(String.class::cast)
@@ -57,6 +68,7 @@ public class UserContextFilter implements GlobalFilter, Ordered {
         }
     }
 
+    // Ejecuta este filtro después de los filtros de correlación y logging.
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE + 2;

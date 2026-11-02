@@ -7,14 +7,14 @@ import org.springframework.security.web.server.util.matcher.ServerWebExchangeMat
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 
 /**
- * Rutas que pasan el gateway sin token (columna "Público" de 01..07_*.md).
- * Cada ruta va con su método: por ejemplo GET /fleet/sucursales es público, pero
- * POST /fleet/sucursales (F3) exige token. Los patrones se comparan con la ruta ya
- * decodificada y sin parámetros de matriz (PathPattern de Spring).
+ * Catálogo de rutas que el gateway deja pasar sin exigir autenticación Bearer.
+ * Cada grupo especifica también el método HTTP: que una consulta GET sea pública no hace
+ * pública una operación POST sobre el mismo recurso. Se comparte un matcher entre la regla
+ * de autorización y el convertidor Bearer para que ambas decisiones usen los mismos patrones.
  */
 public final class PublicEndpoints {
 
-    /** Sesión y recuperación de identity: I1, I2, segundo paso del doble factor, I3, I5 e I6. */
+    // Sesión y recuperación de identity segundo paso del doble factor.
     public static final String[] POST = {
         "/identity/auth/registro",
         "/identity/auth/login",
@@ -25,16 +25,12 @@ public final class PublicEndpoints {
         "/identity/auth/oauth2/canjear",
     };
 
-    /** Login con Google: URL de autorización, callback del proveedor y canje (canjear es POST). */
+    // Login con Google: URL de autorización, callback del proveedor y canje (canjear es POST).
     public static final String[] GET_OAUTH = {
         "/identity/auth/oauth2/**",
     };
 
-    /**
-     * Consultas públicas: F1–F2, T3–T4, T8–T9 y S1. Solo un segmento después del recurso
-     * ("/*"), así GET /fleet/sucursales/{id}/personal (F6) sigue exigiendo token.
-     * En T8/T9 el header Authorization se reenvía: si viene token, el servicio decide por rol.
-     */
+    // Consultas públicas: Solo un segmento después del recurso
     public static final String[] GET_CONSULTAS = {
         "/fleet/sucursales", "/fleet/sucursales/*",
         "/trips/rutas", "/trips/rutas/*",
@@ -42,11 +38,6 @@ public final class PublicEndpoints {
         "/sales/viajes/*/asientos",
     };
 
-    /**
-     * Health del gateway, Swagger agregado del gateway (swagger-ui, webjars y /v3/api-docs/**,
-     * que incluye /v3/api-docs/{servicio} y swagger-config) y el Swagger de cada servicio
-     * por su prefijo (/identity/swagger-ui.html, /identity/v3/api-docs, ...).
-     */
     public static final String[] GET_INFRAESTRUCTURA = Stream.concat(
             Stream.of(ApiPaths.HEALTH_ALL, ApiPaths.SWAGGER_HTML, ApiPaths.SWAGGER_UI,
                     ApiPaths.WEBJARS, ApiPaths.API_DOCS),
@@ -55,6 +46,7 @@ public final class PublicEndpoints {
                     prefijo + ApiPaths.API_DOCS)))
             .toArray(String[]::new);
 
+    // Evita crear instancias de esta clase utilitaria.
     private PublicEndpoints() { }
 
     /**

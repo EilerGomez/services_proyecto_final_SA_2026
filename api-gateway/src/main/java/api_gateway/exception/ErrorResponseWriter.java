@@ -14,16 +14,25 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
 
+/**
+ * Construye y escribe las respuestas de error originadas en el gateway.
+ * Centraliza el status, el código funcional, la ruta y el ID de correlación para que errores
+ * de seguridad, CORS y enrutamiento mantengan el mismo contrato JSON.
+ */
 @Component
 @RequiredArgsConstructor
 public class ErrorResponseWriter {
     private final ObjectMapper objectMapper;
 
+    // Resuelve el código/mensaje estándar del estado y delega la escritura JSON.
     public Mono<Void> write(ServerWebExchange exchange, HttpStatusCode status) {
         return write(exchange, status, code(status.value()), mensaje(status.value()));
     }
 
-    /** Con un código y mensaje propios (p. ej. 401 SESION_REVOCADA). */
+    /**
+     * Escribe el error con código y mensaje explícitos, o no modifica una respuesta ya confirmada.
+     * También incorpora el ID de correlación para relacionar el error con el log de la solicitud.
+     */
     public Mono<Void> write(ServerWebExchange exchange, HttpStatusCode status, String codigo, String mensaje) {
         return Mono.defer(() -> {
             var response = exchange.getResponse();
@@ -43,6 +52,7 @@ public class ErrorResponseWriter {
         });
     }
 
+    // Convierte un status HTTP en el código funcional estándar del gateway.
     private String code(int status) {
         return switch (status) {
             case 401 -> ErrorCodes.UNAUTHORIZED;
@@ -55,6 +65,7 @@ public class ErrorResponseWriter {
         };
     }
 
+    // Selecciona el mensaje legible asociado al estado HTTP.
     private String mensaje(int status) {
         return switch (status) {
             case 401 -> "No autenticado";

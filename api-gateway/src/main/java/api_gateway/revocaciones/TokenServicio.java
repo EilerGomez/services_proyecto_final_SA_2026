@@ -31,17 +31,20 @@ public class TokenServicio {
     private final ObjectMapper json;
     private final Clock reloj;
 
+    // Prepara la clave compartida, serializador y reloj para firmar tokens internos.
     public TokenServicio(String secreto, ObjectMapper json, Clock reloj) {
         this.secreto = secreto.getBytes(StandardCharsets.UTF_8);
         this.json = json;
         this.reloj = reloj;
     }
 
-    /** Igual que {@code ServicioJwt.idServicio}: siempre el mismo UUID para el mismo nombre. */
+    // Igual que ServicioJwt.idServicio: siempre el mismo UUID para el mismo nombre.
+    // Calcula el identificador estable del servicio gateway.
     static UUID idServicio() {
         return UUID.nameUUIDFromBytes(("servicio:" + NOMBRE).getBytes(StandardCharsets.UTF_8));
     }
 
+    // Genera un JWT HS256 de rol SERVICIO con cinco minutos de vigencia.
     public String generar() {
         long ahora = reloj.instant().getEpochSecond();
         Map<String, Object> claims = new LinkedHashMap<>();
@@ -54,6 +57,7 @@ public class TokenServicio {
         return contenido + "." + B64.encodeToString(firmar(contenido));
     }
 
+    // Firma el contenido del JWT usando HMAC-SHA256 y el secreto compartido.
     private byte[] firmar(String contenido) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

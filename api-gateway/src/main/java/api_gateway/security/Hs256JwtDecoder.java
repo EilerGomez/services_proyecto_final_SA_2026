@@ -22,25 +22,37 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.util.StringUtils;
 
 /**
- * Valida los JWT HS256 de comun (los emite Identity con ServicioJwt y el mismo JWT_SECRET).
- * <ul>
- *   <li>Llave: los bytes UTF-8 de {@code app.jwt.secret} con HmacSHA256, igual que ServicioJwt.</li>
- *   <li>Solo acepta {@code alg=HS256}; {@code typ} debe ser "JWT" o faltar (ServicioJwt pone "JWT").</li>
- *   <li>{@code exp} obligatorio y sin tolerancia de reloj, como ServicioJwt.validar
- *       (vencido si ahora &gt;= exp); {@code sub} obligatorio.</li>
- *   <li>No revocado: si a la persona la retiraron o desactivaron, sus JWT emitidos antes ya no valen
- *       ({@link TokenNoRevocadoValidator}).</li>
- * </ul>
+ * Configuración de seguridad encargada de proporcionar el decodificador
+ * reactivo de tokens JWT firmados mediante el algoritmo HS256.
+ *
+ * Configura la verificación criptográfica de los tokens utilizando
+ * la clave secreta compartida con el servicio de identidad, garantizando
+ * que únicamente se acepten tokens firmados con el algoritmo esperado.
+ *
+ * Además, establece las validaciones necesarias para comprobar la
+ * integridad y vigencia de los JWT, exigir la presencia de los claims
+ * obligatorios y verificar que los tokens no hayan sido revocados.
+ *
+ * De esta manera, centraliza las reglas de validación de autenticación
+ * utilizadas por Spring Security para proteger los endpoints privados
+ * del API Gateway.
  */
 @Configuration(proxyBeanMethods = false)
 public class Hs256JwtDecoder {
 
+    /**
+     * Registra el decodificador de JWT como componente de Spring, incorporando el validador encargado
+     * de comprobar el estado de revocación de los tokens antes de autorizar el acceso.
+     */
     @Bean
     ReactiveJwtDecoder jwtDecoder(@Value("${app.jwt.secret}") String secreto, RegistroRevocaciones revocaciones) {
         return crear(secreto, new TokenNoRevocadoValidator(revocaciones));
     }
 
-    /** Con validadores extra (además de firma, vigencia y sub). */
+    /**
+     * Crea el decoder HS256 y configura firma, algoritmo, expiración y sujeto obligatorios,
+     * además de los validadores extra recibidos.
+     */
     @SafeVarargs
     static ReactiveJwtDecoder crear(String secreto, OAuth2TokenValidator<Jwt>... extra) {
         if (secreto == null || secreto.getBytes(StandardCharsets.UTF_8).length < 32) {

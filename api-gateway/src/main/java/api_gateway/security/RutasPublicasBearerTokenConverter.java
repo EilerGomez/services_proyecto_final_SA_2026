@@ -9,20 +9,23 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * Lee el Bearer token igual que Spring Security, salvo en las rutas públicas: ahí no lo
- * toma en cuenta y la petición sigue como anónima. Así un token vencido o inválido en una
- * ruta pública no provoca 401 en el gateway; el header Authorization no se toca y llega al
- * servicio, que lo valida (401 TOKEN_INVALIDO / TOKEN_EXPIRADO) o decide por rol (T8, T9).
+ * Adapta la lectura del token Bearer para respetar la lista de rutas públicas del gateway.
+ *
+ * En ellas no autentica con el token, por lo que un token vencido no bloquea una consulta pública,
+ * el encabezado Authorization se conserva y llega al servicio, que puede validarlo o autorizar
+ * la operación según el rol. En rutas privadas delega en el convertidor estándar de Spring.
  */
 public class RutasPublicasBearerTokenConverter implements ServerAuthenticationConverter {
 
     private final ServerWebExchangeMatcher rutasPublicas;
     private final ServerAuthenticationConverter delegado;
 
+    // Usa el convertidor Bearer provisto por Spring Security.
     public RutasPublicasBearerTokenConverter(ServerWebExchangeMatcher rutasPublicas) {
         this(rutasPublicas, new ServerBearerTokenAuthenticationConverter());
     }
 
+    // Conserva el matcher y el convertidor que procesará las rutas privadas.
     public RutasPublicasBearerTokenConverter(ServerWebExchangeMatcher rutasPublicas,
             ServerAuthenticationConverter delegado) {
         Assert.notNull(rutasPublicas, "rutasPublicas no puede ser null");
@@ -31,6 +34,7 @@ public class RutasPublicasBearerTokenConverter implements ServerAuthenticationCo
         this.delegado = delegado;
     }
 
+    // Devuelve autenticación vacía en rutas públicas y delega la lectura en el resto.
     @Override
     public Mono<Authentication> convert(ServerWebExchange exchange) {
         return rutasPublicas.matches(exchange)
