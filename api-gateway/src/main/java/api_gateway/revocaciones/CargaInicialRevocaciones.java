@@ -16,9 +16,10 @@ import reactor.util.retry.Retry;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Al arrancar trae de identity las revocaciones de la última hora ({@code GET /identity/interno/sesiones-revocadas},
- * con token de servicio): las que ocurrieron mientras el gateway estaba apagado. Si identity aún no
- * responde lo reintenta en segundo plano; el gateway atiende mientras tanto.
+ * Al iniciar trae de identity las revocaciones de la última hora por medio de una solicitud
+ * interna para saber las que ocurrieron mientras el gateway estaba apagado.
+ *
+ * Si identity aún no responde lo reintenta en segundo plano, el gateway atiende mientras tanto.
  */
 @Component
 @ConditionalOnProperty(prefix = "gateway.revocaciones", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -34,18 +35,14 @@ public class CargaInicialRevocaciones {
     private final int intentos;
     private final Duration espera;
 
-    /**
-     * El WebClient se arma aquí: en Spring Boot 4 el bean {@code WebClient.Builder} solo existe con
-     * spring-boot-starter-webclient, que el gateway no usa (pedirlo tumbaba el arranque).
-     */
+    // Prepara el cliente HTTP y parámetros para recuperar revocaciones desde identity.
     @Autowired
-    public CargaInicialRevocaciones(@Value("${gateway.services.identity-url}") String identityUrl,
-                                    TokenServicio token, RegistroRevocaciones registro) {
+    public CargaInicialRevocaciones(@Value("${gateway.services.identity-url}") String identityUrl, TokenServicio token, RegistroRevocaciones registro) {
         this(WebClient.create(identityUrl), token, registro, 40, Duration.ofSeconds(3));
     }
 
-    CargaInicialRevocaciones(WebClient identity, TokenServicio token, RegistroRevocaciones registro,
-                             int intentos, Duration espera) {
+    // Permite inyectar cliente, token y parámetros de reintento, también en las pruebas.
+    CargaInicialRevocaciones(WebClient identity, TokenServicio token, RegistroRevocaciones registro, int intentos, Duration espera) {
         this.identity = identity;
         this.token = token;
         this.registro = registro;
@@ -53,6 +50,7 @@ public class CargaInicialRevocaciones {
         this.espera = espera;
     }
 
+    // Inicia la recuperación de revocaciones al estar lista la aplicación.
     @EventListener(ApplicationReadyEvent.class)
     public void alArrancar() {
         cargar().subscribe(
@@ -60,7 +58,7 @@ public class CargaInicialRevocaciones {
                 error -> log.warn("No se pudieron cargar las revocaciones de identity: {}", error.getMessage()));
     }
 
-    /** Devuelve cuántas revocaciones se registraron. */
+    // Devuelve cuántas revocaciones se registraron.
     Mono<Integer> cargar() {
         return Mono.defer(() -> identity.get().uri(RUTA)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.generar())

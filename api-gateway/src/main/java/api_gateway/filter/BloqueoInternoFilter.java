@@ -16,14 +16,14 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 /**
- * Las rutas internas de servicio a servicio (/&lt;prefijo&gt;/interno/**, R1–R5) responden 404
- * desde afuera, antes de la seguridad y del enrutamiento.
- * <p>
- * No compara el texto crudo de la URL: usa los segmentos ya decodificados y sin parámetros de
- * matriz ({@link PathContainer.PathSegment#valueToMatch()}), sin distinguir mayúsculas, y
- * resuelve "." , ".." y "//" como lo hace el servidor del microservicio. Así se bloquean también
- * /fleet/interno;x=1/..., /fleet/%69nterno/..., /fleet/INTERNO/..., /fleet//interno/... y
- * /fleet/x/../interno/....
+ * Filtro encargado de impedir el acceso externo a las rutas internas
+ *
+ * Identifica y bloquea las solicitudes dirigidas a estos endpoints,
+ * respondiendo con HTTP 404 antes de que continúen hacia los filtros
+ *
+ * La detección de rutas considera la normalización de sus segmentos,
+ * incluyendo la decodificación de caracteres, la comparación sin distinción de mayúsculas
+ * y la resolución de segmentos relativos (".", "..") y barras duplicadas.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -31,10 +31,12 @@ public class BloqueoInternoFilter implements WebFilter {
 
     private final ErrorResponseWriter writer;
 
+    // Guarda el componente que construye las respuestas HTTP uniformes.
     public BloqueoInternoFilter(ErrorResponseWriter writer) {
         this.writer = writer;
     }
 
+    // Responde 404 a rutas internas y deja continuar cualquier otra solicitud.
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         if (esRutaInterna(exchange.getRequest().getPath().pathWithinApplication())) {
@@ -43,13 +45,11 @@ public class BloqueoInternoFilter implements WebFilter {
         return chain.filter(exchange);
     }
 
-    /** true si el segundo segmento de la ruta normalizada es "interno" (sin importar mayúsculas). */
+    // Convierte la ruta en segmentos comparables y detecta si es ruta interna
     static boolean esRutaInterna(PathContainer ruta) {
         List<String> segmentos = new ArrayList<>();
         for (PathContainer.Element elemento : ruta.elements()) {
             if (elemento instanceof PathContainer.PathSegment segmento) {
-                // valueToMatch: decodificado (%69 -> i) y sin ";parametros". Un %2F decodificado
-                // se trata como separador.
                 for (String parte : segmento.valueToMatch().split("/")) {
                     agregar(segmentos, parte.toLowerCase(Locale.ROOT));
                 }
@@ -58,6 +58,7 @@ public class BloqueoInternoFilter implements WebFilter {
         return segmentos.size() > 1 && ApiPaths.INTERNO.equals(segmentos.get(1));
     }
 
+    // Ignora segmentos vacíos y puntos, y aplica la navegación segura de "..".
     private static void agregar(List<String> segmentos, String segmento) {
         if (segmento.isEmpty() || ".".equals(segmento)) {
             return;

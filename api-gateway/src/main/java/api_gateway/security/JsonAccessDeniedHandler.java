@@ -9,11 +9,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+/**
+ * Convierte denegaciones de autorización de Spring Security en el error JSON estándar 403.
+ */
 @Component
 @RequiredArgsConstructor
 public class JsonAccessDeniedHandler implements ServerAccessDeniedHandler {
     private final ErrorResponseWriter writer;
 
+    // Delega la escritura del 403 al componente que centraliza el formato de errores.
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, AccessDeniedException exception) {
         return writer.write(exchange, HttpStatus.FORBIDDEN);
