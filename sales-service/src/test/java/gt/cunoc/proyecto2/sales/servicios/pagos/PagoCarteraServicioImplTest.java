@@ -460,7 +460,7 @@ class PagoCarteraServicioImplTest {
     // ===================== CarteraReembolsada =====================
 
     @Test
-    void carteraReembolsadaDejaReembolsadaLaVentaCancelada() {
+    void carteraReembolsadaDejaReembolsadaLaVentaCanceladaYAvisaAlCliente() {
         VentaEntidad venta = ventaCancelada();
         when(ventas.findById(venta.getId())).thenReturn(Optional.of(venta));
 
@@ -468,11 +468,12 @@ class PagoCarteraServicioImplTest {
 
         assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
         verify(ventas).saveAndFlush(venta);
-        verifyNoInteractions(eventos, asientos, ordenes);
+        verify(eventos).ventaReembolsada(eq(venta), ArgumentMatchers.<BoletoEntidad>anyList(), any());
+        verifyNoInteractions(asientos, ordenes);
     }
 
     @Test
-    void carteraReembolsadaDejaReembolsadaLaVentaRechazada() {
+    void carteraReembolsadaDejaReembolsadaLaVentaRechazadaYAvisaAlCliente() {
         VentaEntidad venta = ventaRechazada();
         when(ventas.findById(venta.getId())).thenReturn(Optional.of(venta));
 
@@ -480,6 +481,18 @@ class PagoCarteraServicioImplTest {
 
         assertThat(venta.getEstado()).isEqualTo(EstadoVenta.REEMBOLSADA);
         verify(ventas).saveAndFlush(venta);
-        verifyNoInteractions(eventos);
+        verify(eventos).ventaReembolsada(eq(venta), ArgumentMatchers.<BoletoEntidad>anyList(), any());
+    }
+
+    /** Un reembolso de una venta que ya no está: no se avisa nada y no se toca ninguna tabla. */
+    @Test
+    void laVentaQueNoExisteNoAvisaNada() {
+        UUID ventaId = UUID.randomUUID();
+        when(ventas.findById(ventaId)).thenReturn(Optional.empty());
+
+        servicio.carteraReembolsada(ReferenciaCartera.VENTA, ventaId);
+
+        verify(ventas, never()).saveAndFlush(any());
+        verifyNoInteractions(eventos, asientos, boletos, ordenes);
     }
 }
