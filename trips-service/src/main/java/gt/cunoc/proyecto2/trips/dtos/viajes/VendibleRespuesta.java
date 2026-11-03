@@ -23,11 +23,6 @@ public record VendibleRespuesta(
         BigDecimal precioBoleto,
         Integer capacidad,
         UUID sucursalOrigenId,
-        /**
-         * El piloto asignado puede vender boletos presenciales de este viaje: la marca del viaje
-         * está activa y el piloto sigue ACTIVO en Flota. Lo demás (que el viaje no haya salido) ya
-         * lo dice vendible.
-         */
         boolean ventaPorChofer,
         /** Piloto asignado, para que Ventas compruebe que quien vende es él. */
         UUID choferId) {

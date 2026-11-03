@@ -20,7 +20,7 @@ public class VistaViajeServicioImpl implements VistaViajeServicio {
     @Transactional(readOnly = true)
     public VistaViajeEntidad obtenerALaVenta(UUID viajeId) {
         return repositorio.findById(viajeId)
-                .filter(VistaViajeEntidad::estaALaVenta)
+                .filter(VistaViajeEntidad::estaALaVenta)// si esta PROGRAMADO
                 .orElseThrow(() -> ErrorViaje.VIAJE_NO_DISPONIBLE.excepcion());
     }
 }

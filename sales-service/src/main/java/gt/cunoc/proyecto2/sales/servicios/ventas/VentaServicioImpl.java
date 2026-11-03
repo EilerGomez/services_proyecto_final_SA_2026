@@ -117,21 +117,20 @@ public class VentaServicioImpl implements VentaServicio {
     @Transactional
     public VentaPendienteRespuesta venderEnLinea(NuevaVentaEnLineaSolicitud solicitud, UsuarioActual usuario) {
         VistaClienteEntidad perfil = clientes.findById(usuario.usuarioId())
-                .orElseThrow(() -> ErrorVenta.CLIENTE_SIN_PERFIL.excepcion());           // aún no llega ClienteRegistrado
-        VistaViajeEntidad viaje = viajes.obtenerALaVenta(solicitud.viajeId());              // 404
-        List<Integer> numeros = solicitud.asientosValidados(viaje.getCapacidad());          // 400
-        verificarVendible(viaje);                                                            // R2: 422 / 503
+                .orElseThrow(() -> ErrorVenta.CLIENTE_SIN_PERFIL.excepcion());           // Aun no llega ClienteRegistrado
+        VistaViajeEntidad viaje = viajes.obtenerALaVenta(solicitud.viajeId());              // si esta programado
+        List<Integer> numeros = solicitud.asientosValidados(viaje.getCapacidad());          // valida los asientos que no esten repetidos y que el asiento no sea mayor a la capacidad del bus o viaje
+        verificarVendible(viaje);//si chofer esta activo                                  // REST CIRCUITO 2: 422 / 503
 
-        ClienteVenta cliente = new ClienteVenta(perfil.getUsuarioId(), perfil.getNit(), perfil.getNombre(),
-                perfil.getCorreo());
+        ClienteVenta cliente = ClienteVenta.deSuPerfil(perfil); // trae nit y nombre completo       
         VentaEntidad venta = repositorio.saveAndFlush(VentaEntidad.registrarEnLinea(
                 viaje, cliente, numeros.size(), solicitud.fechaPago()));
         OffsetDateTime reservadoHasta = Fechas.ahora().plusMinutes(minutosReserva);
         if (asientos.reservar(viaje.getViajeId(), numeros, venta.getId(), reservadoHasta) != numeros.size()) {
-            throw ErrorVenta.ASIENTO_OCUPADO.excepcion(numeros);                             // 409: rollback
+            throw ErrorVenta.ASIENTO_OCUPADO.excepcion(numeros);                             // 409: rollback si truena aca
         }
-        // Saga: Wallet responde CarteraDebitada (→ CONFIRMADA y boletos) o DebitoCarteraRechazado
-        eventos.debitoVenta(venta);
+        // Saga: Wallet responde CarteraDebitada (CONFIRMADA y boletos) o DebitoCarteraRechazado
+        eventos.debitoVenta(venta);//publica el evento
         return new VentaPendienteRespuesta(venta, numeros, reservadoHasta);
     }
 
@@ -256,7 +255,7 @@ public class VentaServicioImpl implements VentaServicio {
                 .toList();
     }
 
-    /**
+    /*
      * Después de guardar la venta CANCELADA: boletos CANCELADO, asientos libres, VentaCancelada
      * (businessDate = fecha de cancelación) y, si se pagó con cartera, el reembolso con esa misma fecha.
      */
@@ -307,7 +306,7 @@ public class VentaServicioImpl implements VentaServicio {
                 .orElseThrow(() -> ErrorVenta.VENTA_NO_EXISTE.excepcion());
     }
 
-    /** R2: la copia local puede ir atrasada; Trips tiene la última palabra antes de vender. */
+    //Trips tiene la última palabra antes de vender
     private VendibleRespuesta verificarVendible(VistaViajeEntidad viaje) {
         VendibleRespuesta respuesta = trips.consultarVendible(viaje.getViajeId());
         if (!respuesta.vendible()) {
@@ -316,7 +315,7 @@ public class VentaServicioImpl implements VentaServicio {
         return respuesta;
     }
 
-    /**
+    /*
      * Venta de a bordo: el piloto vende boletos del viaje que él maneja, para la punta de la ruta
      * donde no hay ventanilla. Quien decide es Trips, que en la misma respuesta de R2 dice si el
      * viaje tiene la venta habilitada —comprobando también que el piloto siga ACTIVO en Flota— y

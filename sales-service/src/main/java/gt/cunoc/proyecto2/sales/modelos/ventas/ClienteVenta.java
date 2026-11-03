@@ -1,5 +1,6 @@
 package gt.cunoc.proyecto2.sales.modelos.ventas;
 
+import gt.cunoc.proyecto2.sales.modelos.clientes.VistaClienteEntidad;
 import java.util.UUID;
 
 public record ClienteVenta(UUID usuarioId, String nit, String nombre, String correo) {
@@ -14,5 +15,8 @@ public record ClienteVenta(UUID usuarioId, String nit, String nombre, String cor
 
     public boolean esConsumidorFinal() {
         return CONSUMIDOR_FINAL_NIT.equals(nit);
+    }
+    public static ClienteVenta deSuPerfil(VistaClienteEntidad perfil) {
+        return new ClienteVenta(perfil.getUsuarioId(), perfil.getNit(), perfil.getNombre(), perfil.getCorreo());
     }
 }

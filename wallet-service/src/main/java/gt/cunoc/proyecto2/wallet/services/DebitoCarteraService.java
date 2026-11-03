@@ -44,7 +44,7 @@ public class DebitoCarteraService {
 
     @Transactional
     public void procesar(UUID usuarioId, BigDecimal monto, String referenciaTipo, UUID referenciaId, LocalDate fechaNegocio) {
-        if (!identity.cuentaActiva(usuarioId)) {
+        if (!identity.cuentaActiva(usuarioId)) {//REST A identity si la cuenta esta activa
             rechazar(usuarioId, monto, referenciaTipo, referenciaId, fechaNegocio, MotivoRechazoDebito.USUARIO_INACTIVO);
             return;
         }

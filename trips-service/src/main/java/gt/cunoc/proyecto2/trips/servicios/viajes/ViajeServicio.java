@@ -31,7 +31,7 @@ public interface ViajeServicio {
 
     void eliminar(UUID id, String motivo, UsuarioActual usuario);
 
-    /**
+    /*
      * Borra el viaje PRIVADO de un alquiler que se está cancelando y devuelve su id (null si el
      * alquiler no tenía bus asignado). No valida roles ni sucursal: el permiso ya se verificó sobre el
      * alquiler, que es lo que el usuario está cancelando —y desde PAGADO el propio cliente puede
