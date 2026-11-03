@@ -24,8 +24,8 @@ import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-/**
- * Convierte cualquier excepción en una {@link ErrorRespuesta} con el mismo formato en todos los servicios.
+/*
+ * Convierte cualquier excepción en una {ErrorRespuesta} con el mismo formato en todos los servicios.
  * Incluye los errores lanzados por los triggers de PostgreSQL (RAISE EXCEPTION → SQLSTATE P0001).
  */
 @RestControllerAdvice
@@ -80,21 +80,21 @@ public class ManejadorGlobalErrores {
         return errores.respuesta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO", e.getMessage(), req);
     }
 
-    /** El archivo supera {@code spring.servlet.multipart.max-file-size} (Spring lo rechaza antes del controlador). */
+    /* El archivo supera {@code spring.servlet.multipart.max-file-size} (Spring lo rechaza antes del controlador). */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorRespuesta> archivoMuyGrande(MaxUploadSizeExceededException e, HttpServletRequest req) {
         return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",
                 "El archivo supera el tamaño máximo permitido", req);
     }
 
-    /** Falta la parte del formulario (p. ej. el campo {@code archivo}) en una petición multipart. */
+    /* Falta la parte del formulario (p. ej. el campo {@code archivo}) en una petición multipart. */
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<ErrorRespuesta> archivoFaltante(MissingServletRequestPartException e, HttpServletRequest req) {
         return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",
                 "Falta el archivo '" + e.getRequestPartName() + "'", req);
     }
 
-    /** Petición multipart mal formada o que no es multipart. */
+    /* peticion multipart mal formada o que no es multipart. */
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ErrorRespuesta> multipartInvalido(MultipartException e, HttpServletRequest req) {
         return errores.respuesta(HttpStatus.BAD_REQUEST, "ARCHIVO_INVALIDO",

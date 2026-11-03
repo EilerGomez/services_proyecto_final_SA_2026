@@ -21,12 +21,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * Publica en RabbitMQ los eventos pendientes de {@code eventos_salida}, en orden de creación.
+/*
+ * Publica en RabbitMQ los eventos pendientes de {eventos_salida}, en orden de creacion.
  * Un evento solo se marca como publicado cuando el broker lo confirma (publisher confirms),
- * por eso el servicio necesita {@code spring.rabbitmq.publisher-confirm-type: correlated}.
+ * por eso el servicio necesita {spring.rabbitmq.publisher-confirm-type: correlated}.
  * Si uno falla, se detiene el lote para no desordenar los eventos y se reintenta en el siguiente ciclo.
- * {@code FOR UPDATE SKIP LOCKED} permite correr varias instancias del servicio sin publicar dos veces.
+ * {FOR UPDATE SKIP LOCKED} permite correr varias instancias del servicio sin publicar dos veces.
  */
 @Component
 @ConditionalOnProperty(prefix = "comun.eventos", name = "exchange")
@@ -86,7 +86,7 @@ public class RelayOutbox {
         });
     }
 
-    /** Deja el id de correlación en el MDC mientras se publica, para que las líneas lo lleven. */
+    /* Deja el id de correlación en el MDC mientras se publica, para que las líneas lo lleven. */
     private boolean publicar(Pendiente pendiente) {
         if (pendiente.correlacion() != null) {
             ContextoCorrelacion.establecer(pendiente.correlacion());

@@ -8,7 +8,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** Registra el interceptor de roles y el resolver de {@link UsuarioActual}. */
+/* Registra el interceptor de roles y el resolver de  UsuarioActual. */
 @Configuration
 public class ConfiguracionSeguridadWeb implements WebMvcConfigurer {
 

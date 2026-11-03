@@ -2,7 +2,7 @@ package gt.cunoc.proyecto2.comun.errores;
 
 import org.springframework.http.HttpStatus;
 
-/** Falta el token o no es válido (HTTP 401). */
+/* Falta el token o no es válido (HTTP 401). */
 public class NoAutenticadoException extends NegocioException {
 
     public NoAutenticadoException(String codigo, String mensaje) {

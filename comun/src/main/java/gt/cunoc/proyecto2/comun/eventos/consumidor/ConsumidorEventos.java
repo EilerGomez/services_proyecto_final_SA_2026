@@ -20,16 +20,10 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
+/*
  * Único listener de la cola del servicio ({@code comun.eventos.cola}).
  * Lee el sobre, busca el {@link ManejadorEvento} del tipo de evento y lo ejecuta
- * dentro de {@link ProcesadorIdempotente} (un evento duplicado se ignora).
- *
- * <ul>
- *   <li>JSON inválido o payload que no se puede convertir → directo a la DLQ, sin reintentos.</li>
- *   <li>Excepción del manejador → reintentos (spring.rabbitmq.listener.simple.retry) y luego DLQ.</li>
- *   <li>Evento sin manejador → se registra en el log y se descarta.</li>
- * </ul>
+ * dentro de {ProcesadorIdempotente} (un evento duplicado se ignora).
  */
 @Component
 @ConditionalOnProperty(prefix = "comun.eventos", name = "cola")
@@ -57,7 +51,7 @@ public class ConsumidorEventos {
     public void recibir(Message mensaje) {
         EventoSobre sobre = leerSobre(mensaje);
 
-        ManejadorEvento<?> manejador = manejadores.get(sobre.eventType());
+        ManejadorEvento<?> manejador = manejadores.get(sobre.eventType());//busca en el directorio quien maneja ese mensaje
         if (manejador == null) {
             log.warn("SAGA corr={} evento={} id={} paso=sin-manejador; se descarta",
                     sobre.correlationId(), sobre.eventType(), sobre.eventId());
@@ -101,7 +95,7 @@ public class ConsumidorEventos {
         }
     }
 
-    private <T> void despachar(ManejadorEvento<T> manejador, EventoSobre sobre) {
+    private <T> void despachar(ManejadorEvento<T> manejador, EventoSobre sobre) {//Convierte el payload al record que el manejador declaro
         T payload;
         try {
             payload = json.convertValue(sobre.payload(), manejador.tipoPayload());

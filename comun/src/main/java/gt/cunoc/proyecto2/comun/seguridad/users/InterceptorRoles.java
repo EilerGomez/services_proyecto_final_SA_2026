@@ -9,8 +9,10 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-/** Aplica {@link RequiereRol}. Las excepciones las convierte el manejador global en 401/403. */
+/* Aplica {@RequiereRol}. Las excepciones las convierte el manejador global en 401/403. */
 public class InterceptorRoles implements HandlerInterceptor {
+    
+    private static final String ROL_INSUFICIENTE = "ROL_INSUFICIENTE";
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -30,7 +32,7 @@ public class InterceptorRoles implements HandlerInterceptor {
             throw new NoAutenticadoException("Debe iniciar sesión");
         }
         if (requisito.value().length > 0 && !usuario.tieneAlgunRol(requisito.value())) {
-            throw new ProhibidoException("ROL_INSUFICIENTE", "Su rol no permite realizar esta operación");
+            throw new ProhibidoException(ROL_INSUFICIENTE, "Su rol no permite realizar esta operación");
         }
         return true;
     }

@@ -12,7 +12,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Toma el header X-Correlation-Id (o genera uno), lo deja en el contexto y en los logs, y lo devuelve. */
+/* Toma el header X-Correlation-Id (o genera uno), lo deja en el contexto y en los logs, y lo devuelve. */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class FiltroCorrelacion extends OncePerRequestFilter {

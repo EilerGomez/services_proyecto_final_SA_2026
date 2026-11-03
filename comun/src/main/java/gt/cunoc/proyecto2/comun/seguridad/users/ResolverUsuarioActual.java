@@ -9,8 +9,8 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
-/**
- * Permite declarar {@link UsuarioActual} como parámetro de un controlador.
+/*
+ * Permite declarar {UsuarioActual} como parámetro de un controlador.
  * Si no hay usuario autenticado responde 401, salvo que el parámetro sea opcional (@Nullable).
  */
 public class ResolverUsuarioActual implements HandlerMethodArgumentResolver {

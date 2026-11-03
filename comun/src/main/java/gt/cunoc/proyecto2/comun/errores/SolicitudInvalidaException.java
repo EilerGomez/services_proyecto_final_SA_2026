@@ -2,7 +2,7 @@ package gt.cunoc.proyecto2.comun.errores;
 
 import org.springframework.http.HttpStatus;
 
-/** Datos de entrada inválidos (HTTP 400). */
+/* Datos de entrada inválidos (HTTP 400). */
 public class SolicitudInvalidaException extends NegocioException {
 
     public SolicitudInvalidaException(String codigo, String mensaje) {

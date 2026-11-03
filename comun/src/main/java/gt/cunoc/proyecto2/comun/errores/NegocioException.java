@@ -2,7 +2,7 @@ package gt.cunoc.proyecto2.comun.errores;
 
 import org.springframework.http.HttpStatus;
 
-/**
+/*
  * Excepción base de todos los errores esperados del negocio.
  * El manejador global la convierte en una {@link ErrorRespuesta} con el status y código indicados.
  */

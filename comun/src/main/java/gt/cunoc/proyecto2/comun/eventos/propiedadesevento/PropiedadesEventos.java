@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 /**
  * Configuración de eventos del servicio (application.yml):
  *
- * <pre>
  * comun:
  *   eventos:
  *     exchange: sales.eventos          # exchange propio (solo si publica)
@@ -18,7 +17,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     outbox:
  *       intervalo-ms: 1000
  *       lote: 100
- * </pre>
+ * 
  */
 @ConfigurationProperties(prefix = "comun.eventos")
 public record PropiedadesEventos(

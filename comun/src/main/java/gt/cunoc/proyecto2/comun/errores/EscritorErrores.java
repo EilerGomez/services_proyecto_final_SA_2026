@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Construye {@link ErrorRespuesta} y la escribe en la respuesta (también desde filtros). */
+/* Construye un ErrorRespuesta y la escribe en la respuesta (tambien desde filtros). */
 @Component
 public class EscritorErrores {
 
@@ -29,21 +29,21 @@ public class EscritorErrores {
     }
 
     public ResponseEntity<ErrorRespuesta> respuesta(HttpStatus status, String codigo, String mensaje,
-                                                    HttpServletRequest request) {
+                                                    HttpServletRequest request) { // version corta como no tienes permisos
         return respuesta(status, codigo, mensaje, request, List.of());
     }
 
     public ResponseEntity<ErrorRespuesta> respuesta(HttpStatus status, String codigo, String mensaje,
                                                     HttpServletRequest request,
-                                                    List<ErrorRespuesta.ErrorCampo> errores) {
+                                                    List<ErrorRespuesta.ErrorCampo> errores) {//version larga como campos con errores o varios errores
         return ResponseEntity.status(status)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(crear(status, codigo, mensaje, request.getRequestURI(), errores));
     }
 
-    /** Para filtros, que se ejecutan antes de Spring MVC y no pasan por el @RestControllerAdvice. */
+    /* Para filtros, que se ejecutan antes de Spring MVC y no pasan por el @RestControllerAdvice. */
     public void escribir(HttpServletRequest request, HttpServletResponse response,
-                         HttpStatus status, String codigo, String mensaje) throws IOException {
+                         HttpStatus status, String codigo, String mensaje) throws IOException {// forma manual, el error lo entrega el mismo
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");

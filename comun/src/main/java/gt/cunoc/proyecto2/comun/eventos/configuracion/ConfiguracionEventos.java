@@ -15,9 +15,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
 
-/**
- * Declara en RabbitMQ, al arrancar, la topología del servicio a partir de {@link PropiedadesEventos}:
- * su exchange, su cola con DLQ ({@code <cola>.dlq}) y los bindings a los exchanges de otros servicios.
+/*
+ * Declara en RabbitMQ, al arrancar, la topología del servicio a partir de {PropiedadesEventos}:
+ * su exchange, su cola con DLQ y los bindings a los exchanges de otros servicios.
  * Declarar algo que ya existe con los mismos argumentos no tiene efecto.
  */
 @Configuration
@@ -30,16 +30,16 @@ public class ConfiguracionEventos {
         List<Declarable> declarables = new ArrayList<>();
 
         if (StringUtils.hasText(propiedades.exchange())) {
-            declarables.add(new TopicExchange(propiedades.exchange(), true, false));
+            declarables.add(new TopicExchange(propiedades.exchange(), true, false));// dureable y auto delete
         }
 
         if (StringUtils.hasText(propiedades.cola())) {
             String dlq = propiedades.cola() + ".dlq";
-            declarables.add(QueueBuilder.durable(dlq).build());
+            declarables.add(QueueBuilder.durable(dlq).build()); //primero la DLQ
 
             Queue cola = QueueBuilder.durable(propiedades.cola())
                     .deadLetterExchange("")          // exchange por defecto
-                    .deadLetterRoutingKey(dlq)       // → <cola>.dlq al agotar reintentos
+                    .deadLetterRoutingKey(dlq)       //  <cola>.dlq al agotar reintentos
                     .build();
             declarables.add(cola);
 

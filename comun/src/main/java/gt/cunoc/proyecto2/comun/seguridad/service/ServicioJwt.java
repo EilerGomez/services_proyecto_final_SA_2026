@@ -24,18 +24,18 @@ import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
-/**
+/*
  * Genera y valida JWT firmados con HS256 y el secreto compartido {@code app.jwt.secret} (≥ 32 caracteres).
- * Identity usa {@link #generar}; todos los servicios usan {@link #validar} (a través del filtro).
- * Para las llamadas internas (R1–R5) se usa {@link #generarServicio}, normalmente a través de
- * {@code ClientesInternos}.
+ * Identity usa {generar}; todos los servicios usan {validar} (a través del filtro).
+ * Para las llamadas internas (R1–R5) se usa {generarServicio}, normalmente a través de
+ * {ClientesInternos}.
  *
- * <p>Claims: sub (usuarioId), correo, roles[], sucursalId, choferId, iat, exp.</p>
+ * Claims: sub (usuarioId), correo, roles[], sucursalId, choferId, iat, exp
  */
 @Component
 public class ServicioJwt {
 
-    /** Duración del token de servicio (independiente de {@code app.jwt.duracion-minutos}). */
+    /*Duración del token de servicio (independiente de {@code app.jwt.duracion-minutos}). */
     public static final Duration DURACION_TOKEN_SERVICIO = Duration.ofMinutes(5);
 
     private static final String ALGORITMO = "HmacSHA256";
@@ -48,7 +48,10 @@ public class ServicioJwt {
     private final byte[] secreto;
     private final Duration duracion;
     private final Clock reloj;
-
+    
+    private static final String TOKEN_EXPIRADO = "TOKEN_EXPIRADO";
+    private static final String TOKEN_INVALIDO = "TOKEN_INVALIDO";
+    
     @Autowired
     public ServicioJwt(JsonMapper json,
                        @Value("${app.jwt.secret}") String secreto,
@@ -66,14 +69,14 @@ public class ServicioJwt {
         this.reloj = reloj;
     }
 
-    /** Token de una persona (login en Identity). Dura {@code app.jwt.duracion-minutos}. */
+    /*Token de una persona (login en Identity)*/
     public String generar(UsuarioActual usuario) {
         return firmarToken(usuario, duracion);
     }
 
-    /**
+    /*
      *
-     * @param nombreServicio p. ej. {@code "fleet-service"} (el {@code spring.application.name})
+     * sPara los servicios internos
      */
     public String generarServicio(String nombreServicio) {
         if (nombreServicio == null || nombreServicio.isBlank()) {
@@ -84,7 +87,7 @@ public class ServicioJwt {
         return firmarToken(servicio, DURACION_TOKEN_SERVICIO);
     }
 
-    /** UUID estable de un servicio: siempre el mismo para el mismo nombre. */
+    // UUID estable de un servicio: siempre el mismo para el mismo nombre. 
     public static UUID idServicio(String nombreServicio) {
         return UUID.nameUUIDFromBytes(("servicio:" + nombreServicio).getBytes(StandardCharsets.UTF_8));
     }
@@ -108,7 +111,7 @@ public class ServicioJwt {
         return contenido + "." + B64.encodeToString(firmar(contenido));
     }
 
-    /** @throws NoAutenticadoException si el token es inválido, está alterado o expiró. */
+    // NoAutenticadoException si el token es inválido, está alterado o ya expiro
     public UsuarioActual validar(String token) {
         Map<String, Object> claims;
         try {
@@ -131,7 +134,7 @@ public class ServicioJwt {
 
         Object exp = claims.get("exp");
         if (!(exp instanceof Number numero) || reloj.instant().getEpochSecond() >= numero.longValue()) {
-            throw new NoAutenticadoException("TOKEN_EXPIRADO", "La sesión expiró, vuelva a iniciar sesión");
+            throw new NoAutenticadoException(TOKEN_EXPIRADO, "La sesión expiró, vuelva a iniciar sesión");
         }
 
         try {
@@ -173,6 +176,6 @@ public class ServicioJwt {
     }
 
     private static NoAutenticadoException invalido() {
-        return new NoAutenticadoException("TOKEN_INVALIDO", "El token no es válido");
+        return new NoAutenticadoException(TOKEN_INVALIDO, "El token no es válido");
     }
 }

@@ -4,10 +4,10 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.MDC;
 
-/**
+/*
  * Id de correlación del flujo actual (una petición HTTP o el procesamiento de un evento).
  * Viaja en el header {@value #HEADER} y en el campo correlationId de los eventos,
- * así se puede seguir una saga completa en los logs de todos los servicios.
+ * con esto podemos seguir una saga completa con los logs
  */
 public final class ContextoCorrelacion {
 

@@ -4,9 +4,9 @@ import gt.cunoc.proyecto2.comun.errores.ProhibidoException;
 import java.util.Set;
 import java.util.UUID;
 
-/**
+/*
  * Usuario autenticado (claims del JWT). Se recibe como parámetro en los controladores:
- * {@code public Bus crear(@RequestBody @Valid BusRequest r, @Parameter(hidden = true) UsuarioActual usuario)}.
+ *  public Bus crear(@RequestBody @Valid BusRequest r, @Parameter(hidden = true) UsuarioActual usuario).
  */
 public record UsuarioActual(
         UUID usuarioId,
@@ -14,6 +14,8 @@ public record UsuarioActual(
         Set<String> roles,
         UUID sucursalId,
         UUID choferId) {
+    
+    private static final String SUCURSAL_AJENA = "SUCURSAL_AJENA";
 
     public UsuarioActual {
         roles = roles == null ? Set.of() : Set.copyOf(roles);
@@ -36,18 +38,18 @@ public record UsuarioActual(
         return tieneRol(Roles.ADMIN_SISTEMA);
     }
 
-    /** true si la petición viene de otro microservicio (token de servicio, rol SERVICIO). */
+    /*true si la petición viene de otro microservicio (token de servicio, rol SERVICIO). */
     public boolean esServicio() {
         return tieneRol(Roles.SERVICIO);
     }
 
-    /** ADMIN_SISTEMA ve todo; los demás solo los datos de su propia sucursal. */
+    /* ADMIN_SISTEMA ve todo; los demás solo los datos de su propia sucursal. */
     public void verificarAccesoSucursal(UUID sucursal) {
         if (esAdminSistema()) {
             return;
         }
         if (sucursalId == null || !sucursalId.equals(sucursal)) {
-            throw new ProhibidoException("SUCURSAL_AJENA", "No tiene acceso a los datos de esta sucursal");
+            throw new ProhibidoException(SUCURSAL_AJENA, "No tiene acceso a los datos de esta sucursal");
         }
     }
 }

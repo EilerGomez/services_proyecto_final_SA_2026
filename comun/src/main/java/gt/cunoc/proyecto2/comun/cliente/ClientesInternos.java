@@ -38,7 +38,7 @@ public class ClientesInternos {
         this.nombreServicio = nombreServicio;
     }
 
-    /** Cliente con la URL base del otro servicio (p. ej. {@code http://trips-service:8083}) y espera de 3 s. */
+    /* Cliente con la URL base del otro servicio (p. ej. {@code http://trips-service:8083}) y espera de 3 s. */
     public RestClient crear(String urlBase) {
         return crear(urlBase, TIEMPO_ESPERA);
     }

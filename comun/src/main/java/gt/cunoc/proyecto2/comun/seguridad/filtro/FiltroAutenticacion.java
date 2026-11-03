@@ -14,11 +14,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/**
- * Si la petición trae "Authorization: Bearer ...", valida el JWT y deja el {@link UsuarioActual}
- * como atributo de la petición. Token inválido → 401 inmediato.
+/*
+ * Si la petición trae "Authorization: Bearer, valida el JWT y deja el {@link UsuarioActual}
+ * como atributo de la petición. Token inválido manda un 401 inmediato.
  * Sin token la petición sigue como anónima: los endpoints protegidos lo rechazan con
- * {@link RequiereRol} o al pedir un parámetro {@link UsuarioActual}.
+ * {RequiereRol} o al pedir un parámetro {UsuarioActual}.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
